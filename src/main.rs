@@ -12,7 +12,8 @@ use halo2_proofs::{
     transcript::{CircuitTranscript, Transcript},
 };
 use log::info;
-use plutus_halo2_verifier_gen::proof_serialization::serialize_proof;
+use plutus_halo2_verifier_gen::code_gen::extraction::extract_circuit;
+use plutus_halo2_verifier_gen::code_gen::proof_serialization::serialize_proof;
 use rand::rngs::StdRng;
 use rand_core_06::SeedableRng;
 use std::{fs::File, io::Write};
@@ -93,9 +94,9 @@ fn main() {
         .verify(&params.verifier_params())
         .expect("verify failed");
 
-    serialize_proof(
-        "./serialized_proof.json".to_string(),
-        proof_for_export,
-    )
-    .unwrap();
+    serialize_proof("./serialized_proof.json".to_string(), proof_for_export).unwrap();
+
+    let mut transcript_generator: CircuitTranscript<State> =
+        CircuitTranscript::<State>::init_from_bytes(&proof);
+    extract_circuit(&params, &vk, instances, &mut transcript_generator).expect("extracting failed");
 }

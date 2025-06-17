@@ -1,1 +1,1 @@
-pub mod proof_serialization;
+pub mod code_gen;

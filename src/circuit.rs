@@ -149,7 +149,7 @@ impl<F: Field> Circuit<F> for MyCircuit<F> {
         let constant = meta.fixed_column();
 
         // Create a column to load public inputs, they are not used in this example
-        // but in general I want to export public instances along with the proof 
+        // but in general I want to export public instances along with the proof
         // so it is added
         let _instance = meta.instance_column();
 
