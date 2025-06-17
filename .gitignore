@@ -9,3 +9,7 @@ target/
 /target
 serialized_proof.json
 serialized_public_input.hex
+Verifier.hs
+VKConstants.hs
+VerifierScript.flat
+benchmark.json

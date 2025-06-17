@@ -1,0 +1,94 @@
+cabal-version: 3.0
+name:          plutus-halo2
+version:       1.0.0.0
+license:       Apache-2.0
+author:        Adam Smolarek
+maintainer:    adam.smolarek@iohk.io
+synopsis:      "A plutus halo2 verifier"
+build-type:    Simple
+
+common common-lang
+  ghc-options: -Wall
+               -fno-ignore-interface-pragmas
+               -fno-omit-interface-pragmas
+               -fno-full-laziness
+               -fno-spec-constr
+               -fno-specialise
+               -fno-strictness
+               -fno-unbox-strict-fields
+               -fno-unbox-small-strict-fields
+  PlutusTx.Plugin:defer-errors
+
+library
+  import:           common-lang
+  exposed-modules:
+    Plutus.Crypto.BlsTypes
+    Plutus.Crypto.BlsUtils
+    Plutus.Crypto.Constants
+    Plutus.Crypto.Halo2
+    Plutus.Crypto.Halo2.ApplicativeParser
+    Plutus.Crypto.Halo2.CompressUncompress
+    Plutus.Crypto.Halo2.Generic.Verifier
+    Plutus.Crypto.Halo2.Generic.VKConstants
+    Plutus.Crypto.Halo2.LagrangePolynomialEvaluation
+    Plutus.Crypto.Halo2.MSMEval
+    Plutus.Crypto.Halo2.MSMTH
+    Plutus.Crypto.Halo2.MSMTypes
+    Plutus.Crypto.Halo2.Proof
+    Plutus.Crypto.Orphans
+    Plutus.Crypto.VKType
+
+  other-modules:    Plutus.Crypto.Halo2.Transcript
+  hs-source-dirs:   src
+  default-language: Haskell2010
+  build-depends:
+    , aeson
+    , base               >=4.2       && <5
+    , bytestring
+    , containers
+    , file-embed
+    , lens
+    , mtl
+    , plutus-core        ^>=1.46
+    , plutus-ledger-api  ^>=1.46
+    , plutus-tx          ^>=1.46
+    , plutus-tx-plugin   ^>=1.46
+    , template-haskell
+    , th-lift
+    , text
+    , hex-text
+
+test-suite run-vector-test
+  import:           common-lang
+  type:             exitcode-stdio-1.0
+  default-language: Haskell2010
+  hs-source-dirs:   test
+  main-is:          Test.hs
+  build-depends:
+    , aeson
+    , base                  >=4.2       && <5
+    , bytestring
+    , containers
+    , file-embed
+    , flat
+    , lens
+    , mtl
+    , plutus-core           ^>=1.46
+    , plutus-halo2
+    , plutus-ledger-api     ^>=1.46
+    , plutus-tx             ^>=1.46
+    , plutus-tx-plugin      ^>=1.46
+    , quickcheck-instances
+    , tasty
+    , tasty-hunit
+    , tasty-quickcheck
+    , template-haskell
+    , text
+    , hex-text
+
+  other-modules:
+    EvalUtils
+    Generic.Proof
+    Generic.VerificationTestPlutus
+    Generic.VerificationTestHaskell
+    Generic.VerifyCompiled

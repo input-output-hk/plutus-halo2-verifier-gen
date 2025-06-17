@@ -96,7 +96,6 @@ fn main() {
 
     serialize_proof("./serialized_proof.json".to_string(), proof_for_export).unwrap();
 
-    let mut transcript_generator: CircuitTranscript<State> =
-        CircuitTranscript::<State>::init_from_bytes(&proof);
-    extract_circuit(&params, &vk, instances, &mut transcript_generator).expect("extracting failed");
+    let data = extract_circuit(&params, &vk, instances).expect("extracting failed");
+    println!("extracted data: {:?}", data);
 }

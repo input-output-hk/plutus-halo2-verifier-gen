@@ -1,0 +1,246 @@
+{-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE QualifiedDo #-}
+{-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE NoImplicitPrelude #-}
+{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
+{-# OPTIONS_GHC -ddump-splices #-}
+
+{-# HLINT ignore "Use camelCase" #-}
+
+module Plutus.Crypto.Halo2.Generic.Verifier (verify) where
+
+import Language.Haskell.TH.Syntax (lift)
+import Plutus.Crypto.BlsTypes (
+  MultiplicativeGroup (recip),
+  Scalar,
+  mkScalar,
+  powMod,
+ )
+import qualified Plutus.Crypto.BlsUtils as BlsUtils
+import qualified Plutus.Crypto.Constants as Constants
+import qualified Plutus.Crypto.Halo2.Generic.VKConstants as VKConstants
+import qualified Plutus.Crypto.Halo2.ApplicativeParser as M
+import Plutus.Crypto.Halo2.LagrangePolynomialEvaluation (
+  getRotatedOmegas,
+  lagrangePolynomialEvaluation,
+ )
+import Plutus.Crypto.Halo2.MSMEval (eval)
+import Plutus.Crypto.Halo2.MSMTH (
+  NameAnn (NameAnn),
+  buildMSMTH,
+ )
+import Plutus.Crypto.Halo2.MSMTypes (
+  MSM (MSM),
+  MinimalVerifierQuery (MinimalVerifierQuery),
+  addMSM,
+  appendTerm,
+ )
+import Plutus.Crypto.Orphans ()
+import PlutusTx.Builtins (
+  BuiltinBLS12_381_G1_Element,
+  BuiltinBLS12_381_G2_Element,
+  BuiltinBLS12_381_MlResult,
+  bls12_381_G1_compressed_zero,
+  bls12_381_G2_compressed_generator,
+  bls12_381_finalVerify,
+  bls12_381_millerLoop,
+  bls12_381_G1_uncompress,
+  bls12_381_G2_uncompress,
+  BuiltinByteString,
+ )
+import PlutusTx.Prelude (
+  AdditiveGroup (..),
+  AdditiveSemigroup (..),
+  Bool,
+  MultiplicativeSemigroup (..),
+  bls12_381_G2_neg,
+  flip,
+  fst,
+  scale,
+  zero,
+  ($),
+  modulo,
+  negate
+ )
+import PlutusTx.List (foldl,(!!),take,head,drop)
+import Plutus.Crypto.Halo2 (Proof, bls12_381_field_prime)
+
+{-# INLINEABLE innerProduct #-}
+innerProduct :: [Scalar] -> [Scalar] -> Scalar
+innerProduct [] [] = mkScalar 0
+innerProduct (x : xs) (y : ys) = (x * y) + (innerProduct xs ys)
+-- todo throw here as lists are of different sizes
+innerProduct _ _ = mkScalar 0
+
+-- FROM VERIFICATION KEY
+
+scalarDelta :: Scalar
+scalarDelta = $(lift Constants.scalarDelta)
+
+scalarZero :: Scalar
+scalarZero = $(lift Constants.scalarZero)
+
+scalarOne :: Scalar
+scalarOne = $(lift Constants.scalarOne)
+
+omega :: Scalar
+omega = $(lift VKConstants.omega_val)
+
+omegaInv :: Scalar
+omegaInv = $(lift VKConstants.omegaInv_val)
+
+barycentricWeight :: Scalar
+barycentricWeight = $(lift VKConstants.barycentricWeight_val)
+
+s_g2 :: BuiltinBLS12_381_G2_Element
+s_g2 = $(lift VKConstants.s_g2_val)
+
+{{{FIXED_COMMITMENT_LIFTS}}}
+
+{{{PERMUTATION_COMMITMENT_LIFTS}}}
+
+rotations_for_instances :: [Scalar]
+rotations_for_instances = $(lift (getRotatedOmegas VKConstants.omega_val VKConstants.omegaInv_val 0 3))
+
+rotations_for_vanishing :: [Scalar]
+rotations_for_vanishing =
+  $( lift
+      ( getRotatedOmegas
+          VKConstants.omega_val
+          VKConstants.omegaInv_val
+          (-(VKConstants.blinding_factors + 1))
+          0
+      )
+   )
+
+{-# INLINEABLE verify #-}
+verify :: Proof -> {{{PUBLIC_INPUTS_TYPES}}} (Bool, [(BuiltinByteString, BlsUtils.Tracing)])
+verify proof {{{PUBLIC_INPUTS_NAMES}}} = fst $ flip (M.run VKConstants.transcriptRepr) proof $ M.do
+  --  public inputs
+{{{PUBLIC_INPUTS}}}
+
+{{{PES}}}
+
+  let !rotateOmega = BlsUtils.rotateOmega omega omegaInv
+      !n = {{X_EXPONENT}}
+      !xn = powMod x n
+
+-- todo check if there are case where more X rotations are needed
+      !x_prev = rotateOmega x (-1)
+      !x_current = rotateOmega x 0
+      !x_next = rotateOmega x 1
+      !x_last = rotateOmega x (-(VKConstants.blinding_factors + 1))
+
+      --    lagrange eval for instances (public inputs)
+      !lagrange_polynomial_instances = lagrangePolynomialEvaluation x xn barycentricWeight rotations_for_instances
+
+      !instanceEval1 = innerProduct lagrange_polynomial_instances [{{{PUBLIC_INPUTS_LAGRANGE}}}]
+
+{{{GATES}}}
+
+{{{LOOKUP_TABLES_EXPRESSIONS}}}
+{{{LOOKUP_INPUTS_EXPRESSIONS}}}
+
+      --    lagrange eval for vanishing polynomial
+      !evaluations_of_lagrange_polynomial =
+        lagrangePolynomialEvaluation
+          x
+          xn
+          barycentricWeight
+          rotations_for_vanishing
+      !last_evaluation = head evaluations_of_lagrange_polynomial
+      !evaluation_for_blinding_factors = take VKConstants.blinding_factors (drop 1 evaluations_of_lagrange_polynomial)
+      !sum_of_evaluation_for_blinding_factors = foldl (+) zero evaluation_for_blinding_factors
+      !evaluation_at_0 = evaluations_of_lagrange_polynomial !! (1 + VKConstants.blinding_factors)
+
+{{{PERMUTATIONS_EVALS}}}
+
+{{{PERMUTATIONS_LHS}}}
+
+{{{LHS_SETS}}}
+
+{{{PERMUTATIONS_RHS}}}
+
+{{{RHS_SETS}}}
+
+{{{PERMUTATIONS_COMBINED}}}
+
+      -- lookups related part of vanishing polynomial
+      !active_rows = scalarOne - (last_evaluation + sum_of_evaluation_for_blinding_factors);
+
+{{{LOOKUPS}}}
+
+      --      expressions for vanishing polynomial
+{{{VANISHING_EXPRESSIONS}}}
+
+{{{VANISHING_EVALUATION}}}
+
+      !vanishing_s = hEval * recip (xn - scalarOne) -- recip is inverse of the number mod bls12_381_field_prime
+
+      -- vanishing split IS PASSED IN REVERSE ORDER!!!
+      -- this is MSM done for h-commitments
+{{{H_COMMITMENTS}}}
+
+      --    advice queries
+{{{ADVICE_QUERIES}}}
+
+      --    fixed queries
+{{{FIXED_QUERIES}}}
+
+      --    permutation queries
+{{{PERMUTATION_QUERIES}}}
+
+      --    common queries
+{{{COMMON_QUERIES}}}
+
+      --    lookups tables related queries
+{{{LOOKUP_QUERIES}}}
+
+      --    vanishing queries
+      !vanishing_query = MinimalVerifierQuery vanishing_g vanishing_s
+      !random_query = MinimalVerifierQuery vanishingRand randomEval
+
+      -- left and s_g2
+      -- right and g2
+      -- g2 is not negated as bls12_381_finalVerify is doing negation
+      !g2 = (bls12_381_G2_uncompress bls12_381_G2_compressed_generator)
+
+      (!alt_left, !alt_right) =
+        $( buildMSMTH
+            'v
+            'u
+            [
+{{{MSM_ADVICE_QUERIES}}}
+{{{MSM_PERMUTATION_QUERIES}}}
+{{{MSM_LOOKUP_QUERIES}}}
+{{{MSM_FIXED_QUERIES}}}
+{{{MSM_COMMON_QUERIES}}}
+-- those are always the same
+              NameAnn 'x_current 'vanishing_query ,
+              NameAnn 'x_current 'random_query
+            ]
+            [
+{{{W_VALUES}}}
+            ]
+-- this order can be extracted from order of the occurrence of rotations in querries
+            [
+{{{X_ROTATIONS}}}
+            ]
+         )
+-- extract order from the order of queries in chain in rust code?
+      !el = eval alt_left
+      !er = eval alt_right
+
+      ml_l :: BuiltinBLS12_381_MlResult
+      !ml_l = bls12_381_millerLoop el s_g2
+      ml_r :: BuiltinBLS12_381_MlResult
+      !ml_r = bls12_381_millerLoop er g2
+      final_verification :: Bool
+      !final_verification = bls12_381_finalVerify ml_l ml_r
+
+  M.return
+    ( final_verification,
+      -- tracing related values
+      [{{{TRACES}}}]
+    )

@@ -1,16 +1,43 @@
-use blake2b_simd::State;
+use crate::code_gen::extraction::Scheme;
 use blstrs::Scalar;
-use halo2_proofs::plonk::Expression;
-use halo2_proofs::transcript::{CircuitTranscript, Transcript};
+use halo2_proofs::plonk::{Advice, Any, Column, Expression, Fixed, Instance, VerifyingKey};
+use halo2_proofs::poly::Rotation;
+use std::io::BufWriter;
 
-pub fn read_n_scalars(
-    transcript: &mut CircuitTranscript<State>,
-    n: usize,
-) -> Result<Vec<Scalar>, std::io::Error> {
-    (0..n).map(|_| transcript.read()).collect()
+pub fn get_any_query_index(
+    vk: &VerifyingKey<Scalar, Scheme>,
+    column: Column<Any>,
+    at: Rotation,
+) -> usize {
+    match column.column_type() {
+        Any::Advice(_) => {
+            for (index, advice_query) in vk.cs().advice_queries().iter().enumerate() {
+                if advice_query == &(Column::<Advice>::try_from(column).unwrap(), at) {
+                    return index;
+                }
+            }
+            panic!("get_advice_query_index called for non-existent query");
+        }
+        Any::Fixed => {
+            for (index, advice_query) in vk.cs().fixed_queries().iter().enumerate() {
+                if advice_query == &(Column::<Fixed>::try_from(column).unwrap(), at) {
+                    return index;
+                }
+            }
+            panic!("get_fixed_query_index called for non-existent query");
+        }
+        Any::Instance => {
+            for (index, advice_query) in vk.cs().instance_queries().iter().enumerate() {
+                if advice_query == &(Column::<Instance>::try_from(column).unwrap(), at) {
+                    return index;
+                }
+            }
+            panic!("get_instance_query_index called for non-existent query");
+        }
+    }
 }
 
-pub fn convert_polynomial<W: std::io::Write>(
+fn convert_polynomial<W: std::io::Write>(
     ex: &Expression<Scalar>,
     writer: &mut W,
 ) -> std::io::Result<()> {
@@ -59,4 +86,11 @@ pub fn convert_polynomial<W: std::io::Write>(
             write!(writer, " * {:?}", f)
         }
     }
+}
+
+pub fn compile_expressions(e: &Expression<Scalar>) -> String {
+    let mut buf = BufWriter::new(Vec::new());
+    let _ = convert_polynomial(e, &mut buf);
+    let bytes = buf.into_inner().unwrap();
+    String::from_utf8(bytes).unwrap()
 }

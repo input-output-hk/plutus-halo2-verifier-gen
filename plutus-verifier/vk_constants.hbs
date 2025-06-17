@@ -1,0 +1,100 @@
+{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
+
+{-# HLINT ignore "Use camelCase" #-}
+module Plutus.Crypto.Halo2.Generic.VKConstants (
+  s_g2_val,
+  omega_val,
+  omegaInv_val,
+  barycentricWeight_val,
+  transcriptRepr,
+  blinding_factors,
+{{{FIXED_COMMITMENTS_EXPORTS}}}
+{{{PERMUTATION_COMMITMENTS_EXPORTS}}}
+) where
+
+import Control.Lens.Each (each)
+import Control.Lens.Operators ((%~), (&))
+import Data.Bifunctor (bimap)
+import Plutus.Crypto.BlsTypes (
+  Scalar,
+  bls12_381_field_prime,
+  mkFp,
+  mkFp2,
+  mkScalar,
+ )
+import Plutus.Crypto.Halo2.CompressUncompress (
+  compressG1Point,
+ )
+import PlutusTx.Prelude (
+  BuiltinBLS12_381_G1_Element,
+  BuiltinBLS12_381_G2_Element,
+  bls12_381_G1_compressed_zero,
+  bls12_381_G1_uncompress,
+  modulo,
+ )
+
+import PlutusTx.Prelude (
+  BuiltinByteString,
+  bls12_381_G2_uncompress
+ )
+
+import PlutusTx.Builtins.HasOpaque (
+  BuiltinByteStringHex,
+  stringToBuiltinByteStringHex,
+ )
+
+f_commitments_val_pairs :: [(Integer, Integer)]
+f_commitments_val_pairs =
+  [
+{{{FIXED_COMMITMENTS}}}
+  ]
+
+p_commitment_val_pairs :: [(Integer, Integer)]
+p_commitment_val_pairs =
+  [
+{{{PERMUTATION_COMMITMENTS}}}
+  ]
+
+commitments :: [(Integer, Integer)] -> [BuiltinBLS12_381_G1_Element]
+commitments = fmap (compressG1Point . bimap mkFp mkFp)
+
+p_commitments :: [BuiltinBLS12_381_G1_Element]
+p_commitments = commitments p_commitment_val_pairs
+
+f_commitments :: [BuiltinBLS12_381_G1_Element]
+f_commitments = commitments f_commitments_val_pairs
+
+{{{PERMUTATION_COMMITMENT_G1}}}
+
+{{{FIXED_COMMITMENT_G1}}}
+
+s_g2_val_bbs :: BuiltinByteString
+s_g2_val_bbs =
+  stringToBuiltinByteStringHex
+    {{{G2_DEFINITIONS}}}
+
+s_g2_val :: BuiltinBLS12_381_G2_Element
+s_g2_val = bls12_381_G2_uncompress s_g2_val_bbs
+
+omega_val :: Scalar
+omega_val =
+  mkScalar
+    ({{OMEGA}} `modulo` bls12_381_field_prime)
+
+omegaInv_val :: Scalar
+omegaInv_val =
+  mkScalar
+    ({{OMEGA_INV}} `modulo` bls12_381_field_prime)
+
+barycentricWeight_val :: Scalar
+barycentricWeight_val =
+  mkScalar
+    ({{BARYCENTRIC_WEIGHT}} `modulo` bls12_381_field_prime)
+
+transcriptRepr :: Scalar
+transcriptRepr =
+  mkScalar
+    ({{TRANSCRIPT_REP}} `modulo` bls12_381_field_prime)
+
+blinding_factors :: Integer
+blinding_factors = {{BLINDING_FACTORS}}
