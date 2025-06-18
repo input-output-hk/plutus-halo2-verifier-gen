@@ -2,7 +2,7 @@ use crate::code_gen::extraction::data::{
     CircuitRepresentation, ProofExtractionSteps, RotationDescription,
 };
 use crate::code_gen::extraction::utils::{compile_expressions, get_any_query_index};
-use blstrs::{Bls12, G1Affine, Scalar};
+use blstrs::{Bls12, G1Affine, G2Affine, Scalar};
 use ff::Field;
 use halo2_proofs::halo2curves::group::Curve;
 use halo2_proofs::halo2curves::group::prime::PrimeCurveAffine;
@@ -12,6 +12,7 @@ use halo2_proofs::poly::kzg::KZGCommitmentScheme;
 use halo2_proofs::poly::kzg::params::ParamsKZG;
 use itertools::Itertools;
 use log::info;
+use crate::code_gen::code_emmiters::{emit_verifier_code, emit_vk_code};
 
 pub mod data;
 mod utils;
@@ -24,6 +25,9 @@ pub fn extract_circuit(
     params: &ParamsKZG<Bls12>,
     vk: &VerifyingKey<Scalar, Scheme>,
     instances: &[&[&[Scalar]]],
+    verifier_template_file: String,
+    vk_template_file: String,
+    g2_encoder: fn(G2Affine) -> String,
 ) -> Result<CircuitRepresentation, Error> {
     let chunk_len = vk.cs().degree() - 2;
 
@@ -219,7 +223,7 @@ pub fn extract_circuit(
     (0..num_permutation_commitments)
         .zip(letters)
         .enumerate()
-        .for_each(|(index, (e, letter))| {
+        .for_each(|(index, (_, letter))| {
             circuit_description
                 .proof_extraction_steps
                 .push(ProofExtractionSteps::PermutationEval(letter));
@@ -585,5 +589,19 @@ pub fn extract_circuit(
         ));
     });
 
+    let _result = emit_verifier_code(
+        verifier_template_file,
+        "templates/generic/plutus-halo2/src/Plutus/Crypto/Halo2/Generic/Verifier.hs".to_string(),
+        &circuit_description,
+    )
+        .map_err(|e| e.to_string()).map_err(|_e| Error::Synthesis)?;
+    let _result = emit_vk_code(
+        vk_template_file,
+        "templates/generic/plutus-halo2/src/Plutus/Crypto/Halo2/Generic/VKConstants.hs".to_string(),
+        &circuit_description,
+        g2_encoder
+    )
+        .map_err(|e| e.to_string()).map_err(|_e| Error::Synthesis)?;
+    
     Ok(circuit_description)
 }
