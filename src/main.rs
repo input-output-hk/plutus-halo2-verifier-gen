@@ -3,6 +3,7 @@ use crate::circuit::MyCircuit;
 use blake2b_simd::State;
 use blstrs::{Base, Bls12, Scalar};
 use ff::Field;
+use halo2_proofs::halo2curves::group::GroupEncoding;
 use halo2_proofs::plonk::{ProvingKey, VerifyingKey};
 use halo2_proofs::poly::kzg::KZGCommitmentScheme;
 use halo2_proofs::poly::kzg::msm::DualMSM;
@@ -96,6 +97,14 @@ fn main() {
 
     serialize_proof("./serialized_proof.json".to_string(), proof_for_export).unwrap();
 
-    let data = extract_circuit(&params, &vk, instances).expect("extracting failed");
+    let data = extract_circuit(
+        &params,
+        &vk,
+        instances,
+        "plutus-verifier/verification.hbs".to_string(),
+        "plutus-verifier/vk_constants.hbs".to_string(),
+        |a| hex::encode(a.to_bytes()),
+    )
+    .expect("extracting failed");
     println!("extracted data: {:?}", data);
 }

@@ -1,3 +1,4 @@
+use crate::code_gen::code_emitters::{emit_verifier_code, emit_vk_code};
 use crate::code_gen::extraction::data::{
     CircuitRepresentation, ProofExtractionSteps, RotationDescription,
 };
@@ -12,7 +13,6 @@ use halo2_proofs::poly::kzg::KZGCommitmentScheme;
 use halo2_proofs::poly::kzg::params::ParamsKZG;
 use itertools::Itertools;
 use log::info;
-use crate::code_gen::code_emmiters::{emit_verifier_code, emit_vk_code};
 
 pub mod data;
 mod utils;
@@ -591,17 +591,19 @@ pub fn extract_circuit(
 
     let _result = emit_verifier_code(
         verifier_template_file,
-        "templates/generic/plutus-halo2/src/Plutus/Crypto/Halo2/Generic/Verifier.hs".to_string(),
+        "plutus-verifier/plutus-halo2/src/Plutus/Crypto/Halo2/Generic/Verifier.hs".to_string(),
         &circuit_description,
     )
-        .map_err(|e| e.to_string()).map_err(|_e| Error::Synthesis)?;
+    .map_err(|e| e.to_string())
+    .map_err(|_e| Error::Synthesis)?;
     let _result = emit_vk_code(
         vk_template_file,
-        "templates/generic/plutus-halo2/src/Plutus/Crypto/Halo2/Generic/VKConstants.hs".to_string(),
+        "plutus-verifier/plutus-halo2/src/Plutus/Crypto/Halo2/Generic/VKConstants.hs".to_string(),
         &circuit_description,
-        g2_encoder
+        g2_encoder,
     )
-        .map_err(|e| e.to_string()).map_err(|_e| Error::Synthesis)?;
-    
+    .map_err(|e| e.to_string())
+    .map_err(|_e| Error::Synthesis)?;
+
     Ok(circuit_description)
 }

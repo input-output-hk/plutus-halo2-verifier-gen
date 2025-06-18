@@ -1,15 +1,12 @@
-// use halo2_proofs::plonk::extractor::extractor_data::{
-//     CircuitRepresentation, ProofExtractionSteps, RotationDescription,
-// };
-// use halo2curves::group::prime::PrimeCurveAffine;
+use crate::code_gen::extraction::data::{
+    CircuitRepresentation, ProofExtractionSteps, RotationDescription,
+};
+use blstrs::G2Affine;
+use halo2_proofs::halo2curves::group::prime::PrimeCurveAffine;
 use handlebars::{Handlebars, RenderError};
 use itertools::Itertools;
 use std::collections::HashMap;
 use std::fs::File;
-use blstrs::G2Affine;
-use halo2_proofs::halo2curves::group::prime::PrimeCurveAffine;
-use crate::code_gen::extraction::data::{CircuitRepresentation, ProofExtractionSteps, RotationDescription};
-// use halo2curves::bls12_381::G2Affine;
 
 pub fn emit_verifier_code(
     template_file: String, // haskell mustashe template
@@ -687,7 +684,10 @@ pub fn emit_vk_code(
     data.insert("PERMUTATION_COMMITMENTS_EXPORTS".to_string(), exports);
     data.insert("PERMUTATION_COMMITMENT_G1".to_string(), assignment);
     let compressed_sg2 = g2_encoder(circuit.instantiation_data.s_g2);
-    data.insert("G2_DEFINITIONS".to_string(), format!("\"{}\"", compressed_sg2),);
+    data.insert(
+        "G2_DEFINITIONS".to_string(),
+        format!("\"{}\"", compressed_sg2),
+    );
     data.insert(
         "OMEGA".to_string(),
         circuit.instantiation_data.omega.clone(),
