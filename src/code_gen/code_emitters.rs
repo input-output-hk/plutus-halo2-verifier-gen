@@ -78,7 +78,7 @@ pub fn emit_verifier_code(
                 .join(""),
             ProofExtractionSteps::U => "  !u <- M.squeezeChallange\n".to_string(),
 
-            ProofExtractionSteps::SqueezeChallange => panic!("not SqueezeChallange supported"),
+            ProofExtractionSteps::SqueezeChallenge => panic!("not SqueezeChallange supported"),
             ProofExtractionSteps::LookupPermuted => section
                 .enumerate()
                 .map(|(number, _lookup_permuted)| {
@@ -643,8 +643,13 @@ pub fn emit_vk_code(
         .fixed_commitments
         .clone()
         .iter()
-        .enumerate()
-        .map(|(_, a)| format!("    ({:?}, {:?})", a.x(), a.y()))
+        .map(|a| {
+            format!(
+                "    (0x{}, 0x{})",
+                hex::encode(a.x().to_bytes_be()),
+                hex::encode(a.y().to_bytes_be())
+            )
+        })
         .join(",\n");
     let exports = (1..=circuit.instantiation_data.fixed_commitments.len())
         .map(|id| format!("  f{}_commitment,\n", id))
@@ -666,8 +671,13 @@ pub fn emit_vk_code(
         .permutation_commitments
         .clone()
         .iter()
-        .enumerate()
-        .map(|(_, a)| format!("    ({:?}, {:?})", a.x(), a.y()))
+        .map(|a| {
+            format!(
+                "    (0x{}, 0x{})",
+                hex::encode(a.x().to_bytes_be()),
+                hex::encode(a.y().to_bytes_be())
+            )
+        })
         .join(",\n");
     let exports = (1..=circuit.instantiation_data.permutation_commitments.len())
         .map(|id| format!("  p{}_commitment,\n", id))
@@ -690,19 +700,24 @@ pub fn emit_vk_code(
     );
     data.insert(
         "OMEGA".to_string(),
-        circuit.instantiation_data.omega.clone(),
+        hex::encode(circuit.instantiation_data.omega.to_bytes_be()),
     );
     data.insert(
         "OMEGA_INV".to_string(),
-        circuit.instantiation_data.inverted_omega.clone(),
+        hex::encode(circuit.instantiation_data.inverted_omega.to_bytes_be()),
     );
     data.insert(
         "BARYCENTRIC_WEIGHT".to_string(),
-        circuit.instantiation_data.barycentric_weight.clone(),
+        hex::encode(circuit.instantiation_data.barycentric_weight.to_bytes_be()),
     );
     data.insert(
         "TRANSCRIPT_REP".to_string(),
-        circuit.instantiation_data.transcript_representation.clone(),
+        hex::encode(
+            circuit
+                .instantiation_data
+                .transcript_representation
+                .to_bytes_be(),
+        ),
     );
     data.insert(
         "BLINDING_FACTORS".to_string(),

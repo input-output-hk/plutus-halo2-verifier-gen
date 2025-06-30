@@ -5,6 +5,9 @@ import qualified Generic.VerificationTestPlutus
 import Generic.VerifyCompiled (writeToFile)
 import Test.Tasty (defaultMain, testGroup)
 
+import EvalUtils (
+    parsedInputs,
+ )
 import Plutus.Crypto.Halo2 (
     bls12_381_field_prime,
     compressG1Point,
@@ -14,9 +17,6 @@ import Plutus.Crypto.Halo2 (
 import PlutusTx.Prelude (
     Bool (False, True),
     modulo,
- )
-import EvalUtils (
-    parsedInputs,
  )
 
 main :: IO ()
@@ -31,7 +31,7 @@ main = do
             mkScalar
                 ((parsedInputs !! 2) `modulo` bls12_381_field_prime)
 
---  this saves compiled plutus UPLC to a file for use with plutus analytics tools
+    --  this saves compiled plutus UPLC to a file for use with plutus analytics tools
     Generic.VerifyCompiled.writeToFile p1 p2 p3
 
     defaultMain $

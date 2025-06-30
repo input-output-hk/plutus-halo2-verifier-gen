@@ -33,6 +33,7 @@ library
     Plutus.Crypto.Halo2.LagrangePolynomialEvaluation
     Plutus.Crypto.Halo2.MSMEval
     Plutus.Crypto.Halo2.MSMTH
+    Plutus.Crypto.Halo2.MultiopenMSM
     Plutus.Crypto.Halo2.MSMTypes
     Plutus.Crypto.Halo2.Proof
     Plutus.Crypto.Orphans
@@ -49,10 +50,10 @@ library
     , file-embed
     , lens
     , mtl
-    , plutus-core        ^>=1.46
-    , plutus-ledger-api  ^>=1.46
-    , plutus-tx          ^>=1.46
-    , plutus-tx-plugin   ^>=1.46
+    , plutus-core        ^>=1.47
+    , plutus-ledger-api  ^>=1.47
+    , plutus-tx          ^>=1.47
+    , plutus-tx-plugin   ^>=1.47
     , template-haskell
     , th-lift
     , text
@@ -73,11 +74,11 @@ test-suite run-vector-test
     , flat
     , lens
     , mtl
-    , plutus-core           ^>=1.46
+    , plutus-core           ^>=1.47
     , plutus-halo2
-    , plutus-ledger-api     ^>=1.46
-    , plutus-tx             ^>=1.46
-    , plutus-tx-plugin      ^>=1.46
+    , plutus-ledger-api     ^>=1.47
+    , plutus-tx             ^>=1.47
+    , plutus-tx-plugin      ^>=1.47
     , quickcheck-instances
     , tasty
     , tasty-hunit

@@ -64,7 +64,7 @@ fn main() {
     let instances_file = "./serialized_public_input.hex".to_string();
     let mut output = File::create(instances_file).expect("failed to create instances file");
     for instance in instances[0][0].iter() {
-        let mut value = instance.to_bytes_be();
+        let mut value = instance.to_bytes_le();
         value.reverse();
         let _ = output.write((hex::encode(value) + "\n").as_bytes());
     }

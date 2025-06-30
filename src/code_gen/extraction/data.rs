@@ -1,9 +1,9 @@
-use blstrs::{G1Affine, G2Affine};
+use blstrs::{G1Affine, G2Affine, Scalar};
 use serde::{Deserialize, Serialize};
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub enum ProofExtractionSteps {
     AdviceCommitments,
-    SqueezeChallange,
+    SqueezeChallenge,
     AdviceEval,
     FixedEval,
     PermutationsCommited,
@@ -37,13 +37,13 @@ pub struct InstantiationSpecificData {
     pub permutation_commitments: Vec<G1Affine>,
 
     // values as hex
-    pub scalar_delta: String,
-    pub scalar_zero: String,
-    pub scalar_one: String,
+    pub scalar_delta: Scalar,
+    pub scalar_zero: Scalar,
+    pub scalar_one: Scalar,
 
-    pub omega: String,
-    pub inverted_omega: String,
-    pub barycentric_weight: String,
+    pub omega: Scalar,
+    pub inverted_omega: Scalar,
+    pub barycentric_weight: Scalar,
 
     pub s_g2: G2Affine,
 
@@ -54,7 +54,7 @@ pub struct InstantiationSpecificData {
 
     pub blinding_factors: usize,
 
-    pub transcript_representation: String,
+    pub transcript_representation: Scalar,
 
     pub public_inputs_count: usize,
 
@@ -62,18 +62,13 @@ pub struct InstantiationSpecificData {
 }
 
 // todo handle cases with custom gates that have more rotations then those 4?
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Default)]
 pub enum RotationDescription {
     Last,
     Previous,
+    #[default]
     Current,
     Next,
-}
-
-impl Default for RotationDescription {
-    fn default() -> Self {
-        RotationDescription::Current
-    }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, Default)]

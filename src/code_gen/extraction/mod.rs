@@ -82,7 +82,7 @@ pub fn extract_circuit(
             if current_phase == *phase {
                 circuit_description
                     .proof_extraction_steps
-                    .push(ProofExtractionSteps::SqueezeChallange);
+                    .push(ProofExtractionSteps::SqueezeChallenge);
             }
         }
     }
@@ -155,16 +155,14 @@ pub fn extract_circuit(
 
     circuit_description.instantiation_data.n_coefficient = vk.n();
     circuit_description.instantiation_data.s_g2 = params.s_g2().to_affine();
-    circuit_description.instantiation_data.omega = vk.get_domain().get_omega().to_string();
-    circuit_description.instantiation_data.inverted_omega =
-        vk.get_domain().get_omega_inv().to_string();
+    circuit_description.instantiation_data.omega = vk.get_domain().get_omega();
+    circuit_description.instantiation_data.inverted_omega = vk.get_domain().get_omega_inv();
     circuit_description.instantiation_data.barycentric_weight = Scalar::from(vk.n())
         .invert()
-        .expect("there should be an inverse")
-        .to_string();
+        .expect("there should be an inverse");
     circuit_description
         .instantiation_data
-        .transcript_representation = vk.transcript_repr().to_string();
+        .transcript_representation = vk.transcript_repr();
     circuit_description.instantiation_data.blinding_factors = vk.cs().blinding_factors();
 
     let (min_rotation, max_rotation) =

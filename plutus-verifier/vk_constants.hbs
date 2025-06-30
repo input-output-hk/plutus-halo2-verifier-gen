@@ -79,22 +79,22 @@ s_g2_val = bls12_381_G2_uncompress s_g2_val_bbs
 omega_val :: Scalar
 omega_val =
   mkScalar
-    ({{OMEGA}} `modulo` bls12_381_field_prime)
+    (0x{{OMEGA}} `modulo` bls12_381_field_prime)
 
 omegaInv_val :: Scalar
 omegaInv_val =
   mkScalar
-    ({{OMEGA_INV}} `modulo` bls12_381_field_prime)
+    (0x{{OMEGA_INV}} `modulo` bls12_381_field_prime)
 
 barycentricWeight_val :: Scalar
 barycentricWeight_val =
   mkScalar
-    ({{BARYCENTRIC_WEIGHT}} `modulo` bls12_381_field_prime)
+    (0x{{BARYCENTRIC_WEIGHT}} `modulo` bls12_381_field_prime)
 
 transcriptRepr :: Scalar
 transcriptRepr =
   mkScalar
-    ({{TRANSCRIPT_REP}} `modulo` bls12_381_field_prime)
+    (0x{{TRANSCRIPT_REP}} `modulo` bls12_381_field_prime)
 
 blinding_factors :: Integer
 blinding_factors = {{BLINDING_FACTORS}}

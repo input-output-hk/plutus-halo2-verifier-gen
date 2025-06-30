@@ -62,18 +62,27 @@ inside of `buildMSMTH`
 -}
 data NameAnn a = NameAnn a Name
 
--- this function corresponds to loop:
--- https://github.com/input-output-hk/plutus-halo2-verifier/blob/925c3d9cd4f214ad11e3f59c8762c95456d8fa11/halo2-test/src/main.rs#L765
+-- this function gets query descriptions in a form     NameAnn 'x_rotation 'query_name
+-- and groups query_names that are for the same rotation of x
+-- it returns lists of query_names that corresponds to the same x rotation
+-- usually there are only 4 rotations
 squashQueries :: (Eq a) => [NameAnn a] -> [[Name]]
-squashQueries = map (reverse . snd) . reverse . toList . foldl fold Seq.Empty
+squashQueries = map (reverse . snd) . reverse . toList . foldl fold_function Seq.Empty
   where
-    fold accum (NameAnn idx name) =
-        let pred' = (== idx) . fst
+    fold_function accum (NameAnn idx name) =
+        let
+            -- checks if first element of a pair is equal to idx
+            pred_p = (== idx) . fst
+            -- prepends "name" to second component of bifunctor
             update = second (name :)
-         in case Seq.findIndexL pred' accum of
+         in
+            -- finds the index of the leftmost element that satisfies pred_p, if any exist in accumulator
+            case Seq.findIndexL pred_p accum of
+                -- if there is one, get it from "accum" and prepend current name to that list
                 Just index ->
                     let toUpdate = Seq.index accum index
                      in Seq.update index (update toUpdate) accum
+                -- if there is none
                 Nothing -> (idx, [name]) Seq.<| accum
 
 newtype QueryName = QueryName Name
@@ -83,6 +92,8 @@ newtype VName = VName Name
 expand :: [(a, [b])] -> [(a, b)]
 expand [] = []
 expand ((a, bs) : r) = ((a,) <$> bs) ++ expand r
+
+-- todo queries processing
 
 buildMSMTH :: (Eq a) => Name -> Name -> [NameAnn a] -> [Name] -> [Name] -> Q Exp
 buildMSMTH v u queries ws rotated = do

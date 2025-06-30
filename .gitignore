@@ -13,3 +13,4 @@ Verifier.hs
 VKConstants.hs
 VerifierScript.flat
 benchmark.json
+plutus-verifier/dist-newstyle

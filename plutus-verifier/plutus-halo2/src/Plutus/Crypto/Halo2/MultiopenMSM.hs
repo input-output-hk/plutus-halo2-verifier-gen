@@ -38,7 +38,7 @@ import qualified PlutusTx.AssocMap as Map
 import qualified PlutusTx.BuiltinList as BIList
 import PlutusTx.Builtins (BuiltinArray, listToArray)
 import qualified PlutusTx.Builtins as PlutusTx
-import PlutusTx.List (findIndex, nubBy, sortBy)
+import PlutusTx.List (findIndex, nub, nubBy, sortBy)
 import qualified PlutusTx.Prelude as PlutusTx
 
 data RotationOfX = Previous | Current | Next | Last
@@ -60,14 +60,13 @@ data Query = Query
 
 data CommitmentData = CommitmentData
     { get_Commitment :: PlutusTx.BuiltinBLS12_381_G1_Element
-    -- index of a set of points that is related to commitment from get_Commitment
-    , getSetIndex :: Int
-    -- those 2 lists have to be in sync
-    , getPointIndices :: [RotationOfX]
+    , -- index of a set of points that is related to commitment from get_Commitment
+      getSetIndex :: Int
+    , -- those 2 lists have to be in sync
+      getPointIndices :: [RotationOfX]
     , getEvaluations :: [Scalar]
     }
-    deriving (Show, Eq)
-
+    deriving (Eq)
 
 type IntermediateSets = ([CommitmentData], [[RotationOfX]])
 
@@ -82,42 +81,69 @@ constructIntermediateSets queries points_ordered =
     let
         point_index_map = Map.safeFromList ((zip [0 ..] points_ordered) :: [(Integer, RotationOfX)])
         index_point_map = Map.safeFromList ((zip points_ordered [0 ..]) :: [(RotationOfX, Integer)])
-        -- zip with integers to get ordering information that is not present for keys in a map
+
+        --      -- Integer in values of map is used for ordering purposes
+        commitmentMapWithReverseValues :: Map.Map PlutusTx.BuiltinBLS12_381_G1_Element (Integer, ([Scalar], [RotationOfX]))
         commitmentMapWithReverseValues =
             foldl
                 ( \acc (commitment_index, query) ->
                     let
                         c = getCommitment query
                         p = getPoint query
+                        e = getEvaluation query
 
-                        value = case ((Map.lookup c acc), (Map.lookup p index_point_map)) of
+                        -- I want to have pairs of points and evals such that I have correct ordering for CommitmentData
+                        value = case ((Map.lookup c acc)) of
                             -- first element of the list is indicating ordering of the commitments
-                            (Nothing, Just point_index) -> point_index : [commitment_index]
-                            (Just old_value, Just point_index) -> point_index : old_value
+                            (Nothing) -> (commitment_index, ([e], [p]))
+                            (Just (c_index, (old_scalars, old_points))) -> (c_index, (e : old_scalars, p : old_points))
                      in
                         Map.insert c value acc
                 )
                 Map.empty
+                -- zip with integers to get ordering information that is not present for keys in a map
                 (zip [0 ..] queries)
         -- first element in list that is value of this map is index used for stable ordering of commitment
-        commitmentMap = Map.mapWithKey (\k e -> reverse e) commitmentMapWithReverseValues
+        commitmentMap =
+            Map.mapWithKey
+                ( \k (c_index, (old_scalars, old_points)) ->
+                    (c_index, (reverse old_scalars, reverse old_points))
+                )
+                commitmentMapWithReverseValues
         -- map from a commitment to set of points (rotations of point x) used for given commitment
         -- with integer used for preserving original order of commitments
-        commitmentSetMap :: Map.Map PlutusTx.BuiltinBLS12_381_G1_Element (Integer, Set.Set Integer)
+        -- first list is a set of unique points corresponding to the commitment,
+        -- then full list of evals then full list of points
+        commitmentSetMap ::
+            Map.Map
+                PlutusTx.BuiltinBLS12_381_G1_Element
+                (Integer, [RotationOfX], [Scalar], [RotationOfX])
         commitmentSetMap =
             Map.mapWithKey
-                ( \commitment points ->
-                    -- tail points as first element is used for preserving the original order of commitments
-                    (head points, Set.fromList (tail points :: [Integer]))
+                ( \commitment (commitment_index, (scalars, points)) ->
+                    (commitment_index, nub points, scalars, points)
                 )
                 commitmentMap
-        uniquePointSets :: [(Integer, Set.Set Integer)]
-        uniquePointSets = nubBy (\(idx_a, _) (idx_b, _) -> idx_a == idx_b) (Map.elems commitmentSetMap)
-        -- replace ordering numbers with actual indexes
+        uniquePointSets :: [(Integer, [RotationOfX])]
+        uniquePointSets =
+            nubBy
+                ( \(idx_a, _) (idx_b, _) ->
+                    idx_a == idx_b
+                )
+                ( map
+                    ( \(ordering, setData, _, _) ->
+                        (ordering, setData)
+                    )
+                    (Map.elems commitmentSetMap)
+                )
         orderedPointSets = (sortBy (\(a, _) (b, _) -> compare a b) uniquePointSets)
-        indexedPointSets = map (\(idx, (_, e)) -> (idx,e)) (zip [0..] orderedPointSets)
-
+        -- replace ordering numbers with actual indexes
+        indexedPointSets :: [(Integer, [RotationOfX])]
+        indexedPointSets = map (\(idx, (_, e)) -> (idx, e)) (zip [0 ..] orderedPointSets)
+        pointSets :: [[RotationOfX]]
+        pointSets = map (\(_, e) -> e) orderedPointSets
+     in
         -- in the end I want to have a ordered list of points sets, in the same way as they are in indexedPointSets
         -- and a vector of CommitmentData,
-     in
+
         ([], [])
