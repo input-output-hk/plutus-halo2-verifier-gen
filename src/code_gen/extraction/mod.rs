@@ -1,6 +1,6 @@
 use crate::code_gen::code_emitters::{emit_verifier_code, emit_vk_code};
 use crate::code_gen::extraction::data::{
-    CircuitRepresentation, ProofExtractionSteps, RotationDescription,
+    CircuitRepresentation, ProofExtractionSteps, Query, RotationDescription,
 };
 use crate::code_gen::extraction::utils::{compile_expressions, get_any_query_index};
 use blstrs::{Bls12, G1Affine, G2Affine, Scalar};
@@ -459,14 +459,11 @@ pub fn extract_circuit(
         .iter()
         .enumerate()
         .for_each(|(query_index, &(column, at))| {
-            let query = format!(
-                "MinimalVerifierQuery a{:?} adviceEval{:?}",
-                column.index() + 1,
-                query_index + 1
-            );
-            circuit_description
-                .advice_queries
-                .push((query, decode(at.0)));
+            circuit_description.advice_queries.push(Query {
+                commitment: format!("a{:?}", column.index() + 1),
+                evaluation: format!("adviceEval{:?}", query_index + 1),
+                point: decode(at.0),
+            });
         });
 
     vk.cs()
@@ -474,41 +471,32 @@ pub fn extract_circuit(
         .iter()
         .enumerate()
         .for_each(|(query_index, &(column, at))| {
-            let query = format!(
-                "MinimalVerifierQuery f{:?}_commitment fixedEval{:?}",
-                column.index() + 1,
-                query_index + 1
-            );
-            circuit_description
-                .fixed_queries
-                .push((query, decode(at.0)));
+            circuit_description.advice_queries.push(Query {
+                commitment: format!("f{:?}_commitment", column.index() + 1),
+                evaluation: format!("fixedEval{:?}", query_index + 1),
+                point: decode(at.0),
+            });
         });
 
     for set in sets.iter() {
-        circuit_description.permutation_queries.push((
-            format!(
-                "MinimalVerifierQuery permutations_committed_{} permutations_evaluated_{}_1",
-                set, set
-            ),
-            RotationDescription::Current,
-        ));
-        circuit_description.permutation_queries.push((
-            format!(
-                "MinimalVerifierQuery permutations_committed_{} permutations_evaluated_{}_2",
-                set, set
-            ),
-            RotationDescription::Next,
-        ));
+        circuit_description.permutation_queries.push(Query {
+            commitment: format!("permutations_committed_{}", set),
+            evaluation: format!("permutations_evaluated_{}_1", set),
+            point: RotationDescription::Current,
+        });
+        circuit_description.permutation_queries.push(Query {
+            commitment: format!("permutations_committed_{}", set),
+            evaluation: format!("permutations_evaluated_{}_2", set),
+            point: RotationDescription::Next,
+        });
     }
     // for all but last
     for set in sets.iter().rev().skip(1) {
-        circuit_description.permutation_queries.push((
-            format!(
-                "MinimalVerifierQuery permutations_committed_{} permutations_evaluated_{}_3",
-                set, set
-            ),
-            RotationDescription::Last,
-        ));
+        circuit_description.permutation_queries.push(Query {
+            commitment: format!("permutations_committed_{}", set),
+            evaluation: format!("permutations_evaluated_{}_3", set),
+            point: RotationDescription::Last,
+        });
     }
 
     let permutation_common = circuit_description
@@ -518,24 +506,23 @@ pub fn extract_circuit(
         .count();
 
     (0..permutation_common).for_each(|idx| {
-        circuit_description.common_queries.push((
-            format!(
-                "MinimalVerifierQuery p{:?}_commitment permutationCommon{:?}",
-                idx + 1,
-                idx + 1
-            ),
-            RotationDescription::Current,
-        ));
+        circuit_description.common_queries.push(Query {
+            commitment: format!("p{:?}_commitment", idx + 1),
+            evaluation: format!("permutationCommon{:?}", idx + 1),
+            point: RotationDescription::Current,
+        });
     });
 
-    circuit_description.vanishing_queries.push((
-        "MinimalVerifierQuery vanishing_g vanishing_s".to_string(),
-        RotationDescription::Current,
-    ));
-    circuit_description.vanishing_queries.push((
-        "MinimalVerifierQuery vanishingRand randomEval".to_string(),
-        RotationDescription::Current,
-    ));
+    circuit_description.vanishing_queries.push(Query {
+        commitment: "vanishing_g".to_string(),
+        evaluation: "vanishing_s".to_string(),
+        point: RotationDescription::Current,
+    });
+    circuit_description.vanishing_queries.push(Query {
+        commitment: "vanishingRand".to_string(),
+        evaluation: "randomEval".to_string(),
+        point: RotationDescription::Current,
+    });
 
     let lookup_commitment_count = circuit_description
         .proof_extraction_steps
@@ -545,46 +532,31 @@ pub fn extract_circuit(
         .len();
 
     (0..lookup_commitment_count).for_each(|idx| {
-        circuit_description.lookup_queries.push((
-            format!(
-                "MinimalVerifierQuery lookupCommitment{:?} product_eval_{:?}",
-                idx + 1,
-                idx + 1
-            ),
-            RotationDescription::Current,
-        ));
-        circuit_description.lookup_queries.push((
-            format!(
-                "MinimalVerifierQuery permutedInput{:?} permuted_input_eval_{:?}",
-                idx + 1,
-                idx + 1
-            ),
-            RotationDescription::Current,
-        ));
-        circuit_description.lookup_queries.push((
-            format!(
-                "MinimalVerifierQuery permutedTable{:?} permuted_table_eval_{:?}",
-                idx + 1,
-                idx + 1
-            ),
-            RotationDescription::Current,
-        ));
-        circuit_description.lookup_queries.push((
-            format!(
-                "MinimalVerifierQuery permutedInput{:?} permuted_input_inv_eval_{:?}",
-                idx + 1,
-                idx + 1
-            ),
-            RotationDescription::Previous,
-        ));
-        circuit_description.lookup_queries.push((
-            format!(
-                "MinimalVerifierQuery lookupCommitment{:?} product_next_eval_{:?}",
-                idx + 1,
-                idx + 1
-            ),
-            RotationDescription::Next,
-        ));
+        circuit_description.lookup_queries.push(Query {
+            commitment: format!("lookupCommitment{:?}", idx + 1),
+            evaluation: format!("product_eval_{:?}", idx + 1),
+            point: RotationDescription::Current,
+        });
+        circuit_description.lookup_queries.push(Query {
+            commitment: format!("permutedInput{:?}", idx + 1),
+            evaluation: format!("permuted_input_eval_{:?}", idx + 1),
+            point: RotationDescription::Current,
+        });
+        circuit_description.lookup_queries.push(Query {
+            commitment: format!("permutedTable{:?}", idx + 1),
+            evaluation: format!("permuted_table_eval_{:?}", idx + 1),
+            point: RotationDescription::Current,
+        });
+        circuit_description.lookup_queries.push(Query {
+            commitment: format!("permutedInput{:?}", idx + 1),
+            evaluation: format!("permuted_input_inv_eval_{:?}", idx + 1),
+            point: RotationDescription::Previous,
+        });
+        circuit_description.lookup_queries.push(Query {
+            commitment: format!("lookupCommitment{:?}", idx + 1),
+            evaluation: format!("product_next_eval_{:?}", idx + 1),
+            point: RotationDescription::Next,
+        });
     });
 
     let _result = emit_verifier_code(

@@ -72,6 +72,21 @@ pub enum RotationDescription {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, Default)]
+pub struct CommitmentData {
+    pub commitment: String,
+    pub point_set_index: usize,
+    pub evaluations: Vec<String>,
+    pub points: Vec<RotationDescription>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, Default)]
+pub struct Query{
+    pub commitment:String,
+    pub evaluation:String,
+    pub point: RotationDescription,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, Default)]
 pub struct CircuitRepresentation {
     pub instantiation_data: InstantiationSpecificData,
     // public_inputs are scalars
@@ -84,10 +99,12 @@ pub struct CircuitRepresentation {
     pub permutation_terms_right: Vec<(char, String)>,
     pub h_commitments: Vec<String>,
     //query + corresponding X rotation
-    pub advice_queries: Vec<(String, RotationDescription)>,
-    pub fixed_queries: Vec<(String, RotationDescription)>,
-    pub permutation_queries: Vec<(String, RotationDescription)>,
-    pub common_queries: Vec<(String, RotationDescription)>,
-    pub vanishing_queries: Vec<(String, RotationDescription)>,
-    pub lookup_queries: Vec<(String, RotationDescription)>,
+    pub advice_queries: Vec<Query>,
+    pub fixed_queries: Vec<Query>,
+    pub permutation_queries: Vec<Query>,
+    pub common_queries: Vec<Query>,
+    pub commitment_map: Vec<CommitmentData>,
+    pub point_sets: Vec<Vec<RotationDescription>>,
+    pub vanishing_queries: Vec<Query>,
+    pub lookup_queries: Vec<Query>,
 }

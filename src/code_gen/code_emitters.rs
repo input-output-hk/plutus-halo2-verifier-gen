@@ -350,7 +350,14 @@ pub fn emit_verifier_code(
         .advice_queries
         .iter()
         .enumerate()
-        .map(|(number, (term, _))| format!("      !a{}_query = {}\n", number + 1, term))
+        .map(|(number, query)| {
+            format!(
+                "      !a{}_query = MinimalVerifierQuery {} {}\n",
+                number + 1,
+                query.commitment,
+                query.evaluation
+            )
+        })
         .join("");
     data.insert("ADVICE_QUERIES".to_string(), advice_queries);
 
@@ -358,7 +365,14 @@ pub fn emit_verifier_code(
         .fixed_queries
         .iter()
         .enumerate()
-        .map(|(number, (term, _))| format!("      !f{}_query = {}\n", number + 1, term))
+        .map(|(number, query)| {
+            format!(
+                "      !f{}_query = MinimalVerifierQuery {} {}\n",
+                number + 1,
+                query.commitment,
+                query.evaluation
+            )
+        })
         .join("");
     data.insert("FIXED_QUERIES".to_string(), fixed_queries);
 
@@ -366,7 +380,14 @@ pub fn emit_verifier_code(
         .permutation_queries
         .iter()
         .enumerate()
-        .map(|(number, (term, _))| format!("      !permutations_query{} = {}\n", number + 1, term))
+        .map(|(number, query)| {
+            format!(
+                "      !permutations_query{} = MinimalVerifierQuery {} {}\n",
+                number + 1,
+                query.commitment,
+                query.evaluation
+            )
+        })
         .join("");
     data.insert("PERMUTATION_QUERIES".to_string(), permutation_queries);
 
@@ -374,15 +395,35 @@ pub fn emit_verifier_code(
         .common_queries
         .iter()
         .enumerate()
-        .map(|(number, (term, _))| format!("      !p{}_query = {}\n", number + 1, term))
+        .map(|(number, query)| {
+            format!(
+                "      !p{}_query = MinimalVerifierQuery {} {}\n",
+                number + 1,
+                query.commitment,
+                query.evaluation
+            )
+        })
         .join("");
     data.insert("COMMON_QUERIES".to_string(), common_queries);
+
+    let commitment_map = format!("      -- data so far: {:?}", circuit.commitment_map);
+    data.insert("COMMITMENT_MAP".to_string(), commitment_map);
+
+    let point_sets = format!("      -- data so far: {:?}", circuit.point_sets);
+    data.insert("POINT_SETS".to_string(), point_sets);
 
     let common_queries = circuit
         .lookup_queries
         .iter()
         .enumerate()
-        .map(|(number, (term, _))| format!("      !l{}_query = {}\n", number + 1, term))
+        .map(|(number, query)| {
+            format!(
+                "      !l{}_query = MinimalVerifierQuery {} {}\n",
+                number + 1,
+                query.commitment,
+                query.evaluation
+            )
+        })
         .join("");
     data.insert("LOOKUP_QUERIES".to_string(), common_queries);
 
@@ -400,8 +441,8 @@ pub fn emit_verifier_code(
         .advice_queries
         .iter()
         .enumerate()
-        .map(|(number, (_, rotation))| {
-            let rotation = decode_rotation(rotation);
+        .map(|(number, query)| {
+            let rotation = decode_rotation(&query.point);
             format!(
                 "              NameAnn '{} 'a{}_query ,\n",
                 rotation,
@@ -415,8 +456,8 @@ pub fn emit_verifier_code(
         .permutation_queries
         .iter()
         .enumerate()
-        .map(|(number, (_, rotation))| {
-            let rotation = decode_rotation(rotation);
+        .map(|(number, query)| {
+            let rotation = decode_rotation(&query.point);
             format!(
                 "              NameAnn '{} 'permutations_query{} ,\n",
                 rotation,
@@ -433,8 +474,8 @@ pub fn emit_verifier_code(
         .fixed_queries
         .iter()
         .enumerate()
-        .map(|(number, (_, rotation))| {
-            let rotation = decode_rotation(rotation);
+        .map(|(number, query)| {
+            let rotation = decode_rotation(&query.point);
             format!(
                 "              NameAnn '{} 'f{}_query ,\n",
                 rotation,
@@ -448,8 +489,8 @@ pub fn emit_verifier_code(
         .common_queries
         .iter()
         .enumerate()
-        .map(|(number, (_, rotation))| {
-            let rotation = decode_rotation(rotation);
+        .map(|(number, query)| {
+            let rotation = decode_rotation(&query.point);
             format!(
                 "              NameAnn '{} 'p{}_query ,\n",
                 rotation,
@@ -464,8 +505,8 @@ pub fn emit_verifier_code(
         .lookup_queries
         .iter()
         .enumerate()
-        .map(|(number, (_, rotation))| {
-            let rotation = decode_rotation(rotation);
+        .map(|(number, query)| {
+            let rotation = decode_rotation(&query.point);
             format!(
                 "              NameAnn '{} 'l{}_query ,\n",
                 rotation,
@@ -499,7 +540,7 @@ pub fn emit_verifier_code(
     ]
     .iter()
     .flatten()
-    .map(|(_, rotation)| rotation)
+    .map(|query| &query.point)
     .scan(state, |s, e| {
         if !s.contains(e) {
             s.push(e.clone())
