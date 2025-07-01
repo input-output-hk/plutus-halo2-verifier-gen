@@ -66,15 +66,12 @@ type Transcript = BuiltinByteString
 blake2bPrefixChallenge :: BuiltinByteString
 blake2bPrefixChallenge = consByteString 0 emptyByteString
 
-blake2bPrefixPoint :: BuiltinByteString
-blake2bPrefixPoint = consByteString 1 emptyByteString
-
-blake2bPrefixScalar :: BuiltinByteString
-blake2bPrefixScalar = consByteString 2 emptyByteString
+blake2bPrefixCommon :: BuiltinByteString
+blake2bPrefixCommon = consByteString 1 emptyByteString
 
 {-# INLINEABLE addCommonScalarToTranscript #-}
 addCommonScalarToTranscript :: Transcript -> Scalar -> Transcript
-addCommonScalarToTranscript bs s = bs <> blake2bPrefixScalar <> (integerToByteString LittleEndian 32 (unScalar s))
+addCommonScalarToTranscript bs s = bs <> blake2bPrefixCommon <> (integerToByteString LittleEndian 32 (unScalar s))
 
 -- labels are fixed comparing to plonk poc?
 {-# INLINEABLE squeezeChallange #-}
@@ -91,16 +88,16 @@ squeezeChallange bs =
 addPointToTranscript' :: Transcript -> BuiltinBLS12_381_G1_Element -> Transcript
 addPointToTranscript' bs point =
     bs
-        <> blake2bPrefixPoint
+        <> blake2bPrefixCommon
         <> bls12_381_G1_compress point
 
 {-# INLINEABLE addScalarToTranscript #-}
 addScalarToTranscript :: Transcript -> Scalar -> Transcript
-addScalarToTranscript bs s = bs <> blake2bPrefixScalar <> (integerToByteString LittleEndian 32 (unScalar s))
+addScalarToTranscript bs s = bs <> blake2bPrefixCommon <> (integerToByteString LittleEndian 32 (unScalar s))
 
 {-# INLINEABLE addPointToTranscript #-}
 addPointToTranscript :: Transcript -> BuiltinBLS12_381_G1_Element -> Transcript
 addPointToTranscript bs point =
     bs
-        <> blake2bPrefixPoint
+        <> blake2bPrefixCommon
         <> bls12_381_G1_compress point

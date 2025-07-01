@@ -62,7 +62,7 @@ pub struct InstantiationSpecificData {
 }
 
 // todo handle cases with custom gates that have more rotations then those 4?
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Default)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq, Default, Hash)]
 pub enum RotationDescription {
     Last,
     Previous,
@@ -80,9 +80,9 @@ pub struct CommitmentData {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, Default)]
-pub struct Query{
-    pub commitment:String,
-    pub evaluation:String,
+pub struct Query {
+    pub commitment: String,
+    pub evaluation: String,
     pub point: RotationDescription,
 }
 

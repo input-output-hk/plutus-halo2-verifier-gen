@@ -13,6 +13,22 @@ pub fn emit_verifier_code(
     haskell_file: String,  // generated haskell file, output
     circuit: &CircuitRepresentation,
 ) -> Result<String, RenderError> {
+    // order of queries to get correct order of x rotations
+    // ADVICE
+    // PERMUTATION
+    // LOOKUP
+    // FIXED
+    // COMMON
+    // VANISHING
+    let order_of_all_queries = [
+        circuit.advice_queries.clone(),
+        circuit.permutation_queries.clone(),
+        circuit.lookup_queries.clone(),
+        circuit.fixed_queries.clone(),
+        circuit.common_queries.clone(),
+        circuit.vanishing_queries.clone(),
+    ];
+
     let letters = 'a'..='z';
     let proof_extraction: Vec<_> = circuit
         .proof_extraction_steps
@@ -406,8 +422,30 @@ pub fn emit_verifier_code(
         .join("");
     data.insert("COMMON_QUERIES".to_string(), common_queries);
 
+    // preprocessing equivalent to construct_intermediate_sets
+    let ordered_unique_commitments = order_of_all_queries
+        .iter()
+        .flatten()
+        .map(|q| &q.commitment)
+        .unique()
+        .collect::<Vec<_>>();
+
+    let commitment_map: HashMap<_, _> = order_of_all_queries
+        .iter()
+        .flatten()
+        .into_group_map_by(|e| &e.commitment);
+
+    let point_sets_map: HashMap<_, _> = commitment_map
+        .iter()
+        .map(|(k, v)| (k, v.iter().map(|e| &e.point).unique().collect::<Vec<_>>()))
+        .collect();
+
+    for x in order_of_all_queries.iter() {}
+
     let commitment_map = format!("      -- data so far: {:?}", circuit.commitment_map);
     data.insert("COMMITMENT_MAP".to_string(), commitment_map);
+
+    for x in order_of_all_queries.iter() {}
 
     let point_sets = format!("      -- data so far: {:?}", circuit.point_sets);
     data.insert("POINT_SETS".to_string(), point_sets);
@@ -522,33 +560,19 @@ pub fn emit_verifier_code(
         .join(" ,\n");
     data.insert("W_VALUES".to_string(), w_values);
 
-    // order of queries to get correct order of x rotations
-    // ADVICE
-    // PERMUTATION
-    // LOOKUP
-    // FIXED
-    // COMMON
-    // VANISHING
     let state = vec![];
-    let rotation_order = [
-        circuit.advice_queries.clone(),
-        circuit.permutation_queries.clone(),
-        circuit.lookup_queries.clone(),
-        circuit.fixed_queries.clone(),
-        circuit.common_queries.clone(),
-        circuit.vanishing_queries.clone(),
-    ]
-    .iter()
-    .flatten()
-    .map(|query| &query.point)
-    .scan(state, |s, e| {
-        if !s.contains(e) {
-            s.push(e.clone())
-        }
-        Some(s.clone())
-    })
-    .last()
-    .unwrap();
+    let rotation_order = order_of_all_queries
+        .iter()
+        .flatten()
+        .map(|query| &query.point)
+        .scan(state, |s, e| {
+            if !s.contains(e) {
+                s.push(e.clone())
+            }
+            Some(s.clone())
+        })
+        .last()
+        .unwrap();
 
     let rotation_order: Vec<_> = rotation_order.iter().map(decode_rotation).collect();
 
