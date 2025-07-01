@@ -1,18 +1,19 @@
 mod circuit;
 use crate::circuit::MyCircuit;
-use blake2b_simd::State;
 use blstrs::{Base, Bls12, Scalar};
 use ff::Field;
 use halo2_proofs::halo2curves::group::GroupEncoding;
 use halo2_proofs::plonk::{ProvingKey, VerifyingKey};
 use halo2_proofs::poly::kzg::KZGCommitmentScheme;
 use halo2_proofs::poly::kzg::msm::DualMSM;
+use halo2_proofs::transcript::{Hashable, Sampleable};
 use halo2_proofs::{
     plonk::{create_proof, keygen_pk, keygen_vk, prepare},
     poly::{commitment::Guard, kzg::params::ParamsKZG},
     transcript::{CircuitTranscript, Transcript},
 };
 use log::info;
+use plutus_halo2_verifier_gen::code_gen::adjusted_types::CardanoFriendlyState;
 use plutus_halo2_verifier_gen::code_gen::extraction::extract_circuit;
 use plutus_halo2_verifier_gen::code_gen::proof_serialization::serialize_proof;
 use rand::rngs::StdRng;
@@ -53,7 +54,8 @@ fn main() {
     let pk: ProvingKey<_, KZGCommitmentScheme<Bls12>> =
         keygen_pk(vk.clone(), &circuit).expect("keygen_pk should not fail");
 
-    let mut transcript: CircuitTranscript<State> = CircuitTranscript::<State>::init();
+    let mut transcript: CircuitTranscript<CardanoFriendlyState> =
+        CircuitTranscript::<CardanoFriendlyState>::init();
     info!("transcript: {:?}", transcript);
 
     // no instances, just dummy 42 to make prover and verifier happy
@@ -86,10 +88,14 @@ fn main() {
 
     info!("proof size {:?}", proof.len());
 
-    let mut transcript_verifier: CircuitTranscript<State> =
-        CircuitTranscript::<State>::init_from_bytes(&proof);
-    let verifier: DualMSM<Bls12> =
-        prepare(&vk, instances, &mut transcript_verifier).expect("prepare verification failed");
+    let mut transcript_verifier: CircuitTranscript<CardanoFriendlyState> =
+        CircuitTranscript::<CardanoFriendlyState>::init_from_bytes(&proof);
+    let verifier: DualMSM<Bls12> = prepare::<_, _, CircuitTranscript<CardanoFriendlyState>>(
+        &vk,
+        instances,
+        &mut transcript_verifier,
+    )
+    .expect("prepare verification failed");
 
     verifier
         .verify(&params.verifier_params())
