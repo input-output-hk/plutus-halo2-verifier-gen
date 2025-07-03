@@ -461,6 +461,7 @@ dependencies = [
  "getrandom 0.2.16",
  "group",
  "halo2curves",
+ "log",
  "num-bigint",
  "rand_chacha 0.3.1",
  "rand_core 0.6.4",
