@@ -33,7 +33,6 @@ library
     Plutus.Crypto.Halo2.LagrangePolynomialEvaluation
     Plutus.Crypto.Halo2.MSMEval
     Plutus.Crypto.Halo2.MSMTH
-    Plutus.Crypto.Halo2.MultiopenMSM
     Plutus.Crypto.Halo2.MSMTypes
     Plutus.Crypto.Halo2.Proof
     Plutus.Crypto.Orphans
