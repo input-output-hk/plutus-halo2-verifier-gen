@@ -4,10 +4,8 @@ module Plutus.Crypto.BlsUtils (powers, rotateOmega, Tracing, traceG1, traceG2, t
 
 import Plutus.Crypto.BlsTypes (
     Scalar,
-    imaginary,
     mkScalar,
     powMod,
-    real,
     unFp,
     unScalar,
  )

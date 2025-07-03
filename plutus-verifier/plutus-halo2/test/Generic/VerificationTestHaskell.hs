@@ -9,27 +9,24 @@
 module Generic.VerificationTestHaskell (test, verify) where
 
 import Control.Concurrent
-import Data.Tree (flatten)
 import EvalUtils (
     parsedInputs,
  )
 import Generic.Proof (sampleProof)
 import Plutus.Crypto.Halo2 (
     bls12_381_field_prime,
-    compressG1Point,
-    mkFp,
     mkScalar,
  )
 import Plutus.Crypto.Halo2.Generic.Verifier (verify)
 import PlutusTx.Prelude (
-    Bool (False, True),
+    Bool (True),
     modulo,
  )
-import System.IO (hPutStrLn, stderr)
+
 import qualified Test.Tasty as Tasty
 import Test.Tasty.HUnit ((@?=))
 import qualified Test.Tasty.HUnit as Tasty
-import Prelude (fmap, map, mapM_, print, pure, putStrLn, sequence, show, (!!), (++))
+import Prelude (mapM_, putStrLn, show, (!!), (++))
 
 -- this test runs verifier code in haskell, without compiling it to UPLC to find out if there are any logical bugs
 -- unrelated to UPLC, the same logic is executed in VerificationTestPlutus but after compiling it to UPLC

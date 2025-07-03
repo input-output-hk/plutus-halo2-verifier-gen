@@ -105,6 +105,7 @@ newtype Scalar = Scalar {sc :: Integer}
     deriving (TH.Lift)
 
 {-# INLINEABLE unScalar #-}
+unScalar :: Scalar -> Integer
 unScalar s = (sc s) `modulo` bls12_381_field_prime
 
 makeLift ''Scalar

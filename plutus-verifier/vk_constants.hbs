@@ -12,14 +12,11 @@ module Plutus.Crypto.Halo2.Generic.VKConstants (
 {{{PERMUTATION_COMMITMENTS_EXPORTS}}}
 ) where
 
-import Control.Lens.Each (each)
-import Control.Lens.Operators ((%~), (&))
 import Data.Bifunctor (bimap)
 import Plutus.Crypto.BlsTypes (
   Scalar,
   bls12_381_field_prime,
   mkFp,
-  mkFp2,
   mkScalar,
  )
 import Plutus.Crypto.Halo2.CompressUncompress (
@@ -28,8 +25,6 @@ import Plutus.Crypto.Halo2.CompressUncompress (
 import PlutusTx.Prelude (
   BuiltinBLS12_381_G1_Element,
   BuiltinBLS12_381_G2_Element,
-  bls12_381_G1_compressed_zero,
-  bls12_381_G1_uncompress,
   modulo,
  )
 
@@ -39,7 +34,6 @@ import PlutusTx.Prelude (
  )
 
 import PlutusTx.Builtins.HasOpaque (
-  BuiltinByteStringHex,
   stringToBuiltinByteStringHex,
  )
 

@@ -25,12 +25,9 @@ import GHC.Generics (Generic)
 import Generic.VerifyCompiled (proofMintingPolicyContractApplied, verifyAppliedCompiled)
 import Plutus.Crypto.Halo2 (
     bls12_381_field_prime,
-    compressG1Point,
-    mkFp,
     mkScalar,
  )
 import PlutusTx.Prelude (
-    Bool (False, True),
     modulo,
  )
 import qualified Test.Tasty as Tasty
@@ -77,7 +74,7 @@ test = Tasty.testCase "proof verification test in plutus + budget calculations" 
 
     case evalWithBudget' (verifyAppliedCompiled p1 p2 p3) of
         Left e -> fail $ "Evaluator failed: " <> show e
-        Right (budget, traces) -> do
+        Right (budget, _) -> do
             putStrLn $ ""
             putStrLn $ "Resources used: " <> show budget
             putStrLn $ "Script size: " <> show scriptSize'

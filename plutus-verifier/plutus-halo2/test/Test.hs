@@ -10,12 +10,9 @@ import EvalUtils (
  )
 import Plutus.Crypto.Halo2 (
     bls12_381_field_prime,
-    compressG1Point,
-    mkFp,
     mkScalar,
  )
 import PlutusTx.Prelude (
-    Bool (False, True),
     modulo,
  )
 

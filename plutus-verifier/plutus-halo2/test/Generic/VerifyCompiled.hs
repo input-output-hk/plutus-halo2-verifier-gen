@@ -20,7 +20,7 @@ import PlutusCore.Version (plcVersion110)
 import PlutusTx
 import qualified PlutusTx.Maybe as PlutusTx
 import qualified PlutusTx.Prelude as PlutusTx
-import UntypedPlutusCore (UnrestrictedProgram (UnrestrictedProgram))
+import UntypedPlutusCore (DefaultFun, DefaultUni, UnrestrictedProgram (UnrestrictedProgram))
 
 verifyAdapter :: BuiltinData -> ()
 verifyAdapter proofAsData =
@@ -59,6 +59,14 @@ proofMintingContract proof =
         (result, _) = verify proof' p1 p2 p3
      in result PlutusTx.== PlutusTx.True
 
+proofMintingPolicyContractApplied ::
+    Scalar ->
+    Scalar ->
+    Scalar ->
+    CompiledCodeIn
+        DefaultUni
+        DefaultFun
+        PlutusTx.BuiltinUnit
 proofMintingPolicyContractApplied p1 p2 p3 =
     case $$(PlutusTx.compile [||PlutusTx.check . proofMintingContract||])
         `applyCode` (sampleProofCompiled p1 p2 p3) of

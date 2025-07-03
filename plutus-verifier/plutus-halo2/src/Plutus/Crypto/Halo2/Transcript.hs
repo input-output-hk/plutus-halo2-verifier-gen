@@ -12,7 +12,7 @@ where
 
 import GHC.ByteOrder (ByteOrder (..))
 import Plutus.Crypto.BlsTypes (
-    Scalar (..),
+    Scalar,
     bls12_381_field_prime,
     mkScalar,
     unScalar,

@@ -54,17 +54,15 @@ import PlutusTx.Prelude (
   AdditiveSemigroup (..),
   Bool,
   MultiplicativeSemigroup (..),
-  bls12_381_G2_neg,
   flip,
   fst,
   scale,
   zero,
   ($),
-  modulo,
   negate
  )
 import PlutusTx.List (foldl,(!!),take,head,drop)
-import Plutus.Crypto.Halo2 (Proof, bls12_381_field_prime)
+import Plutus.Crypto.Halo2 (Proof)
 
 {-# INLINEABLE innerProduct #-}
 innerProduct :: [Scalar] -> [Scalar] -> Scalar
@@ -118,7 +116,7 @@ rotations_for_vanishing =
 verify :: Proof -> {{{PUBLIC_INPUTS_TYPES}}} (Bool, [(BuiltinByteString, BlsUtils.Tracing)])
 verify proof {{{PUBLIC_INPUTS_NAMES}}} = fst $ flip (M.run VKConstants.transcriptRepr) proof $ M.do
   --  public inputs
-  !public_inputs_count <- M.commonScalar (mkScalar {{{PUBLIC_INPUTS_COUNT}}})
+  _ <- M.commonScalar (mkScalar {{{PUBLIC_INPUTS_COUNT}}})
 {{{PUBLIC_INPUTS}}}
 
 {{{PES}}}

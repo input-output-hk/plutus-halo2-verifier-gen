@@ -10,7 +10,7 @@ import Plutus.Crypto.BlsTypes as BlsTypes (
     Fp2 (..),
     MultiplicativeGroup (..),
     Rotation (..),
-    Scalar (..),
+    Scalar,
     bls12_381_base_prime,
     bls12_381_field_prime,
     mkFp,

@@ -9,27 +9,19 @@ module Plutus.Crypto.Halo2.CompressUncompress (
 import GHC.ByteOrder (ByteOrder (..))
 import Plutus.Crypto.BlsTypes (
     Fp (Fp, unFp),
-    Fp2 (Fp2, imaginary, real),
     bls12_381_base_prime,
-    div,
-    pow,
     reverseByteString,
  )
 
 import PlutusTx.Builtins (
     BuiltinBLS12_381_G1_Element,
-    BuiltinBLS12_381_G2_Element,
     BuiltinByteString,
     bls12_381_G1_compress,
     bls12_381_G1_compressed_zero,
     bls12_381_G1_uncompress,
-    bls12_381_G2_compress,
-    bls12_381_G2_compressed_zero,
-    bls12_381_G2_uncompress,
     byteStringToInteger,
     integerToByteString,
     readBit,
-    sliceByteString,
     writeBits,
  )
 import PlutusTx.List (foldr)
@@ -71,9 +63,6 @@ testBitByteString bs idx = readBit bs idx
 
 g1_zero :: BuiltinBLS12_381_G1_Element
 g1_zero = (bls12_381_G1_uncompress bls12_381_G1_compressed_zero)
-
-g2_zero :: BuiltinBLS12_381_G2_Element
-g2_zero = (bls12_381_G2_uncompress bls12_381_G2_compressed_zero)
 
 {-# INLINEABLE compressG1Point #-}
 compressG1Point :: (Fp, Fp) -> BuiltinBLS12_381_G1_Element
