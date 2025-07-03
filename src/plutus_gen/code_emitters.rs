@@ -1,4 +1,4 @@
-use crate::code_gen::extraction::data::{
+use crate::plutus_gen::extraction::data::{
     CircuitRepresentation, ProofExtractionSteps, RotationDescription,
 };
 use blstrs::G2Affine;
@@ -428,8 +428,9 @@ pub fn emit_verifier_code(
         .join("");
     data.insert("COMMON_QUERIES".to_string(), common_queries);
 
-    // preprocessing equivalent to construct_intermediate_sets
-    let ordered_unique_commitments = order_of_all_queries
+    // preprocessing equivalent to construct_intermediate_sets for new multi open kzg
+    // todo this is WIP
+    let _ordered_unique_commitments = order_of_all_queries
         .iter()
         .flatten()
         .map(|q| &q.commitment)
@@ -441,20 +442,17 @@ pub fn emit_verifier_code(
         .flatten()
         .into_group_map_by(|e| &e.commitment);
 
-    let point_sets_map: HashMap<_, _> = commitment_map
+    let _point_sets_map: HashMap<_, _> = commitment_map
         .iter()
         .map(|(k, v)| (k, v.iter().map(|e| &e.point).unique().collect::<Vec<_>>()))
         .collect();
 
-    for x in order_of_all_queries.iter() {}
-
     let commitment_map = format!("      -- data so far: {:?}", circuit.commitment_map);
     data.insert("COMMITMENT_MAP".to_string(), commitment_map);
 
-    for x in order_of_all_queries.iter() {}
-
     let point_sets = format!("      -- data so far: {:?}", circuit.point_sets);
     data.insert("POINT_SETS".to_string(), point_sets);
+    // end of  new multi open kzg
 
     let common_queries = circuit
         .lookup_queries

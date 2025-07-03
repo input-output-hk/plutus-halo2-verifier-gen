@@ -1,8 +1,8 @@
-use crate::code_gen::code_emitters::{emit_verifier_code, emit_vk_code};
-use crate::code_gen::extraction::data::{
+use crate::plutus_gen::code_emitters::{emit_verifier_code, emit_vk_code};
+use crate::plutus_gen::extraction::data::{
     CircuitRepresentation, ProofExtractionSteps, Query, RotationDescription,
 };
-use crate::code_gen::extraction::utils::{compile_expressions, get_any_query_index};
+use crate::plutus_gen::extraction::utils::{compile_expressions, get_any_query_index};
 use blstrs::{Bls12, G1Affine, G2Affine, Scalar};
 use ff::Field;
 use halo2_proofs::halo2curves::group::Curve;
@@ -10,7 +10,6 @@ use halo2_proofs::halo2curves::group::prime::PrimeCurveAffine;
 use halo2_proofs::plonk::{Any, Error, VerifyingKey};
 use halo2_proofs::poly::Rotation;
 use halo2_proofs::poly::gwc_kzg::GwcKZGCommitmentScheme;
-use halo2_proofs::poly::kzg::KZGCommitmentScheme;
 use halo2_proofs::poly::kzg::params::ParamsKZG;
 use itertools::Itertools;
 use log::info;

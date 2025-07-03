@@ -12,9 +12,9 @@ use halo2_proofs::{
     transcript::{CircuitTranscript, Transcript},
 };
 use log::info;
-use plutus_halo2_verifier_gen::code_gen::adjusted_types::CardanoFriendlyState;
-use plutus_halo2_verifier_gen::code_gen::extraction::extract_circuit;
-use plutus_halo2_verifier_gen::code_gen::proof_serialization::serialize_proof;
+use plutus_halo2_verifier_gen::plutus_gen::adjusted_types::CardanoFriendlyState;
+use plutus_halo2_verifier_gen::plutus_gen::extraction::extract_circuit;
+use plutus_halo2_verifier_gen::plutus_gen::proof_serialization::serialize_proof;
 use rand::rngs::StdRng;
 use rand_core::SeedableRng;
 use std::{fs::File, io::Write};
@@ -102,7 +102,7 @@ fn main() {
 
     serialize_proof("./plutus-verifier/plutus-halo2/test/Generic/serialized_proof.json".to_string(), proof_for_export).unwrap();
 
-    let data = extract_circuit(
+    let _data = extract_circuit(
         &params,
         &vk,
         instances,

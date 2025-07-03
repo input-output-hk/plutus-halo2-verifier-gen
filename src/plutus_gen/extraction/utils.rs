@@ -1,4 +1,4 @@
-use crate::code_gen::extraction::Scheme;
+use crate::plutus_gen::extraction::Scheme;
 use blstrs::Scalar;
 use halo2_proofs::plonk::{Advice, Any, Column, Expression, Fixed, Instance, VerifyingKey};
 use halo2_proofs::poly::Rotation;
