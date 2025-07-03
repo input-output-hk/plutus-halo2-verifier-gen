@@ -560,7 +560,12 @@ pub fn extract_circuit(
         });
     });
 
-    let number_of_omegas = 3;
+    // insert omega extraction
+    //todo count all point rotations to get number of omegas
+    // default is 3: current, next and last
+    // if there are lookups it is 4, additional -1 called inv or previous
+    // add hecks for othere possible rotations that may appear in equations
+    let number_of_omegas = if vk.cs().lookups().is_empty() { 3 } else { 4 };
     let circuit_description = extract_omegas(circuit_description, number_of_omegas);
 
     let _result = emit_verifier_code(
