@@ -19,8 +19,6 @@ mod utils;
 
 type Scheme = GwcKZGCommitmentScheme<Bls12>;
 
-// todo transcript_representation is off comparing to old version of halo2 but it may be ok
-
 pub fn extract_circuit(
     params: &ParamsKZG<Bls12>,
     vk: &VerifyingKey<Scalar, Scheme>,
