@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-halo2_proofs = { git = "https://github.com/input-output-hk/halo2", rev = "66ac0c74068abc8c21a63c6018457e5b8d87ab4b" }
+halo2_proofs = { git = "https://github.com/input-output-hk/halo2", rev = "62e40479b622131695c0f5b15aad6782decd2765" }
 ff = "0.13.0"
 serde_json = "1.0.113"
 blake2b_simd = "1.0.2"

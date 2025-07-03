@@ -101,7 +101,7 @@ s_g2 = $(lift VKConstants.s_g2_val)
 {{{PERMUTATION_COMMITMENT_LIFTS}}}
 
 rotations_for_instances :: [Scalar]
-rotations_for_instances = $(lift (getRotatedOmegas VKConstants.omega_val VKConstants.omegaInv_val 0 3))
+rotations_for_instances = $(lift (getRotatedOmegas VKConstants.omega_val VKConstants.omegaInv_val 0 {{{PUBLIC_INPUTS_COUNT}}}))
 
 rotations_for_vanishing :: [Scalar]
 rotations_for_vanishing =
@@ -118,6 +118,7 @@ rotations_for_vanishing =
 verify :: Proof -> {{{PUBLIC_INPUTS_TYPES}}} (Bool, [(BuiltinByteString, BlsUtils.Tracing)])
 verify proof {{{PUBLIC_INPUTS_NAMES}}} = fst $ flip (M.run VKConstants.transcriptRepr) proof $ M.do
   --  public inputs
+  !public_inputs_count <- M.commonScalar (mkScalar {{{PUBLIC_INPUTS_COUNT}}})
 {{{PUBLIC_INPUTS}}}
 
 {{{PES}}}

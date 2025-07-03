@@ -127,6 +127,11 @@ pub fn emit_verifier_code(
 
     let mut data: HashMap<String, String> = HashMap::new(); // data to bind to mustache template
 
+    data.insert(
+        "PUBLIC_INPUTS_COUNT".to_string(),
+        circuit.public_inputs.to_string()
+    );
+
     let proof_extraction_stage = proof_extraction.join("");
     data.insert("PES".to_string(), proof_extraction_stage);
 
