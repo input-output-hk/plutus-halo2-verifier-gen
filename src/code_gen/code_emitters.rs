@@ -5,6 +5,7 @@ use blstrs::G2Affine;
 use halo2_proofs::halo2curves::group::prime::PrimeCurveAffine;
 use handlebars::{Handlebars, RenderError};
 use itertools::Itertools;
+use log::info;
 use std::collections::HashMap;
 use std::fs::File;
 
@@ -626,18 +627,18 @@ pub fn emit_verifier_code(
         "(\"x_current\", BlsUtils.traceScalar x_current)",
         "(\"x_next\", BlsUtils.traceScalar x_next)",
         "(\"x_last\", BlsUtils.traceScalar x_last)",
-        "(\"u\", BlsUtils.traceScalar u)",
-        "(\"v\", BlsUtils.traceScalar v)",
         "(\"x\", BlsUtils.traceScalar x)",
         "(\"y\", BlsUtils.traceScalar y)",
+        "(\"v\", BlsUtils.traceScalar v)",
+        "(\"u\", BlsUtils.traceScalar u)",
         "(\"hEval\", BlsUtils.traceScalar hEval)",
         "(\"vanishing_s\", BlsUtils.traceScalar vanishing_s)",
         "(\"vanishing_g\", BlsUtils.traceG1 vanishing_g)",
-        "(\"vanishing_query\", BlsUtils.traceMVQ vanishing_query)",
-        "(\"random_query\", BlsUtils.traceMVQ random_query)",
         "(\"s_g2\", BlsUtils.traceG2 s_g2)",
         "(\"el\", BlsUtils.traceG1 el)",
         "(\"er\", BlsUtils.traceG1 er)",
+        "(\"vanishing_query\", BlsUtils.traceMVQ vanishing_query x_current)",
+        "(\"random_query\", BlsUtils.traceMVQ random_query x_current)",
     ]
     .to_vec()
     .iter()
@@ -649,20 +650,39 @@ pub fn emit_verifier_code(
         .map(|e| format!("expression{}", e))
         .collect();
 
-    let advice_queries_traces: Vec<_> = (1..=circuit.advice_queries.len())
-        .map(|e| format!("a{}_query", e))
+    let advice_queries_traces: Vec<_> = circuit
+        .advice_queries
+        .iter()
+        .zip(1..=circuit.advice_queries.len())
+        .map(|(q, idx)| (format!("a{}_query", idx), decode_rotation(&q.point)))
         .collect();
-    let fixed_queries_traces: Vec<_> = (1..=circuit.fixed_queries.len())
-        .map(|e| format!("f{}_query", e))
+
+    let fixed_queries_traces: Vec<_> = circuit
+        .fixed_queries
+        .iter()
+        .zip(1..=circuit.fixed_queries.len())
+        .map(|(q, idx)| (format!("f{}_query", idx), decode_rotation(&q.point)))
         .collect();
-    let permutation_queries_traces: Vec<_> = (1..=circuit.permutation_queries.len())
-        .map(|e| format!("permutations_query{}", e))
+
+    let permutation_queries_traces: Vec<_> = circuit
+        .permutation_queries
+        .iter()
+        .zip(1..=circuit.permutation_queries.len())
+        .map(|(q, idx)| (format!("permutations_query{}", idx), decode_rotation(&q.point)))
         .collect();
-    let common_queries_traces: Vec<_> = (1..=circuit.common_queries.len())
-        .map(|e| format!("p{}_query", e))
+
+    let common_queries_traces: Vec<_> = circuit
+        .common_queries
+        .iter()
+        .zip(1..=circuit.common_queries.len())
+        .map(|(q, idx)| (format!("p{}_query", idx), decode_rotation(&q.point)))
         .collect();
-    let lookups_queries_traces: Vec<_> = (1..=circuit.lookup_queries.len())
-        .map(|e| format!("l{}_query", e))
+
+    let lookups_queries_traces: Vec<_> = circuit
+        .lookup_queries
+        .iter()
+        .zip(1..=circuit.lookup_queries.len())
+        .map(|(q, idx)| (format!("l{}_query", idx), decode_rotation(&q.point)))
         .collect();
 
     let scalar_traces: Vec<_> = [gates_traces, expressions_traces]
@@ -679,7 +699,7 @@ pub fn emit_verifier_code(
     ]
     .iter()
     .flatten()
-    .map(|e| format!("(\"{}\", BlsUtils.traceMVQ {})", e, e))
+    .map(|(e, p)| format!("(\"{}\", BlsUtils.traceMVQ {} {})", e, e, p))
     .collect();
 
     let all_traces = [constants_tracing, scalar_traces, mvq_traces];
@@ -759,6 +779,9 @@ pub fn emit_vk_code(
     data.insert("PERMUTATION_COMMITMENTS_EXPORTS".to_string(), exports);
     data.insert("PERMUTATION_COMMITMENT_G1".to_string(), assignment);
     let compressed_sg2 = g2_encoder(circuit.instantiation_data.s_g2);
+
+    info!("compressed_sg2: {}", compressed_sg2);
+
     data.insert(
         "G2_DEFINITIONS".to_string(),
         format!("\"{}\"", compressed_sg2),

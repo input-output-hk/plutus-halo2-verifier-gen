@@ -4,9 +4,8 @@ use blstrs::{Base, Bls12, Scalar};
 use ff::Field;
 use halo2_proofs::halo2curves::group::GroupEncoding;
 use halo2_proofs::plonk::{ProvingKey, VerifyingKey};
-use halo2_proofs::poly::kzg::KZGCommitmentScheme;
+use halo2_proofs::poly::gwc_kzg::GwcKZGCommitmentScheme;
 use halo2_proofs::poly::kzg::msm::DualMSM;
-use halo2_proofs::transcript::{Hashable, Sampleable};
 use halo2_proofs::{
     plonk::{create_proof, keygen_pk, keygen_vk, prepare},
     poly::{commitment::Guard, kzg::params::ParamsKZG},
@@ -49,9 +48,9 @@ fn main() {
 
     // Given the correct public input, our circuit will verify.
     let params: ParamsKZG<Bls12> = ParamsKZG::<Bls12>::unsafe_setup(k, rng.clone());
-    let vk: VerifyingKey<_, KZGCommitmentScheme<Bls12>> =
+    let vk: VerifyingKey<_, GwcKZGCommitmentScheme<Bls12>> =
         keygen_vk(&params, &circuit).expect("keygen_vk should not fail");
-    let pk: ProvingKey<_, KZGCommitmentScheme<Bls12>> =
+    let pk: ProvingKey<_, GwcKZGCommitmentScheme<Bls12>> =
         keygen_pk(vk.clone(), &circuit).expect("keygen_pk should not fail");
 
     let mut transcript: CircuitTranscript<CardanoFriendlyState> =
@@ -90,7 +89,7 @@ fn main() {
 
     let mut transcript_verifier: CircuitTranscript<CardanoFriendlyState> =
         CircuitTranscript::<CardanoFriendlyState>::init_from_bytes(&proof);
-    let verifier: DualMSM<Bls12> = prepare::<_, _, CircuitTranscript<CardanoFriendlyState>>(
+    let verifier: DualMSM<_, _> = prepare::<_, _, CircuitTranscript<CardanoFriendlyState>>(
         &vk,
         instances,
         &mut transcript_verifier,
@@ -112,5 +111,4 @@ fn main() {
         |a| hex::encode(a.to_bytes()),
     )
     .expect("extracting failed");
-    println!("extracted data: {:?}", data);
 }

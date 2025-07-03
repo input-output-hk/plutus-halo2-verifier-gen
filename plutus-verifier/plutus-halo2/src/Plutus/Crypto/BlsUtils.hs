@@ -56,7 +56,7 @@ rotateOmega omega omegaInv value rotation
     | otherwise =
         value * powMod omega rotation
 
-data Tracing = TracingMSM MSM | TracingScalar Scalar | TracingG1 BuiltinBLS12_381_G1_Element | TracingG2 BuiltinBLS12_381_G2_Element | TracingMVQ MinimalVerifierQuery deriving (Haskell.Eq)
+data Tracing = TracingMSM MSM | TracingScalar Scalar | TracingG1 BuiltinBLS12_381_G1_Element | TracingG2 BuiltinBLS12_381_G2_Element | TracingMVQ MinimalVerifierQuery Scalar deriving (Haskell.Eq)
 
 traceG1 :: BuiltinBLS12_381_G1_Element -> Tracing
 traceG1 = TracingG1
@@ -67,7 +67,7 @@ traceG2 = TracingG2
 traceScalar :: Scalar -> Tracing
 traceScalar = TracingScalar
 
-traceMVQ :: MinimalVerifierQuery -> Tracing
+traceMVQ :: MinimalVerifierQuery -> Scalar -> Tracing
 traceMVQ = TracingMVQ
 
 traceMSM :: MSM -> Tracing
@@ -86,12 +86,13 @@ instance Haskell.Show Tracing where
     show (TracingG2 t) =
         let compressed_form = bls12_381_G2_compress t
          in printf (printAsHex compressed_form)
-    show (TracingMVQ (MinimalVerifierQuery commitment eval)) =
+    show (TracingMVQ (MinimalVerifierQuery commitment eval) rotation) =
         let
             c = Haskell.show (TracingG1 commitment)
             e = Haskell.show (TracingScalar eval)
+            p = Haskell.show (TracingScalar rotation)
          in
-            "( commitment: " Haskell.++ c Haskell.++ ", evaluation: " Haskell.++ e Haskell.++ " )"
+            "( commitment: " Haskell.++ c Haskell.++ ", point: " Haskell.++ p Haskell.++ ", evaluation: " Haskell.++ e Haskell.++ " )"
     show (TracingMSM (MSM es)) =
         let formatted =
                 Haskell.map

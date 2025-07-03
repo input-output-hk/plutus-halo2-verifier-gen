@@ -9,6 +9,7 @@ use halo2_proofs::halo2curves::group::Curve;
 use halo2_proofs::halo2curves::group::prime::PrimeCurveAffine;
 use halo2_proofs::plonk::{Any, Error, VerifyingKey};
 use halo2_proofs::poly::Rotation;
+use halo2_proofs::poly::gwc_kzg::GwcKZGCommitmentScheme;
 use halo2_proofs::poly::kzg::KZGCommitmentScheme;
 use halo2_proofs::poly::kzg::params::ParamsKZG;
 use itertools::Itertools;
@@ -17,7 +18,7 @@ use log::info;
 pub mod data;
 mod utils;
 
-type Scheme = KZGCommitmentScheme<Bls12>;
+type Scheme = GwcKZGCommitmentScheme<Bls12>;
 
 // todo transcript_representation is off comparing to old version of halo2 but it may be ok
 
@@ -559,6 +560,9 @@ pub fn extract_circuit(
         });
     });
 
+    let number_of_omegas = 3;
+    let circuit_description = extract_omegas(circuit_description, number_of_omegas);
+
     let _result = emit_verifier_code(
         verifier_template_file,
         "plutus-verifier/plutus-halo2/src/Plutus/Crypto/Halo2/Generic/Verifier.hs".to_string(),
@@ -576,4 +580,26 @@ pub fn extract_circuit(
     .map_err(|_e| Error::Synthesis)?;
 
     Ok(circuit_description)
+}
+
+fn extract_omegas(
+    mut circuit_description: CircuitRepresentation,
+    number_of_omegas: usize,
+) -> CircuitRepresentation {
+    circuit_description
+        .proof_extraction_steps
+        .push(ProofExtractionSteps::V);
+
+    circuit_description.instantiation_data.w_values_count = number_of_omegas;
+    // witnesses
+    for _ in 0..number_of_omegas {
+        circuit_description
+            .proof_extraction_steps
+            .push(ProofExtractionSteps::Witnesses);
+    }
+
+    circuit_description
+        .proof_extraction_steps
+        .push(ProofExtractionSteps::U);
+    circuit_description
 }
