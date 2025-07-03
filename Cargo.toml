@@ -8,16 +8,12 @@ halo2_proofs = { git = "https://github.com/input-output-hk/halo2", rev = "0bca06
 ff = "0.13.0"
 serde_json = "1.0.113"
 blake2b_simd = "1.0.2"
-num-bigint = { version = "0.4.4", features = ["serde"] }
 handlebars = "6.1.0"
 itertools = "0.14.0"
 hex = "0.4.3"
 log = "0.4.22"
 env_logger = "0.11.5"
 blstrs = { git = "https://github.com/davidnevadoc/blstrs", rev = "3dfe5bf" }
-rand_core_09 = { package = "rand_core", version = "0.9.3" }
-rand_chacha_09 = { package = "rand_chacha", version = "0.9.0" }
-rand_core_06 = { package = "rand_core", version = "0.6.4" }
-rand_chacha_06 = { package = "rand_chacha", version = "0.3.1" }
+rand_core = { package = "rand_core", version = "0.6.4" }
 serde = { version = "1.0.219", features = ["derive"] }
 rand = "0.8"

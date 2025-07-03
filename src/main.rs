@@ -16,7 +16,7 @@ use plutus_halo2_verifier_gen::code_gen::adjusted_types::CardanoFriendlyState;
 use plutus_halo2_verifier_gen::code_gen::extraction::extract_circuit;
 use plutus_halo2_verifier_gen::code_gen::proof_serialization::serialize_proof;
 use rand::rngs::StdRng;
-use rand_core_06::SeedableRng;
+use rand_core::SeedableRng;
 use std::{fs::File, io::Write};
 
 fn main() {
