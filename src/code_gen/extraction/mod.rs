@@ -472,7 +472,7 @@ pub fn extract_circuit(
         .iter()
         .enumerate()
         .for_each(|(query_index, &(column, at))| {
-            circuit_description.advice_queries.push(Query {
+            circuit_description.fixed_queries.push(Query {
                 commitment: format!("f{:?}_commitment", column.index() + 1),
                 evaluation: format!("fixedEval{:?}", query_index + 1),
                 point: decode(at.0),
