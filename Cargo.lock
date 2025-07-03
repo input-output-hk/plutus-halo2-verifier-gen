@@ -453,7 +453,7 @@ dependencies = [
 [[package]]
 name = "halo2_proofs"
 version = "0.3.0"
-source = "git+https://github.com/input-output-hk/halo2?rev=62e40479b622131695c0f5b15aad6782decd2765#62e40479b622131695c0f5b15aad6782decd2765"
+source = "git+https://github.com/input-output-hk/halo2?rev=0bca06e58937fbe213a0530ecac9d8e0fed501d6#0bca06e58937fbe213a0530ecac9d8e0fed501d6"
 dependencies = [
  "blake2b_simd",
  "blstrs",
