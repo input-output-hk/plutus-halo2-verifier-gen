@@ -1,9 +1,8 @@
-mod circuit;
-use crate::circuit::MyCircuit;
 use blstrs::{Base, Bls12, Scalar};
-use ff::Field;
+use blstrs::{Fp as FpBlstRs, G2Affine as G2AffineBlstRs};
 use halo2_proofs::halo2curves::group::GroupEncoding;
 use halo2_proofs::plonk::{k_from_circuit, ProvingKey, VerifyingKey};
+use halo2_proofs::poly::commitment::Params;
 use halo2_proofs::poly::gwc_kzg::GwcKZGCommitmentScheme;
 use halo2_proofs::poly::kzg::msm::DualMSM;
 use halo2_proofs::{
@@ -12,45 +11,40 @@ use halo2_proofs::{
     transcript::{CircuitTranscript, Transcript},
 };
 use log::info;
+use plutus_halo2_verifier_gen::example_circuits::lookup_table_circuit::LookupTest;
 use plutus_halo2_verifier_gen::plutus_gen::adjusted_types::CardanoFriendlyState;
 use plutus_halo2_verifier_gen::plutus_gen::extraction::extract_circuit;
 use plutus_halo2_verifier_gen::plutus_gen::proof_serialization::serialize_proof;
-use rand::rngs::StdRng;
+use rand::prelude::StdRng;
+use rand_chacha::ChaCha8Rng;
 use rand_core::SeedableRng;
-use std::{fs::File, io::Write};
+use serde_json::to_string;
+use std::fs::File;
+use std::io::{BufReader, Write};
+use std::marker::PhantomData;
+use std::path::Path;
 
 fn main() {
-    env_logger::init_from_env(env_logger::Env::default().filter_or("RUST_LOG", "info"));
+    env_logger::init_from_env(env_logger::Env::default().filter_or("RUST_LOG", "trace"));
 
-    // Prepare the private and public inputs to the circuit!
-    let constant = Scalar::from(7);
-    let a = Scalar::from(2);
-    let b = Scalar::from(3);
-    let c = constant * a.square() * b.square();
+    // no extract data step to save time for debugging, see serialized_proof_lookups.json
+    compile_lookup_table_circuit();
+}
 
-    info!("constant: {:?}", constant);
-
-    info!("a: {:?}", a);
-    info!("b: {:?}", b);
-    info!("c: {:?}", c);
-
-    // Instantiate the circuit with the private inputs.
-    let circuit = MyCircuit::init(constant, a, b, c);
-    info!("circuit: {:?}", circuit);
-
+pub fn compile_lookup_table_circuit() {
     let seed = [0u8; 32]; // Choose a fixed seed for testing
     let mut rng: StdRng = SeedableRng::from_seed(seed);
 
-    let k: u32 = k_from_circuit(&circuit);
-    let params: ParamsKZG<Bls12> = ParamsKZG::<Bls12>::unsafe_setup(k, rng.clone());
-    let vk: VerifyingKey<_, GwcKZGCommitmentScheme<Bls12>> =
-        keygen_vk(&params, &circuit).expect("keygen_vk should not fail");
-    let pk: ProvingKey<_, GwcKZGCommitmentScheme<Bls12>> =
-        keygen_pk(vk.clone(), &circuit).expect("keygen_pk should not fail");
+    let circuit = LookupTest::<Scalar> {
+        inputs: vec![(42, 8), (53, 7), (12, 8), (46, 8)],
+        max_bit_len: 9,
+        native_field: PhantomData,
+    };
 
-    let mut transcript: CircuitTranscript<CardanoFriendlyState> =
-        CircuitTranscript::<CardanoFriendlyState>::init();
-    info!("transcript: {:?}", transcript);
+    let k: u32 = k_from_circuit(&circuit);
+    let kzg_params: ParamsKZG<Bls12> = ParamsKZG::<Bls12>::unsafe_setup(k, rng.clone());
+    let vk: VerifyingKey<Scalar, GwcKZGCommitmentScheme<Bls12>> = keygen_vk(&kzg_params, &circuit).unwrap();
+    let pk: ProvingKey<Scalar, GwcKZGCommitmentScheme<Bls12>> = keygen_pk(vk.clone(), &circuit).unwrap();
 
     // no instances, just dummy 42 to make prover and verifier happy
     let instances: &[&[&[Scalar]]] =
@@ -65,8 +59,11 @@ fn main() {
         let _ = output.write((hex::encode(value) + "\n").as_bytes());
     }
 
+    let mut transcript: CircuitTranscript<CardanoFriendlyState> =
+        CircuitTranscript::<CardanoFriendlyState>::init();
+
     create_proof(
-        &params,
+        &kzg_params,
         &pk,
         &[circuit],
         instances,
@@ -74,33 +71,33 @@ fn main() {
         &mut transcript,
     )
     .expect("proof generation should not fail");
-    info!("transcript: {:?}", transcript);
 
     let proof = transcript.finalize();
     info!("proof size {:?}", proof.len());
 
     let mut transcript_verifier: CircuitTranscript<CardanoFriendlyState> =
         CircuitTranscript::<CardanoFriendlyState>::init_from_bytes(&proof);
-    let verifier: DualMSM<_, _> = prepare::<_, _, CircuitTranscript<CardanoFriendlyState>>(
+
+    let verifier = prepare::<_, _, CircuitTranscript<CardanoFriendlyState>>(
         &vk,
         instances,
         &mut transcript_verifier,
     )
-    .expect("prepare verification failed");
+        .expect("prepare verification failed");
 
     verifier
-        .verify(&params.verifier_params())
+        .verify(&kzg_params.verifier_params())
         .expect("verify failed");
 
     serialize_proof("./plutus-verifier/plutus-halo2/test/Generic/serialized_proof.json".to_string(), proof).unwrap();
 
     let _data = extract_circuit(
-        &params,
+        &kzg_params,
         &vk,
         instances,
         "plutus-verifier/verification.hbs".to_string(),
         "plutus-verifier/vk_constants.hbs".to_string(),
         |a| hex::encode(a.to_bytes()),
     )
-    .expect("extracting failed");
+        .expect("extracting failed");
 }
