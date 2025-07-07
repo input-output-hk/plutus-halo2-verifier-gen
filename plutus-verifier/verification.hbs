@@ -196,10 +196,10 @@ verify proof {{{PUBLIC_INPUTS_NAMES}}} = fst $ flip (M.run VKConstants.transcrip
       --    common queries
 {{{COMMON_QUERIES}}}
 
-      -- commitment map
+      -- commitment map, tuples are (commitment, point_set_index, points, evaluations)
 {{{COMMITMENT_MAP}}}
 
-      -- point sets
+      -- point sets with correct order of sets in list
 {{{POINT_SETS}}}
 
       --    lookups tables related queries

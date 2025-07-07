@@ -1,5 +1,5 @@
 use crate::plutus_gen::extraction::data::{
-    CircuitRepresentation, ProofExtractionSteps, RotationDescription,
+    CircuitRepresentation, CommitmentData, ProofExtractionSteps, RotationDescription,
 };
 use blstrs::G2Affine;
 use halo2_proofs::halo2curves::group::prime::PrimeCurveAffine;
@@ -7,6 +7,7 @@ use handlebars::{Handlebars, RenderError};
 use itertools::Itertools;
 use log::info;
 use std::collections::HashMap;
+use std::fmt::format;
 use std::fs::File;
 
 pub fn emit_verifier_code(
@@ -129,7 +130,7 @@ pub fn emit_verifier_code(
 
     data.insert(
         "PUBLIC_INPUTS_COUNT".to_string(),
-        circuit.public_inputs.to_string()
+        circuit.public_inputs.to_string(),
     );
 
     let proof_extraction_stage = proof_extraction.join("");
@@ -429,28 +430,85 @@ pub fn emit_verifier_code(
     data.insert("COMMON_QUERIES".to_string(), common_queries);
 
     // preprocessing equivalent to construct_intermediate_sets for new multi open kzg
-    // todo this is WIP
-    let _ordered_unique_commitments = order_of_all_queries
+    let ordered_unique_commitments: Vec<String> = order_of_all_queries
         .iter()
         .flatten()
         .map(|q| &q.commitment)
+        .cloned()
         .unique()
-        .collect::<Vec<_>>();
-
-    let commitment_map: HashMap<_, _> = order_of_all_queries
-        .iter()
-        .flatten()
-        .into_group_map_by(|e| &e.commitment);
-
-    let _point_sets_map: HashMap<_, _> = commitment_map
-        .iter()
-        .map(|(k, v)| (k, v.iter().map(|e| &e.point).unique().collect::<Vec<_>>()))
         .collect();
 
-    let commitment_map = format!("      -- data so far: {:?}", circuit.commitment_map);
+    let commitment_map: HashMap<String, _> = order_of_all_queries
+        .iter()
+        .flatten()
+        .into_group_map_by(|e| e.commitment.clone());
+
+    let point_sets_map: HashMap<String, Vec<RotationDescription>> = commitment_map
+        .iter()
+        .map(|(k, v)| {
+            (
+                k.clone(),
+                v.iter()
+                    .map(|e| &e.point)
+                    .cloned()
+                    .unique()
+                    .collect::<Vec<_>>(),
+            )
+        })
+        .collect();
+
+    let mut grouped_points: Vec<Vec<RotationDescription>> = vec![];
+
+    for commitment in ordered_unique_commitments.iter() {
+        grouped_points.push(point_sets_map.get(commitment).unwrap().clone());
+    }
+
+    let unique_grouped_points: Vec<Vec<_>> = grouped_points.iter().cloned().unique().collect();
+
+    let point_sets_indexes: HashMap<_, _> = unique_grouped_points
+        .iter()
+        .enumerate()
+        .map(|(a, b)| (b.clone(), a))
+        .collect();
+
+    let mut commitment_data: Vec<CommitmentData> = vec![];
+
+    for commitment in ordered_unique_commitments.iter() {
+        let query = commitment_map.get(commitment).unwrap();
+        let points: Vec<RotationDescription> = query.iter().map(|q| q.point.clone()).collect();
+
+        let point_set_idx = point_sets_indexes.get(&points).unwrap();
+
+        commitment_data.push(CommitmentData {
+            commitment: (*commitment).clone(),
+            point_set_index: *point_set_idx,
+            evaluations: query.iter().map(|q| q.evaluation.clone()).collect(),
+            points,
+        });
+    }
+
+    let commitment_data = commitment_data
+        .iter()
+        .map(|commitment_data| {
+            format!(
+                "{}, {}, [{}], [{}]",
+                commitment_data.commitment,
+                commitment_data.point_set_index,
+                commitment_data.points.iter().map(decode_rotation).join(","),
+                commitment_data.evaluations.join(",")
+            )
+        })
+        .join("),(");
+
+    let commitment_map = format!("      !commitment_data = [({})]", commitment_data);
     data.insert("COMMITMENT_MAP".to_string(), commitment_map);
 
-    let point_sets = format!("      -- data so far: {:?}", circuit.point_sets);
+    let point_sets = unique_grouped_points
+        .iter()
+        .map(|set| set.iter().map(decode_rotation).join(","))
+        .join("],[");
+
+    let point_sets = format!("      !point_sets = [[{}]]", point_sets);
     data.insert("POINT_SETS".to_string(), point_sets);
     // end of  new multi open kzg
 
@@ -671,7 +729,12 @@ pub fn emit_verifier_code(
         .permutation_queries
         .iter()
         .zip(1..=circuit.permutation_queries.len())
-        .map(|(q, idx)| (format!("permutations_query{}", idx), decode_rotation(&q.point)))
+        .map(|(q, idx)| {
+            (
+                format!("permutations_query{}", idx),
+                decode_rotation(&q.point),
+            )
+        })
         .collect();
 
     let common_queries_traces: Vec<_> = circuit
