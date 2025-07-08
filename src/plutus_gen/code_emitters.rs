@@ -106,13 +106,15 @@ pub fn emit_verifier_code(
             ProofExtractionSteps::X3 => "  !x3 <- M.squeezeChallange\n".to_string(),
             ProofExtractionSteps::X4 => "  !x4 <- M.squeezeChallange\n".to_string(),
             ProofExtractionSteps::FCommitment => "  !f_commitment <- M.readPoint\n".to_string(),
-            ProofExtractionSteps::PI => "  !pi <- M.readPoint\n".to_string(),
+            ProofExtractionSteps::PI => "  !pi_term <- M.readPoint\n".to_string(),
+            ProofExtractionSteps::QEvals => section
+                .enumerate()
+                .map(|(number, _permutation_common)| format!("  !q_eval_{} <- M.readScalar\n", number + 1))
+                .join(""),
 
             // section for legacy GWC
             ProofExtractionSteps::V => "  !v <- M.squeezeChallange\n".to_string(),
             ProofExtractionSteps::U => "  !u <- M.squeezeChallange\n".to_string(),
-
-            // section common for all GWC
             ProofExtractionSteps::Witnesses => section
                 .enumerate()
                 .map(|(number, _permutation_common)| format!("  !w{} <- M.readPoint\n", number + 1))

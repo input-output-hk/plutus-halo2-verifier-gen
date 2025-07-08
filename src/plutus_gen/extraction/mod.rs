@@ -32,7 +32,7 @@ pub fn extract_circuit_legacy(
 ) -> Result<CircuitRepresentation, Error> {
     let circuit_description = extract_circuit(params, vk, instances)?;
     let circuit_description = extract_witnesses_legacy(circuit_description);
-    foobar(
+    render_templates(
         verifier_template_file,
         vk_template_file,
         g2_encoder,
@@ -51,7 +51,7 @@ pub fn extract_circuit_multi_open(
 ) -> Result<CircuitRepresentation, Error> {
     let circuit_description = extract_circuit(params, vk, instances)?;
     let circuit_description = extract_witnesses_multi_open(circuit_description);
-    foobar(
+    render_templates(
         verifier_template_file,
         vk_template_file,
         g2_encoder,
@@ -601,7 +601,7 @@ where
     Ok(circuit_description)
 }
 
-fn foobar(
+fn render_templates(
     verifier_template_file: String,
     vk_template_file: String,
     g2_encoder: fn(G2Affine) -> String,
@@ -660,7 +660,7 @@ fn extract_witnesses_multi_open(
     for _ in 0..number_of_witnesses {
         circuit_description
             .proof_extraction_steps
-            .push(ProofExtractionSteps::Witnesses);
+            .push(ProofExtractionSteps::QEvals);
     }
 
     circuit_description

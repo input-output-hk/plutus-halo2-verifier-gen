@@ -18,14 +18,13 @@ pub enum ProofExtractionSteps {
     RandomEval,
     VanishingSplit,
 
-    Witnesses,
-
     XCoordinate,
     YCoordinate,
 
     // elements specific to legacy GWC
     V,
     U,
+    Witnesses,
     //
 
     //elements related to multi open GWC
@@ -35,7 +34,9 @@ pub enum ProofExtractionSteps {
     X4,
     FCommitment,
     PI,
+    QEvals,
     //
+    
     Theta,
     Beta,
     Gamma,

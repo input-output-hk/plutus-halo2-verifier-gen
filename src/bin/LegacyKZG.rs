@@ -1,5 +1,3 @@
-mod circuit;
-use crate::circuit::MyCircuit;
 use blstrs::{Base, Bls12, Scalar};
 use ff::Field;
 use halo2_proofs::halo2curves::group::GroupEncoding;
@@ -12,6 +10,7 @@ use halo2_proofs::{
     transcript::{CircuitTranscript, Transcript},
 };
 use log::info;
+use plutus_halo2_verifier_gen::circuit::MyCircuit;
 use plutus_halo2_verifier_gen::plutus_gen::adjusted_types::CardanoFriendlyState;
 use plutus_halo2_verifier_gen::plutus_gen::extraction::extract_circuit_legacy;
 use plutus_halo2_verifier_gen::plutus_gen::proof_serialization::serialize_proof;
