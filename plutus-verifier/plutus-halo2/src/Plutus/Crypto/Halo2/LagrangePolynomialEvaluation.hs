@@ -4,6 +4,7 @@
 module Plutus.Crypto.Halo2.LagrangePolynomialEvaluation (
     lagrangePolynomialEvaluation,
     getRotatedOmegas,
+    lagrangeInPlace,
 ) where
 
 import Plutus.Crypto.BlsTypes (
@@ -13,11 +14,16 @@ import Plutus.Crypto.BlsTypes (
 import Plutus.Crypto.BlsUtils (rotateOmega)
 import PlutusTx.List (foldl, head, reverse, tail, zip)
 import PlutusTx.Prelude (
+    AdditiveMonoid (..),
     MultiplicativeMonoid (one),
     fmap,
     ($),
     (*),
+    (+),
     (-),
+    (/=),
+    --    sum,
+    --    (/),
  )
 import qualified Prelude
 
@@ -70,3 +76,22 @@ batchInverses l@(a : aCons) = aInv
             ([], bInvLast)
             (zip (tail bRev) aRev)
     !aInv = bInv_1 : aInv'
+
+-- this function first does lagrange interpolation based on list of tuples,
+-- where first element is treated as x and second as y
+-- then it evaluates interpolated polynomial with 2nd argument of the function X
+-- and returns interpolated_poly(x)
+{-# INLINEABLE lagrangeInPlace #-}
+lagrangeInPlace :: [(Scalar, Scalar)] -> Scalar -> Scalar
+lagrangeInPlace pts x =
+    foldl
+        (\a b -> a + b)
+        zero
+        [yi * basis xi | (xi, yi) <- pts]
+  where
+    basis :: Scalar -> Scalar
+    basis xi =
+        foldl
+            (\a b -> a * b)
+            one
+            [(x - xj) * (recip (xi - xj)) | (xj, _) <- pts, xj /= xi]

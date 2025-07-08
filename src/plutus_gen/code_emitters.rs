@@ -109,7 +109,7 @@ pub fn emit_verifier_code(
             ProofExtractionSteps::PI => "  !pi_term <- M.readPoint\n".to_string(),
             ProofExtractionSteps::QEvals => section
                 .enumerate()
-                .map(|(number, _permutation_common)| format!("  !q_eval_{} <- M.readScalar\n", number + 1))
+                .map(|(number, _permutation_common)| format!("  !q_eval_on_x3_{} <- M.readScalar\n", number + 1))
                 .join(""),
 
             // section for legacy GWC

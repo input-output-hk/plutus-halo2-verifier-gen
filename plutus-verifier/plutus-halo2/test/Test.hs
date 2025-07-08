@@ -3,6 +3,7 @@ module Main where
 import qualified Generic.VerificationTestHaskell
 import qualified Generic.VerificationTestPlutus
 import Generic.VerifyCompiled (writeToFile)
+import qualified Lagrange
 import Test.Tasty (defaultMain, testGroup)
 
 import EvalUtils (
@@ -36,4 +37,5 @@ main = do
             "Haskell and Plutus Halo2 tests"
             [ Generic.VerificationTestHaskell.test
             , Generic.VerificationTestPlutus.test
+            , Lagrange.test
             ]

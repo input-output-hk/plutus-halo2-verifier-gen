@@ -88,6 +88,7 @@ test-suite run-vector-test
 
   other-modules:
     EvalUtils
+    Lagrange
     Generic.Proof
     Generic.VerificationTestPlutus
     Generic.VerificationTestHaskell

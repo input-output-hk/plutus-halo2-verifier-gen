@@ -4,6 +4,7 @@ use halo2_proofs::halo2curves::group::GroupEncoding;
 use halo2_proofs::plonk::{ProvingKey, VerifyingKey};
 use halo2_proofs::poly::kzg::KZGCommitmentScheme;
 use halo2_proofs::poly::kzg::msm::DualMSM;
+use halo2_proofs::utils::arithmetic::{eval_polynomial, lagrange_interpolate};
 use halo2_proofs::{
     plonk::{create_proof, keygen_pk, keygen_vk, prepare},
     poly::{commitment::Guard, kzg::params::ParamsKZG},
@@ -115,4 +116,6 @@ fn main() {
         |a| hex::encode(a.to_bytes()),
     )
     .expect("extracting failed");
+
+
 }
