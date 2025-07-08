@@ -1,13 +1,13 @@
 use crate::plutus_gen::extraction::data::{
-    CircuitRepresentation, CommitmentData, ProofExtractionSteps, RotationDescription,
+    CircuitRepresentation, ProofExtractionSteps, RotationDescription,
 };
+use crate::plutus_gen::extraction::precompute_intermediate_sets;
 use blstrs::G2Affine;
 use halo2_proofs::halo2curves::group::prime::PrimeCurveAffine;
 use handlebars::{Handlebars, RenderError};
 use itertools::Itertools;
 use log::info;
 use std::collections::HashMap;
-use std::fmt::format;
 use std::fs::File;
 
 pub fn emit_verifier_code(
@@ -15,22 +15,6 @@ pub fn emit_verifier_code(
     haskell_file: String,  // generated haskell file, output
     circuit: &CircuitRepresentation,
 ) -> Result<String, RenderError> {
-    // order of queries to get correct order of x rotations
-    // ADVICE
-    // PERMUTATION
-    // LOOKUP
-    // FIXED
-    // COMMON
-    // VANISHING
-    let order_of_all_queries = [
-        circuit.advice_queries.clone(),
-        circuit.permutation_queries.clone(),
-        circuit.lookup_queries.clone(),
-        circuit.fixed_queries.clone(),
-        circuit.common_queries.clone(),
-        circuit.vanishing_queries.clone(),
-    ];
-
     let letters = 'a'..='z';
     let proof_extraction: Vec<_> = circuit
         .proof_extraction_steps
@@ -89,13 +73,6 @@ pub fn emit_verifier_code(
                     )
                 })
                 .join(""),
-            ProofExtractionSteps::V => "  !v <- M.squeezeChallange\n".to_string(),
-            ProofExtractionSteps::Witnesses => section
-                .enumerate()
-                .map(|(number, _permutation_common)| format!("  !w{} <- M.readPoint\n", number + 1))
-                .join(""),
-            ProofExtractionSteps::U => "  !u <- M.squeezeChallange\n".to_string(),
-
             ProofExtractionSteps::SqueezeChallenge => panic!("not SqueezeChallange supported"),
             ProofExtractionSteps::LookupPermuted => section
                 .enumerate()
@@ -122,6 +99,23 @@ pub fn emit_verifier_code(
                         )
                         + &format!("  !permuted_table_eval_{} <- M.readScalar\n", number + 1)
                 })
+                .join(""),
+            // section for multi open GWC
+            ProofExtractionSteps::X1 => "  !x1 <- M.squeezeChallange\n".to_string(),
+            ProofExtractionSteps::X2 => "  !x2 <- M.squeezeChallange\n".to_string(),
+            ProofExtractionSteps::X3 => "  !x3 <- M.squeezeChallange\n".to_string(),
+            ProofExtractionSteps::X4 => "  !x4 <- M.squeezeChallange\n".to_string(),
+            ProofExtractionSteps::FCommitment => "  !f_commitment <- M.readPoint\n".to_string(),
+            ProofExtractionSteps::PI => "  !pi <- M.readPoint\n".to_string(),
+
+            // section for legacy GWC
+            ProofExtractionSteps::V => "  !v <- M.squeezeChallange\n".to_string(),
+            ProofExtractionSteps::U => "  !u <- M.squeezeChallange\n".to_string(),
+
+            // section common for all GWC
+            ProofExtractionSteps::Witnesses => section
+                .enumerate()
+                .map(|(number, _permutation_common)| format!("  !w{} <- M.readPoint\n", number + 1))
                 .join(""),
         })
         .collect();
@@ -429,63 +423,7 @@ pub fn emit_verifier_code(
         .join("");
     data.insert("COMMON_QUERIES".to_string(), common_queries);
 
-    // preprocessing equivalent to construct_intermediate_sets for new multi open kzg
-    let ordered_unique_commitments: Vec<String> = order_of_all_queries
-        .iter()
-        .flatten()
-        .map(|q| &q.commitment)
-        .cloned()
-        .unique()
-        .collect();
-
-    let commitment_map: HashMap<String, _> = order_of_all_queries
-        .iter()
-        .flatten()
-        .into_group_map_by(|e| e.commitment.clone());
-
-    let point_sets_map: HashMap<String, Vec<RotationDescription>> = commitment_map
-        .iter()
-        .map(|(k, v)| {
-            (
-                k.clone(),
-                v.iter()
-                    .map(|e| &e.point)
-                    .cloned()
-                    .unique()
-                    .collect::<Vec<_>>(),
-            )
-        })
-        .collect();
-
-    let mut grouped_points: Vec<Vec<RotationDescription>> = vec![];
-
-    for commitment in ordered_unique_commitments.iter() {
-        grouped_points.push(point_sets_map.get(commitment).unwrap().clone());
-    }
-
-    let unique_grouped_points: Vec<Vec<_>> = grouped_points.iter().cloned().unique().collect();
-
-    let point_sets_indexes: HashMap<_, _> = unique_grouped_points
-        .iter()
-        .enumerate()
-        .map(|(a, b)| (b.clone(), a))
-        .collect();
-
-    let mut commitment_data: Vec<CommitmentData> = vec![];
-
-    for commitment in ordered_unique_commitments.iter() {
-        let query = commitment_map.get(commitment).unwrap();
-        let points: Vec<RotationDescription> = query.iter().map(|q| q.point.clone()).collect();
-
-        let point_set_idx = point_sets_indexes.get(&points).unwrap();
-
-        commitment_data.push(CommitmentData {
-            commitment: (*commitment).clone(),
-            point_set_index: *point_set_idx,
-            evaluations: query.iter().map(|q| q.evaluation.clone()).collect(),
-            points,
-        });
-    }
+    let (unique_grouped_points, commitment_data) = precompute_intermediate_sets(circuit);
 
     let commitment_data = commitment_data
         .iter()
@@ -510,7 +448,6 @@ pub fn emit_verifier_code(
 
     let point_sets = format!("      !point_sets = [[{}]]", point_sets);
     data.insert("POINT_SETS".to_string(), point_sets);
-    // end of  new multi open kzg
 
     let common_queries = circuit
         .lookup_queries
@@ -623,7 +560,8 @@ pub fn emit_verifier_code(
     data.insert("W_VALUES".to_string(), w_values);
 
     let state = vec![];
-    let rotation_order = order_of_all_queries
+    let rotation_order = circuit
+        .all_queries_ordered()
         .iter()
         .flatten()
         .map(|query| &query.point)

@@ -1,14 +1,19 @@
-use crate::plutus_gen::extraction::Scheme;
 use blstrs::Scalar;
+use halo2_proofs::halo2curves::group::Curve;
 use halo2_proofs::plonk::{Advice, Any, Column, Expression, Fixed, Instance, VerifyingKey};
 use halo2_proofs::poly::Rotation;
+use halo2_proofs::poly::commitment::PolynomialCommitmentScheme;
 use std::io::BufWriter;
 
-pub fn get_any_query_index(
-    vk: &VerifyingKey<Scalar, Scheme>,
+pub fn get_any_query_index<S>(
+    vk: &VerifyingKey<Scalar, S>,
     column: Column<Any>,
     at: Rotation,
-) -> usize {
+) -> usize
+where
+    S: PolynomialCommitmentScheme<Scalar>,
+    S::Commitment: Curve,
+{
     match column.column_type() {
         Any::Advice(_) => {
             for (index, advice_query) in vk.cs().advice_queries().iter().enumerate() {

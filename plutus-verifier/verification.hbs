@@ -56,6 +56,7 @@ import PlutusTx.Prelude (
   AdditiveGroup (..),
   AdditiveSemigroup (..),
   Bool,
+  Integer,
   MultiplicativeSemigroup (..),
   flip,
   fst,
@@ -197,6 +198,7 @@ verify proof {{{PUBLIC_INPUTS_NAMES}}} = fst $ flip (M.run VKConstants.transcrip
 {{{COMMON_QUERIES}}}
 
       -- commitment map, tuples are (commitment, point_set_index, points, evaluations)
+      commitment_data :: [(BuiltinBLS12_381_G1_Element, Integer, [Scalar], [Scalar])]
 {{{COMMITMENT_MAP}}}
 
       -- point sets with correct order of sets in list

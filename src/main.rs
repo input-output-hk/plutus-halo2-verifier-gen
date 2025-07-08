@@ -13,7 +13,7 @@ use halo2_proofs::{
 };
 use log::info;
 use plutus_halo2_verifier_gen::plutus_gen::adjusted_types::CardanoFriendlyState;
-use plutus_halo2_verifier_gen::plutus_gen::extraction::extract_circuit;
+use plutus_halo2_verifier_gen::plutus_gen::extraction::extract_circuit_legacy;
 use plutus_halo2_verifier_gen::plutus_gen::proof_serialization::serialize_proof;
 use rand::rngs::StdRng;
 use rand_core::SeedableRng;
@@ -62,7 +62,8 @@ fn main() {
         &[&[&[Base::from(42u64), Base::from(42u64), Base::from(42u64)]]];
     info!("Public inputs: {:?}", instances);
 
-    let instances_file = "./plutus-verifier/plutus-halo2/test/Generic/serialized_public_input.hex".to_string();
+    let instances_file =
+        "./plutus-verifier/plutus-halo2/test/Generic/serialized_public_input.hex".to_string();
     let mut output = File::create(instances_file).expect("failed to create instances file");
     for instance in instances[0][0].iter() {
         let mut value = instance.to_bytes_le();
@@ -100,9 +101,13 @@ fn main() {
         .verify(&params.verifier_params())
         .expect("verify failed");
 
-    serialize_proof("./plutus-verifier/plutus-halo2/test/Generic/serialized_proof.json".to_string(), proof_for_export).unwrap();
+    serialize_proof(
+        "./plutus-verifier/plutus-halo2/test/Generic/serialized_proof.json".to_string(),
+        proof_for_export,
+    )
+    .unwrap();
 
-    let _data = extract_circuit(
+    let _data = extract_circuit_legacy(
         &params,
         &vk,
         instances,

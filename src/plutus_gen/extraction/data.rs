@@ -23,9 +23,19 @@ pub enum ProofExtractionSteps {
     XCoordinate,
     YCoordinate,
 
+    // elements specific to legacy GWC
     V,
     U,
+    //
 
+    //elements related to multi open GWC
+    X1,
+    X2,
+    X3,
+    X4,
+    FCommitment,
+    PI,
+    //
     Theta,
     Beta,
     Gamma,
@@ -107,4 +117,24 @@ pub struct CircuitRepresentation {
     pub point_sets: Vec<Vec<RotationDescription>>,
     pub vanishing_queries: Vec<Query>,
     pub lookup_queries: Vec<Query>,
+}
+
+impl CircuitRepresentation {
+    // order of queries from halo2:
+    // ADVICE
+    // PERMUTATION
+    // LOOKUP
+    // FIXED
+    // COMMON
+    // VANISHING
+    pub fn all_queries_ordered(&self) -> [Vec<Query>; 6] {
+        [
+            self.advice_queries.clone(),
+            self.permutation_queries.clone(),
+            self.lookup_queries.clone(),
+            self.fixed_queries.clone(),
+            self.common_queries.clone(),
+            self.vanishing_queries.clone(),
+        ]
+    }
 }

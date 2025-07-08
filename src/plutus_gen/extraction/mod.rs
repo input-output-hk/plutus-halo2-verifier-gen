@@ -1,32 +1,73 @@
 use crate::plutus_gen::code_emitters::{emit_verifier_code, emit_vk_code};
 use crate::plutus_gen::extraction::data::{
-    CircuitRepresentation, ProofExtractionSteps, Query, RotationDescription,
+    CircuitRepresentation, CommitmentData, ProofExtractionSteps, Query, RotationDescription,
 };
 use crate::plutus_gen::extraction::utils::{compile_expressions, get_any_query_index};
-use blstrs::{Bls12, G1Affine, G2Affine, Scalar};
+use blstrs::{Bls12, G1Affine, G1Projective, G2Affine, Scalar};
 use ff::Field;
 use halo2_proofs::halo2curves::group::Curve;
 use halo2_proofs::halo2curves::group::prime::PrimeCurveAffine;
 use halo2_proofs::plonk::{Any, Error, VerifyingKey};
-use halo2_proofs::poly::Rotation;
-use halo2_proofs::poly::gwc_kzg::GwcKZGCommitmentScheme;
-use halo2_proofs::poly::kzg::params::ParamsKZG;
+use halo2_proofs::poly::commitment::PolynomialCommitmentScheme;
+use halo2_proofs::poly::{
+    Rotation, gwc_kzg::GwcKZGCommitmentScheme, kzg::KZGCommitmentScheme, kzg::params::ParamsKZG,
+};
 use itertools::Itertools;
 use log::info;
+use std::collections::HashMap;
 
 pub mod data;
 mod utils;
 
-type Scheme = GwcKZGCommitmentScheme<Bls12>;
+type LegacyScheme = GwcKZGCommitmentScheme<Bls12>;
+type MultiOpenScheme = KZGCommitmentScheme<Bls12>;
 
-pub fn extract_circuit(
+pub fn extract_circuit_legacy(
     params: &ParamsKZG<Bls12>,
-    vk: &VerifyingKey<Scalar, Scheme>,
+    vk: &VerifyingKey<Scalar, LegacyScheme>,
     instances: &[&[&[Scalar]]],
     verifier_template_file: String,
     vk_template_file: String,
     g2_encoder: fn(G2Affine) -> String,
 ) -> Result<CircuitRepresentation, Error> {
+    let circuit_description = extract_circuit(params, vk, instances)?;
+    let circuit_description = extract_witnesses_legacy(circuit_description);
+    foobar(
+        verifier_template_file,
+        vk_template_file,
+        g2_encoder,
+        &circuit_description,
+    )?;
+    Ok(circuit_description)
+}
+
+pub fn extract_circuit_multi_open(
+    params: &ParamsKZG<Bls12>,
+    vk: &VerifyingKey<Scalar, MultiOpenScheme>,
+    instances: &[&[&[Scalar]]],
+    verifier_template_file: String,
+    vk_template_file: String,
+    g2_encoder: fn(G2Affine) -> String,
+) -> Result<CircuitRepresentation, Error> {
+    let circuit_description = extract_circuit(params, vk, instances)?;
+    let circuit_description = extract_witnesses_multi_open(circuit_description);
+    foobar(
+        verifier_template_file,
+        vk_template_file,
+        g2_encoder,
+        &circuit_description,
+    )?;
+    Ok(circuit_description)
+}
+
+pub fn extract_circuit<S>(
+    params: &ParamsKZG<Bls12>,
+    vk: &VerifyingKey<Scalar, S>,
+    instances: &[&[&[Scalar]]],
+) -> Result<CircuitRepresentation, Error>
+where
+    S: PolynomialCommitmentScheme<Scalar, Commitment = G1Projective>,
+{
     let chunk_len = vk.cs().degree() - 2;
 
     for instances in instances.iter() {
@@ -557,14 +598,15 @@ pub fn extract_circuit(
         });
     });
 
-    // insert omega extraction
-    //todo count all point rotations to get number of omegas
-    // default is 3: current, next and last
-    // if there are lookups it is 4, additional -1 called inv or previous
-    // add cheks for other possible rotations that may appear in equations
-    let number_of_omegas = if vk.cs().lookups().is_empty() { 3 } else { 4 };
-    let circuit_description = extract_omegas(circuit_description, number_of_omegas);
+    Ok(circuit_description)
+}
 
+fn foobar(
+    verifier_template_file: String,
+    vk_template_file: String,
+    g2_encoder: fn(G2Affine) -> String,
+    circuit_description: &CircuitRepresentation,
+) -> Result<(), Error> {
     let _result = emit_verifier_code(
         verifier_template_file,
         "plutus-verifier/plutus-halo2/src/Plutus/Crypto/Halo2/Generic/Verifier.hs".to_string(),
@@ -580,21 +622,77 @@ pub fn extract_circuit(
     )
     .map_err(|e| e.to_string())
     .map_err(|_e| Error::Synthesis)?;
-
-    Ok(circuit_description)
+    Ok(())
 }
 
-fn extract_omegas(
+fn extract_witnesses_multi_open(
     mut circuit_description: CircuitRepresentation,
-    number_of_omegas: usize,
+) -> CircuitRepresentation {
+    // sample 2 squeeze challenges x1 x2
+    // read f commitment to transcript
+    // sample 1 squeeze challenges x3
+    // read all q polly evaluations - this is length of point sets list
+    // sample 1 squeeze challenges x4
+    // read pi g1 element
+
+    circuit_description
+        .proof_extraction_steps
+        .push(ProofExtractionSteps::X1);
+
+    circuit_description
+        .proof_extraction_steps
+        .push(ProofExtractionSteps::X2);
+
+    circuit_description
+        .proof_extraction_steps
+        .push(ProofExtractionSteps::FCommitment);
+
+    circuit_description
+        .proof_extraction_steps
+        .push(ProofExtractionSteps::X3);
+
+    // number of final witnesses is equal to number of different point sets
+    let (sets, _) = precompute_intermediate_sets(&circuit_description);
+    let number_of_witnesses = sets.len();
+
+    circuit_description.instantiation_data.w_values_count = number_of_witnesses;
+    // witnesses
+    for _ in 0..number_of_witnesses {
+        circuit_description
+            .proof_extraction_steps
+            .push(ProofExtractionSteps::Witnesses);
+    }
+
+    circuit_description
+        .proof_extraction_steps
+        .push(ProofExtractionSteps::X4);
+
+    circuit_description
+        .proof_extraction_steps
+        .push(ProofExtractionSteps::PI);
+
+    circuit_description
+}
+
+fn extract_witnesses_legacy(
+    mut circuit_description: CircuitRepresentation,
 ) -> CircuitRepresentation {
     circuit_description
         .proof_extraction_steps
         .push(ProofExtractionSteps::V);
 
-    circuit_description.instantiation_data.w_values_count = number_of_omegas;
+    // todo double check if number of final witnesses is equal to number of different X rotations
+    let number_of_witnesses = circuit_description
+        .all_queries_ordered()
+        .iter()
+        .flatten()
+        .map(|q| q.point.clone())
+        .unique()
+        .count();
+
+    circuit_description.instantiation_data.w_values_count = number_of_witnesses;
     // witnesses
-    for _ in 0..number_of_omegas {
+    for _ in 0..number_of_witnesses {
         circuit_description
             .proof_extraction_steps
             .push(ProofExtractionSteps::Witnesses);
@@ -604,4 +702,68 @@ fn extract_omegas(
         .proof_extraction_steps
         .push(ProofExtractionSteps::U);
     circuit_description
+}
+
+pub fn precompute_intermediate_sets(
+    circuit_description: &CircuitRepresentation,
+) -> (Vec<Vec<RotationDescription>>, Vec<CommitmentData>) {
+    let queries = circuit_description.all_queries_ordered();
+
+    let ordered_unique_commitments: Vec<String> = queries
+        .iter()
+        .flatten()
+        .map(|q| &q.commitment)
+        .cloned()
+        .unique()
+        .collect();
+
+    let commitment_map: HashMap<String, _> = queries
+        .iter()
+        .flatten()
+        .into_group_map_by(|e| e.commitment.clone());
+
+    let point_sets_map: HashMap<String, Vec<RotationDescription>> = commitment_map
+        .iter()
+        .map(|(k, v)| {
+            (
+                k.clone(),
+                v.iter()
+                    .map(|e| &e.point)
+                    .cloned()
+                    .unique()
+                    .collect::<Vec<_>>(),
+            )
+        })
+        .collect();
+
+    let mut grouped_points: Vec<Vec<RotationDescription>> = vec![];
+
+    for commitment in ordered_unique_commitments.iter() {
+        grouped_points.push(point_sets_map.get(commitment).unwrap().clone());
+    }
+
+    let unique_grouped_points: Vec<Vec<_>> = grouped_points.iter().cloned().unique().collect();
+
+    let point_sets_indexes: HashMap<_, _> = unique_grouped_points
+        .iter()
+        .enumerate()
+        .map(|(a, b)| (b.clone(), a))
+        .collect();
+
+    let mut commitment_data: Vec<CommitmentData> = vec![];
+
+    for commitment in ordered_unique_commitments.iter() {
+        let query = commitment_map.get(commitment).unwrap();
+        let points: Vec<RotationDescription> = query.iter().map(|q| q.point.clone()).collect();
+
+        let point_set_idx = point_sets_indexes.get(&points).unwrap();
+
+        commitment_data.push(CommitmentData {
+            commitment: (*commitment).clone(),
+            point_set_index: *point_set_idx,
+            evaluations: query.iter().map(|q| q.evaluation.clone()).collect(),
+            points,
+        });
+    }
+    (unique_grouped_points, commitment_data)
 }
