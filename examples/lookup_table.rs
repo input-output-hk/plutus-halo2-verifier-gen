@@ -21,7 +21,6 @@ use std::marker::PhantomData;
 fn main() {
     env_logger::init_from_env(env_logger::Env::default().filter_or("RUST_LOG", "trace"));
 
-    // no extract data step to save time for debugging, see serialized_proof_lookups.json
     compile_lookup_table_circuit();
 }
 
