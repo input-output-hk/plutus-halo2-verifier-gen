@@ -1,3 +1,5 @@
+use atms_halo2::rescue::{RescueParametersBls, RescueSponge};
+use atms_halo2::signatures::primitive::schnorr::Schnorr;
 use blstrs::{Base, Bls12, Scalar};
 use halo2_proofs::halo2curves::group::GroupEncoding;
 use halo2_proofs::plonk::{k_from_circuit, ProvingKey, VerifyingKey};
@@ -8,31 +10,61 @@ use halo2_proofs::{
     transcript::{CircuitTranscript, Transcript},
 };
 use log::info;
-use plutus_halo2_verifier_gen::example_circuits::lookup_table_circuit::LookupTest;
+use plutus_halo2_verifier_gen::example_circuits::atms_circuit::BenchCircuitAtmsSignature;
 use plutus_halo2_verifier_gen::plutus_gen::adjusted_types::CardanoFriendlyState;
 use plutus_halo2_verifier_gen::plutus_gen::extraction::extract_circuit;
 use plutus_halo2_verifier_gen::plutus_gen::proof_serialization::serialize_proof;
+use rand::prelude::IteratorRandom;
 use rand::prelude::StdRng;
 use rand_core::SeedableRng;
 use std::fs::File;
 use std::io::Write;
-use std::marker::PhantomData;
 
 fn main() {
     env_logger::init_from_env(env_logger::Env::default().filter_or("RUST_LOG", "trace"));
 
     // no extract data step to save time for debugging, see serialized_proof_lookups.json
-    compile_lookup_table_circuit();
+    compile_atms_circuit();
 }
 
-pub fn compile_lookup_table_circuit() {
+pub fn compile_atms_circuit() {
     let seed = [0u8; 32]; // Choose a fixed seed for testing
     let mut rng: StdRng = SeedableRng::from_seed(seed);
 
-    let circuit = LookupTest::<Scalar> {
-        inputs: vec![(42, 8), (53, 7), (12, 8), (46, 8)],
-        max_bit_len: 9,
-        native_field: PhantomData,
+    let num_parties = 90;
+    let threshold = 50;
+    let msg = Base::from(42u64);
+
+    let keypairs = (0..num_parties)
+        .map(|_| Schnorr::keygen(&mut rng))
+        .collect::<Vec<_>>();
+
+    let pks = keypairs.iter().map(|(_, pk)| *pk).collect::<Vec<_>>();
+
+    let mut flattened_pks = Vec::with_capacity(keypairs.len() * 2);
+    for (_, pk) in &keypairs {
+        flattened_pks.push(pk.get_u());
+    }
+
+    let pks_comm = RescueSponge::<Base, RescueParametersBls>::hash(&flattened_pks, None);
+
+    let signing_parties = (0..num_parties).choose_multiple(&mut rng, threshold);
+    let signatures = (0..num_parties)
+        .map(|index| {
+            if signing_parties.contains(&index) {
+                Some(Schnorr::sign(keypairs[index], msg, &mut rng))
+            } else {
+                None
+            }
+        })
+        .collect::<Vec<_>>();
+
+    let circuit = BenchCircuitAtmsSignature {
+        signatures,
+        pks,
+        pks_comm,
+        msg,
+        threshold: Base::from(threshold as u64),
     };
 
     let k: u32 = k_from_circuit(&circuit);
@@ -42,7 +74,7 @@ pub fn compile_lookup_table_circuit() {
 
     // no instances, just dummy 42 to make prover and verifier happy
     let instances: &[&[&[Scalar]]] =
-        &[&[&[Base::from(42u64), Base::from(42u64), Base::from(42u64)]]];
+        &[&[&[pks_comm, msg, Base::from(threshold as u64)]]];
     info!("Public inputs: {:?}", instances);
 
     let instances_file = "./plutus-verifier/plutus-halo2/test/Generic/serialized_public_input.hex".to_string();

@@ -42,11 +42,14 @@ fn convert_polynomial<W: std::io::Write>(
     writer: &mut W,
 ) -> std::io::Result<()> {
     match ex {
-        Expression::Constant(scalar) => write!(
-            writer,
-            "(mkScalar ({:?} `modulo` bls12_381_field_prime))",
-            scalar
-        ),
+        Expression::Constant(scalar) => {
+            let scalar_string = scalar.to_bytes_be().iter().map(|b| format!("{:02x}", b)).collect::<String>();
+            write!(
+                writer,
+                "(mkScalar (0x{} `modulo` bls12_381_field_prime))",
+                scalar_string
+            )
+        }
         Expression::Selector(_selector) => {
             panic!("Selector not supported in custom gate")
         }
