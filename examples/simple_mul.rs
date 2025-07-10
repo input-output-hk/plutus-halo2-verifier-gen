@@ -9,7 +9,7 @@ use halo2_proofs::{
     poly::{commitment::Guard, kzg::params::ParamsKZG},
     transcript::{CircuitTranscript, Transcript},
 };
-use log::info;
+use log::{debug, info};
 use plutus_halo2_verifier_gen::circuits::simple_mul_circuit::SimpleMulCircuit;
 use plutus_halo2_verifier_gen::plutus_gen::adjusted_types::CardanoFriendlyState;
 use plutus_halo2_verifier_gen::plutus_gen::generate_plinth_verifier;
@@ -35,7 +35,7 @@ fn main() {
 
     // Instantiate the circuit with the private inputs.
     let circuit = SimpleMulCircuit::init(constant, a, b, c);
-    info!("circuit: {:?}", circuit);
+    debug!("circuit: {:?}", circuit);
 
     let seed = [0u8; 32]; // Choose a fixed seed for testing
     let mut rng: StdRng = SeedableRng::from_seed(seed);
@@ -49,7 +49,7 @@ fn main() {
 
     let mut transcript: CircuitTranscript<CardanoFriendlyState> =
         CircuitTranscript::<CardanoFriendlyState>::init();
-    info!("transcript: {:?}", transcript);
+    debug!("transcript: {:?}", transcript);
 
     // no instances, just dummy 42 to make prover and verifier happy
     let instances: &[&[&[Scalar]]] =
@@ -73,7 +73,6 @@ fn main() {
         &mut transcript,
     )
         .expect("proof generation should not fail");
-    info!("transcript: {:?}", transcript);
 
     let proof = transcript.finalize();
     info!("proof size {:?}", proof.len());

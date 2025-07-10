@@ -5,7 +5,7 @@ use blstrs::G2Affine;
 use halo2_proofs::halo2curves::group::prime::PrimeCurveAffine;
 use handlebars::{Handlebars, RenderError};
 use itertools::Itertools;
-use log::info;
+use log::debug;
 use std::collections::HashMap;
 use std::fs::File;
 use std::path::Path;
@@ -791,7 +791,7 @@ pub fn emit_vk_code(
     data.insert("PERMUTATION_COMMITMENT_G1".to_string(), assignment);
     let compressed_sg2 = g2_encoder(circuit.instantiation_data.s_g2);
 
-    info!("compressed_sg2: {}", compressed_sg2);
+    debug!("compressed_sg2: {}", compressed_sg2);
 
     data.insert(
         "G2_DEFINITIONS".to_string(),

@@ -11,7 +11,7 @@ use halo2_proofs::poly::Rotation;
 use halo2_proofs::poly::gwc_kzg::GwcKZGCommitmentScheme;
 use halo2_proofs::poly::kzg::params::ParamsKZG;
 use itertools::Itertools;
-use log::info;
+use log::debug;
 
 pub mod data;
 mod utils;
@@ -41,10 +41,10 @@ pub fn extract_circuit(
         for instance in instance.iter() {
             for value in instance.iter() {
                 // transcript.common(value)?;
-                info!("writ public input (instance) into the transcript");
+                debug!("writ public input (instance) into the transcript");
                 circuit_description.public_inputs += 1;
-                info!("{:?}", value);
-                info!("--------------------------------");
+                debug!("{:?}", value);
+                debug!("--------------------------------");
             }
         }
     }
@@ -290,7 +290,7 @@ pub fn extract_circuit(
 
     //todo add stages to extract data for final pairing check preparation
 
-    info!("permutations expressions");
+    debug!("permutations expressions");
     // group to get permutation sets
     let sets: Vec<_> = circuit_description
         .proof_extraction_steps

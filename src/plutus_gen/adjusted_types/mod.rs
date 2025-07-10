@@ -1,7 +1,7 @@
 use blake2b_simd::{Params, State};
 use blstrs::{G1Projective, Scalar};
 use halo2_proofs::transcript::{Hashable, Sampleable, TranscriptHash};
-use log::info;
+use log::debug;
 use std::io;
 use std::io::Read;
 
@@ -26,7 +26,7 @@ impl TranscriptHash for CardanoFriendlyState {
         }
     }
     fn absorb(&mut self, input: &Self::Input) {
-        info!("adding to transcript {:?}", hex::encode(input.clone()));
+        debug!("adding to transcript {:?}", hex::encode(input.clone()));
         self.state.update(&[BLAKE2B_PREFIX_COMMON]);
         self.state.update(input);
     }

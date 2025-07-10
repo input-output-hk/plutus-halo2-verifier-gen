@@ -35,7 +35,7 @@ use std::io::Write;
 use std::path::Path;
 
 fn main() {
-    env_logger::init_from_env(env_logger::Env::default().filter_or("RUST_LOG", "trace"));
+    env_logger::init_from_env(env_logger::Env::default().filter_or("RUST_LOG", "info"));
 
     compile_atms_lookup_circuit();
 }
