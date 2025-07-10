@@ -15,7 +15,9 @@ import Plutus.Crypto.Halo2.LagrangePolynomialEvaluation (
 import Plutus.Crypto.Halo2.MSMTypes (
     MSM (..),
     MSMElem (MSMElem),
+    addMSM,
     appendTerm,
+    scaleMSM,
  )
 import PlutusTx.Builtins (
     BuiltinBLS12_381_G1_Element,
@@ -29,6 +31,7 @@ import PlutusTx.List (
     map,
     unzip,
     zip,
+    (++),
  )
 import PlutusTx.Prelude (
     Bool (False, True),
@@ -47,17 +50,21 @@ buildMSM ::
     Scalar ->
     Scalar ->
     Scalar ->
+    BuiltinBLS12_381_G1_Element ->
     [Scalar] ->
     [(BuiltinBLS12_381_G1_Element, Integer, [Scalar], [Scalar])] ->
     [[Scalar]] ->
     (MSM, MSM)
-buildMSM x1 x2 x3 x4 proofX3QEvals commitmentMap pointSets = (MSM [], MSM [])
+buildMSM x1 x2 x3 x4 f_comm proofX3QEvals commitmentMap pointSets = (MSM [], MSM [])
   where
     pointSetsIndexes :: [Integer]
     pointSetsIndexes = [0 .. (length pointSets - 1)]
 
     x1Powers :: [Scalar]
     x1Powers = x1 : [x1 * x | x <- x1Powers]
+
+    x4Powers :: [Scalar]
+    x4Powers = x4 : [x4 * x | x <- x1Powers]
 
     result =
         map
@@ -110,3 +117,9 @@ buildMSM x1 x2 x3 x4 proofX3QEvals commitmentMap pointSets = (MSM [], MSM [])
             )
             zero
             (zip (zip pointSets q_eval_sets) proofX3QEvals)
+
+    final_com =
+        foldl
+            (\accMSM (x4Power, msm) -> addMSM accMSM (scaleMSM x4Power msm))
+            (MSM [])
+            (zip x4Powers (q_coms ++ [MSM [MSMElem ((one :: Scalar), f_comm)]]))

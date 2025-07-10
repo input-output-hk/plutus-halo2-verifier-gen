@@ -8,12 +8,17 @@ module Plutus.Crypto.Halo2.MSMTypes (
     MSM (MSM),
     addMSM,
     appendTerm,
+    scaleMSM,
 ) where
 
 import Plutus.Crypto.BlsTypes (Scalar)
-import PlutusTx.List ((++))
+import PlutusTx.List (
+    map,
+    (++),
+ )
 import PlutusTx.Prelude (
     BuiltinBLS12_381_G1_Element,
+    (*),
  )
 import qualified Prelude as Haskell
 
@@ -39,3 +44,9 @@ addMSM (MSM !s1) (MSM !s2) =
 {-# INLINEABLE appendTerm #-}
 appendTerm :: MSM -> MSMElem -> MSM
 appendTerm (MSM !l) !elem = MSM (elem : l)
+
+{-# INLINEABLE scaleMSM #-}
+scaleMSM :: Scalar -> MSM -> MSM
+scaleMSM s (MSM es) = MSM result
+  where
+    result = map (\(MSMElem (scalar, g1)) -> MSMElem (s * scalar, g1)) es
