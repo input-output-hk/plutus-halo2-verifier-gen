@@ -1,7 +1,7 @@
 [package]
 name = "plutus-halo2-verifier-gen"
 version = "0.1.0"
-edition = "2024"
+edition = "2021"
 
 [dependencies]
 halo2_proofs = { git = "https://github.com/input-output-hk/halo2", rev = "0bca06e58937fbe213a0530ecac9d8e0fed501d6", features = ["plutus_debug"] }

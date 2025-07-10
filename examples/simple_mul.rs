@@ -16,7 +16,7 @@ use plutus_halo2_verifier_gen::plutus_gen::generate_plinth_verifier;
 use plutus_halo2_verifier_gen::plutus_gen::proof_serialization::serialize_proof;
 use rand::rngs::StdRng;
 use rand_core::SeedableRng;
-use std::{fs::File, io::Write};
+use std::{fs::File, io::Write, path::Path};
 
 fn main() {
     env_logger::init_from_env(env_logger::Env::default().filter_or("RUST_LOG", "info"));
@@ -97,10 +97,10 @@ fn main() {
         &params,
         &vk,
         instances,
-        "plutus-verifier/verification.hbs".to_string(),
-        "plutus-verifier/vk_constants.hbs".to_string(),
-        "plutus-verifier/plutus-halo2/src/Plutus/Crypto/Halo2/Generic/Verifier.hs".to_string(),
-        "plutus-verifier/plutus-halo2/src/Plutus/Crypto/Halo2/Generic/VKConstants.hs".to_string(),
+        Path::new("plutus-verifier/verification.hbs"),
+        Path::new("plutus-verifier/vk_constants.hbs"),
+        Path::new("plutus-verifier/plutus-halo2/src/Plutus/Crypto/Halo2/Generic/Verifier.hs"),
+        Path::new("plutus-verifier/plutus-halo2/src/Plutus/Crypto/Halo2/Generic/VKConstants.hs"),
         |a| hex::encode(a.to_bytes()),
     )
         .expect("Plinth verifier generation failed");

@@ -3,6 +3,7 @@ use halo2_proofs::plonk::VerifyingKey;
 use halo2_proofs::poly::kzg::params::ParamsKZG;
 use crate::plutus_gen::code_emitters::{emit_verifier_code, emit_vk_code};
 use crate::plutus_gen::extraction::{extract_circuit, KZGScheme};
+use std::path::Path;
 
 mod code_emitters;
 pub mod extraction;
@@ -28,10 +29,10 @@ pub fn generate_plinth_verifier(
     params: &ParamsKZG<Bls12>,
     vk: &VerifyingKey<Scalar, KZGScheme>,
     instances: &[&[&[Scalar]]],
-    verifier_template_file: String,
-    vk_template_file: String,
-    verifier_generated_file: String,
-    vk_generated_file: String,
+    verifier_template_file: &Path,
+    vk_template_file: &Path,
+    verifier_generated_file: &Path,
+    vk_generated_file: &Path,
     g2_encoder: fn(G2Affine) -> String,
 ) -> Result<(), String> {
     // Step 1: extract circuit representation

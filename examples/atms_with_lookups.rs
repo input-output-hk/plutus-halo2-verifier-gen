@@ -32,6 +32,7 @@ use rand::prelude::StdRng;
 use rand_core::SeedableRng;
 use std::fs::File;
 use std::io::Write;
+use std::path::Path;
 
 fn main() {
     env_logger::init_from_env(env_logger::Env::default().filter_or("RUST_LOG", "trace"));
@@ -119,10 +120,10 @@ pub fn compile_atms_lookup_circuit() {
         &kzg_params,
         &vk,
         instances,
-        "plutus-verifier/verification.hbs".to_string(),
-        "plutus-verifier/vk_constants.hbs".to_string(),
-        "plutus-verifier/plutus-halo2/src/Plutus/Crypto/Halo2/Generic/Verifier.hs".to_string(),
-        "plutus-verifier/plutus-halo2/src/Plutus/Crypto/Halo2/Generic/VKConstants.hs".to_string(),
+        Path::new("plutus-verifier/verification.hbs"),
+        Path::new("plutus-verifier/vk_constants.hbs"),
+        Path::new("plutus-verifier/plutus-halo2/src/Plutus/Crypto/Halo2/Generic/Verifier.hs"),
+        Path::new("plutus-verifier/plutus-halo2/src/Plutus/Crypto/Halo2/Generic/VKConstants.hs"),
         |a| hex::encode(a.to_bytes()),
     )
         .expect("Plinth verifier generation failed");

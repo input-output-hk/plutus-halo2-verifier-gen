@@ -8,10 +8,11 @@ use itertools::Itertools;
 use log::info;
 use std::collections::HashMap;
 use std::fs::File;
+use std::path::Path;
 
 pub fn emit_verifier_code(
-    template_file: String, // haskell mustashe template
-    haskell_file: String,  // generated haskell file, output
+    template_file: &Path, // haskell mustashe template
+    haskell_file: &Path,  // generated haskell file, output
     circuit: &CircuitRepresentation,
 ) -> Result<String, RenderError> {
     // order of queries to get correct order of x rotations
@@ -719,8 +720,8 @@ pub fn emit_verifier_code(
 }
 
 pub fn emit_vk_code(
-    template_file: String, // haskell mustashe template
-    haskell_file: String,  // generated haskell file, output
+    template_file: &Path, // haskell mustashe template
+    haskell_file: &Path,  // generated haskell file, output
     circuit: &CircuitRepresentation,
     g2_encoder: fn(G2Affine) -> String,
 ) -> Result<String, RenderError> {
