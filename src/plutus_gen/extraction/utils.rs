@@ -1,11 +1,11 @@
-use crate::plutus_gen::extraction::Scheme;
+use crate::plutus_gen::extraction::KZGScheme;
 use blstrs::Scalar;
 use halo2_proofs::plonk::{Advice, Any, Column, Expression, Fixed, Instance, VerifyingKey};
 use halo2_proofs::poly::Rotation;
 use std::io::BufWriter;
 
 pub fn get_any_query_index(
-    vk: &VerifyingKey<Scalar, Scheme>,
+    vk: &VerifyingKey<Scalar, KZGScheme>,
     column: Column<Any>,
     at: Rotation,
 ) -> usize {

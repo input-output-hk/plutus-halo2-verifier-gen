@@ -10,13 +10,13 @@ use halo2_proofs::{
     transcript::{CircuitTranscript, Transcript},
 };
 use log::info;
+use plutus_halo2_verifier_gen::circuits::simple_mul_circuit::SimpleMulCircuit;
 use plutus_halo2_verifier_gen::plutus_gen::adjusted_types::CardanoFriendlyState;
-use plutus_halo2_verifier_gen::plutus_gen::extraction::extract_circuit;
+use plutus_halo2_verifier_gen::plutus_gen::generate_plinth_verifier;
 use plutus_halo2_verifier_gen::plutus_gen::proof_serialization::serialize_proof;
 use rand::rngs::StdRng;
 use rand_core::SeedableRng;
 use std::{fs::File, io::Write};
-use plutus_halo2_verifier_gen::circuits::simple_mul_circuit::SimpleMulCircuit;
 
 fn main() {
     env_logger::init_from_env(env_logger::Env::default().filter_or("RUST_LOG", "info"));
@@ -72,7 +72,7 @@ fn main() {
         &mut rng,
         &mut transcript,
     )
-    .expect("proof generation should not fail");
+        .expect("proof generation should not fail");
     info!("transcript: {:?}", transcript);
 
     let proof = transcript.finalize();
@@ -85,7 +85,7 @@ fn main() {
         instances,
         &mut transcript_verifier,
     )
-    .expect("prepare verification failed");
+        .expect("prepare verification failed");
 
     verifier
         .verify(&params.verifier_params())
@@ -93,13 +93,15 @@ fn main() {
 
     serialize_proof("./plutus-verifier/plutus-halo2/test/Generic/serialized_proof.json".to_string(), proof).unwrap();
 
-    let _data = extract_circuit(
+    generate_plinth_verifier(
         &params,
         &vk,
         instances,
         "plutus-verifier/verification.hbs".to_string(),
         "plutus-verifier/vk_constants.hbs".to_string(),
+        "plutus-verifier/plutus-halo2/src/Plutus/Crypto/Halo2/Generic/Verifier.hs".to_string(),
+        "plutus-verifier/plutus-halo2/src/Plutus/Crypto/Halo2/Generic/VKConstants.hs".to_string(),
         |a| hex::encode(a.to_bytes()),
     )
-    .expect("extracting failed");
+        .expect("Plinth verifier generation failed");
 }

@@ -23,15 +23,15 @@ use halo2_proofs::{
     transcript::{CircuitTranscript, Transcript},
 };
 use log::info;
+use plutus_halo2_verifier_gen::circuits::atms_circuit::prepare_test_signatures;
 use plutus_halo2_verifier_gen::circuits::atms_with_lookups_circuit::AtmsLookupCircuit;
 use plutus_halo2_verifier_gen::plutus_gen::adjusted_types::CardanoFriendlyState;
-use plutus_halo2_verifier_gen::plutus_gen::extraction::extract_circuit;
+use plutus_halo2_verifier_gen::plutus_gen::generate_plinth_verifier;
 use plutus_halo2_verifier_gen::plutus_gen::proof_serialization::serialize_proof;
 use rand::prelude::StdRng;
 use rand_core::SeedableRng;
 use std::fs::File;
 use std::io::Write;
-use plutus_halo2_verifier_gen::circuits::atms_circuit::prepare_test_signatures;
 
 fn main() {
     env_logger::init_from_env(env_logger::Env::default().filter_or("RUST_LOG", "trace"));
@@ -115,13 +115,15 @@ pub fn compile_atms_lookup_circuit() {
 
     serialize_proof("./plutus-verifier/plutus-halo2/test/Generic/serialized_proof.json".to_string(), proof).unwrap();
 
-    let _data = extract_circuit(
+    generate_plinth_verifier(
         &kzg_params,
         &vk,
         instances,
         "plutus-verifier/verification.hbs".to_string(),
         "plutus-verifier/vk_constants.hbs".to_string(),
+        "plutus-verifier/plutus-halo2/src/Plutus/Crypto/Halo2/Generic/Verifier.hs".to_string(),
+        "plutus-verifier/plutus-halo2/src/Plutus/Crypto/Halo2/Generic/VKConstants.hs".to_string(),
         |a| hex::encode(a.to_bytes()),
     )
-        .expect("extracting failed");
+        .expect("Plinth verifier generation failed");
 }

@@ -15,7 +15,7 @@ pub struct CardanoFriendlyState {
     state: State,
 }
 
-/// this setup is due to Cardano proving blak2b 256 as builtin
+/// this setup is due to Cardano proving blake2b 256 as builtin
 impl TranscriptHash for CardanoFriendlyState {
     type Input = Vec<u8>;
     type Output = Vec<u8>;
