@@ -1,5 +1,3 @@
-mod circuit;
-use crate::circuit::MyCircuit;
 use blstrs::{Base, Bls12, Scalar};
 use ff::Field;
 use halo2_proofs::halo2curves::group::GroupEncoding;
@@ -18,6 +16,7 @@ use plutus_halo2_verifier_gen::plutus_gen::proof_serialization::serialize_proof;
 use rand::rngs::StdRng;
 use rand_core::SeedableRng;
 use std::{fs::File, io::Write};
+use plutus_halo2_verifier_gen::circuits::simple_mul_circuit::SimpleMulCircuit;
 
 fn main() {
     env_logger::init_from_env(env_logger::Env::default().filter_or("RUST_LOG", "info"));
@@ -35,7 +34,7 @@ fn main() {
     info!("c: {:?}", c);
 
     // Instantiate the circuit with the private inputs.
-    let circuit = MyCircuit::init(constant, a, b, c);
+    let circuit = SimpleMulCircuit::init(constant, a, b, c);
     info!("circuit: {:?}", circuit);
 
     let seed = [0u8; 32]; // Choose a fixed seed for testing

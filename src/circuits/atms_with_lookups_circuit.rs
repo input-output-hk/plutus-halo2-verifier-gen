@@ -1,3 +1,7 @@
+/// Example circuit implementing ATMS signature verification and a lookup table.
+/// The lookup table does not serve a functional purpose and is included only to evaluate
+/// the complexity of Plutus verification for this type of circuit.
+
 use atms_halo2::{
     ecc::chip::EccInstructions,
     instructions::MainGateInstructions,
@@ -276,7 +280,7 @@ mod tests {
     use halo2_proofs::plonk::k_from_circuit;
     use rand::prelude::StdRng;
     use rand::SeedableRng;
-    use crate::example_circuits::atms_circuit::prepare_test_signatures;
+    use crate::circuits::atms_circuit::prepare_test_signatures;
 
     #[test]
     fn test_circuit() {

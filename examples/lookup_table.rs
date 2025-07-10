@@ -8,7 +8,7 @@ use halo2_proofs::{
     transcript::{CircuitTranscript, Transcript},
 };
 use log::info;
-use plutus_halo2_verifier_gen::example_circuits::lookup_table_circuit::LookupTest;
+use plutus_halo2_verifier_gen::circuits::lookup_table_circuit::LookupTest;
 use plutus_halo2_verifier_gen::plutus_gen::adjusted_types::CardanoFriendlyState;
 use plutus_halo2_verifier_gen::plutus_gen::extraction::extract_circuit;
 use plutus_halo2_verifier_gen::plutus_gen::proof_serialization::serialize_proof;

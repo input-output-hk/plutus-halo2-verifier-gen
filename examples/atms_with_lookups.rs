@@ -23,7 +23,7 @@ use halo2_proofs::{
     transcript::{CircuitTranscript, Transcript},
 };
 use log::info;
-use plutus_halo2_verifier_gen::example_circuits::atms_with_lookups_circuit::AtmsLookupCircuit;
+use plutus_halo2_verifier_gen::circuits::atms_with_lookups_circuit::AtmsLookupCircuit;
 use plutus_halo2_verifier_gen::plutus_gen::adjusted_types::CardanoFriendlyState;
 use plutus_halo2_verifier_gen::plutus_gen::extraction::extract_circuit;
 use plutus_halo2_verifier_gen::plutus_gen::proof_serialization::serialize_proof;
@@ -31,7 +31,7 @@ use rand::prelude::StdRng;
 use rand_core::SeedableRng;
 use std::fs::File;
 use std::io::Write;
-use plutus_halo2_verifier_gen::example_circuits::atms_circuit::prepare_test_signatures;
+use plutus_halo2_verifier_gen::circuits::atms_circuit::prepare_test_signatures;
 
 fn main() {
     env_logger::init_from_env(env_logger::Env::default().filter_or("RUST_LOG", "trace"));

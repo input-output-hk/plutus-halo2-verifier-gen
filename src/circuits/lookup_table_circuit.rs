@@ -150,3 +150,29 @@ impl<F: PrimeField> Circuit<F> for LookupTest<F> {
         )
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::circuits::lookup_table_circuit::LookupTest;
+    use blstrs::{Base, Scalar};
+    use halo2_proofs::dev::MockProver;
+    use halo2_proofs::plonk::k_from_circuit;
+    use std::marker::PhantomData;
+
+    #[test]
+    fn test_lookup_circuit() {
+        let circuit = LookupTest::<Scalar> {
+            inputs: vec![(42, 8), (53, 7), (12, 8), (46, 8)],
+            max_bit_len: 9,
+            native_field: PhantomData,
+        };
+
+        let pi = vec![vec![Base::from(42u64), Base::from(42u64), Base::from(42u64)]];
+
+        let k: u32 = k_from_circuit(&circuit);
+        let prover =
+            MockProver::run(k, &circuit, pi).expect("Failed to run ATMS verifier mock prover");
+
+        prover.assert_satisfied();
+    }
+}
