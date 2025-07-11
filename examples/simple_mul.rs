@@ -1,9 +1,7 @@
-mod circuit;
-use crate::circuit::MyCircuit;
 use blstrs::{Base, Bls12, Scalar};
 use ff::Field;
 use halo2_proofs::halo2curves::group::GroupEncoding;
-use halo2_proofs::plonk::{ProvingKey, VerifyingKey};
+use halo2_proofs::plonk::{k_from_circuit, ProvingKey, VerifyingKey};
 use halo2_proofs::poly::gwc_kzg::GwcKZGCommitmentScheme;
 use halo2_proofs::poly::kzg::msm::DualMSM;
 use halo2_proofs::{
@@ -11,20 +9,17 @@ use halo2_proofs::{
     poly::{commitment::Guard, kzg::params::ParamsKZG},
     transcript::{CircuitTranscript, Transcript},
 };
-use log::info;
+use log::{debug, info};
+use plutus_halo2_verifier_gen::circuits::simple_mul_circuit::SimpleMulCircuit;
 use plutus_halo2_verifier_gen::plutus_gen::adjusted_types::CardanoFriendlyState;
-use plutus_halo2_verifier_gen::plutus_gen::extraction::extract_circuit;
+use plutus_halo2_verifier_gen::plutus_gen::generate_plinth_verifier;
 use plutus_halo2_verifier_gen::plutus_gen::proof_serialization::serialize_proof;
 use rand::rngs::StdRng;
 use rand_core::SeedableRng;
-use std::{fs::File, io::Write};
+use std::{fs::File, io::Write, path::Path};
 
 fn main() {
     env_logger::init_from_env(env_logger::Env::default().filter_or("RUST_LOG", "info"));
-
-    // The number of rows in our circuit cannot exceed 2^k. Since our example
-    // circuit is very small, we can pick a very small value here.
-    let k = 4;
 
     // Prepare the private and public inputs to the circuit!
     let constant = Scalar::from(7);
@@ -39,14 +34,13 @@ fn main() {
     info!("c: {:?}", c);
 
     // Instantiate the circuit with the private inputs.
-    let circuit = MyCircuit::init(constant, a, b, c);
+    let circuit = SimpleMulCircuit::init(constant, a, b, c);
+    debug!("circuit: {:?}", circuit);
 
-    info!("circuit: {:?}", circuit);
-
-    let seed = [0u8; 32]; // Choose a fixed seed for testing
+    let seed = [0u8; 32]; // UNSAFE, constant seed is used for testing purposes
     let mut rng: StdRng = SeedableRng::from_seed(seed);
 
-    // Given the correct public input, our circuit will verify.
+    let k: u32 = k_from_circuit(&circuit);
     let params: ParamsKZG<Bls12> = ParamsKZG::<Bls12>::unsafe_setup(k, rng.clone());
     let vk: VerifyingKey<_, GwcKZGCommitmentScheme<Bls12>> =
         keygen_vk(&params, &circuit).expect("keygen_vk should not fail");
@@ -55,7 +49,7 @@ fn main() {
 
     let mut transcript: CircuitTranscript<CardanoFriendlyState> =
         CircuitTranscript::<CardanoFriendlyState>::init();
-    info!("transcript: {:?}", transcript);
+    debug!("transcript: {:?}", transcript);
 
     // no instances, just dummy 42 to make prover and verifier happy
     let instances: &[&[&[Scalar]]] =
@@ -78,13 +72,9 @@ fn main() {
         &mut rng,
         &mut transcript,
     )
-    .expect("proof generation should not fail");
-    info!("transcript: {:?}", transcript);
+        .expect("proof generation should not fail");
 
     let proof = transcript.finalize();
-
-    let proof_for_export = proof.clone();
-
     info!("proof size {:?}", proof.len());
 
     let mut transcript_verifier: CircuitTranscript<CardanoFriendlyState> =
@@ -94,21 +84,23 @@ fn main() {
         instances,
         &mut transcript_verifier,
     )
-    .expect("prepare verification failed");
+        .expect("prepare verification failed");
 
     verifier
         .verify(&params.verifier_params())
         .expect("verify failed");
 
-    serialize_proof("./plutus-verifier/plutus-halo2/test/Generic/serialized_proof.json".to_string(), proof_for_export).unwrap();
+    serialize_proof("./plutus-verifier/plutus-halo2/test/Generic/serialized_proof.json".to_string(), proof).unwrap();
 
-    let _data = extract_circuit(
+    generate_plinth_verifier(
         &params,
         &vk,
         instances,
-        "plutus-verifier/verification.hbs".to_string(),
-        "plutus-verifier/vk_constants.hbs".to_string(),
+        Path::new("plutus-verifier/verification.hbs"),
+        Path::new("plutus-verifier/vk_constants.hbs"),
+        Path::new("plutus-verifier/plutus-halo2/src/Plutus/Crypto/Halo2/Generic/Verifier.hs"),
+        Path::new("plutus-verifier/plutus-halo2/src/Plutus/Crypto/Halo2/Generic/VKConstants.hs"),
         |a| hex::encode(a.to_bytes()),
     )
-    .expect("extracting failed");
+        .expect("Plinth verifier generation failed");
 }

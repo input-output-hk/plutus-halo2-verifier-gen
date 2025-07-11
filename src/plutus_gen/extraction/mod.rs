@@ -1,9 +1,8 @@
-use crate::plutus_gen::code_emitters::{emit_verifier_code, emit_vk_code};
 use crate::plutus_gen::extraction::data::{
     CircuitRepresentation, ProofExtractionSteps, Query, RotationDescription,
 };
 use crate::plutus_gen::extraction::utils::{compile_expressions, get_any_query_index};
-use blstrs::{Bls12, G1Affine, G2Affine, Scalar};
+use blstrs::{Bls12, G1Affine, Scalar};
 use ff::Field;
 use halo2_proofs::halo2curves::group::Curve;
 use halo2_proofs::halo2curves::group::prime::PrimeCurveAffine;
@@ -12,20 +11,17 @@ use halo2_proofs::poly::Rotation;
 use halo2_proofs::poly::gwc_kzg::GwcKZGCommitmentScheme;
 use halo2_proofs::poly::kzg::params::ParamsKZG;
 use itertools::Itertools;
-use log::info;
+use log::debug;
 
 pub mod data;
 mod utils;
 
-type Scheme = GwcKZGCommitmentScheme<Bls12>;
+pub type KZGScheme = GwcKZGCommitmentScheme<Bls12>;
 
 pub fn extract_circuit(
     params: &ParamsKZG<Bls12>,
-    vk: &VerifyingKey<Scalar, Scheme>,
+    vk: &VerifyingKey<Scalar, KZGScheme>,
     instances: &[&[&[Scalar]]],
-    verifier_template_file: String,
-    vk_template_file: String,
-    g2_encoder: fn(G2Affine) -> String,
 ) -> Result<CircuitRepresentation, Error> {
     let chunk_len = vk.cs().degree() - 2;
 
@@ -45,10 +41,10 @@ pub fn extract_circuit(
         for instance in instance.iter() {
             for value in instance.iter() {
                 // transcript.common(value)?;
-                info!("writ public input (instance) into the transcript");
+                debug!("writ public input (instance) into the transcript");
                 circuit_description.public_inputs += 1;
-                info!("{:?}", value);
-                info!("--------------------------------");
+                debug!("{:?}", value);
+                debug!("--------------------------------");
             }
         }
     }
@@ -294,7 +290,7 @@ pub fn extract_circuit(
 
     //todo add stages to extract data for final pairing check preparation
 
-    info!("permutations expressions");
+    debug!("permutations expressions");
     // group to get permutation sets
     let sets: Vec<_> = circuit_description
         .proof_extraction_steps
@@ -564,22 +560,6 @@ pub fn extract_circuit(
     // add cheks for other possible rotations that may appear in equations
     let number_of_omegas = if vk.cs().lookups().is_empty() { 3 } else { 4 };
     let circuit_description = extract_omegas(circuit_description, number_of_omegas);
-
-    let _result = emit_verifier_code(
-        verifier_template_file,
-        "plutus-verifier/plutus-halo2/src/Plutus/Crypto/Halo2/Generic/Verifier.hs".to_string(),
-        &circuit_description,
-    )
-    .map_err(|e| e.to_string())
-    .map_err(|_e| Error::Synthesis)?;
-    let _result = emit_vk_code(
-        vk_template_file,
-        "plutus-verifier/plutus-halo2/src/Plutus/Crypto/Halo2/Generic/VKConstants.hs".to_string(),
-        &circuit_description,
-        g2_encoder,
-    )
-    .map_err(|e| e.to_string())
-    .map_err(|_e| Error::Synthesis)?;
 
     Ok(circuit_description)
 }

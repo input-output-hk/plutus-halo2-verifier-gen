@@ -1,11 +1,11 @@
-use crate::plutus_gen::extraction::Scheme;
+use crate::plutus_gen::extraction::KZGScheme;
 use blstrs::Scalar;
 use halo2_proofs::plonk::{Advice, Any, Column, Expression, Fixed, Instance, VerifyingKey};
 use halo2_proofs::poly::Rotation;
 use std::io::BufWriter;
 
 pub fn get_any_query_index(
-    vk: &VerifyingKey<Scalar, Scheme>,
+    vk: &VerifyingKey<Scalar, KZGScheme>,
     column: Column<Any>,
     at: Rotation,
 ) -> usize {
@@ -42,11 +42,13 @@ fn convert_polynomial<W: std::io::Write>(
     writer: &mut W,
 ) -> std::io::Result<()> {
     match ex {
-        Expression::Constant(scalar) => write!(
-            writer,
-            "(mkScalar ({:?} `modulo` bls12_381_field_prime))",
-            scalar
-        ),
+        Expression::Constant(scalar) => {
+            write!(
+                writer,
+                "(mkScalar (0x{} `modulo` bls12_381_field_prime))",
+                hex::encode(scalar.to_bytes_be())
+            )
+        }
         Expression::Selector(_selector) => {
             panic!("Selector not supported in custom gate")
         }

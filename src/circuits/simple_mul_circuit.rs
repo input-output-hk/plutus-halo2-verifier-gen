@@ -1,11 +1,12 @@
+/// Simple multiplication example based on the Halo2 book example,
+/// available at: https://zcash.github.io/halo2/user/simple-example.html
+
 use ff::Field;
 use halo2_proofs::circuit::{AssignedCell, Chip, Layouter, Region, SimpleFloorPlanner, Value};
 use halo2_proofs::plonk::{Advice, Circuit, Column, ConstraintSystem, Error, Fixed, Selector};
 use halo2_proofs::poly::Rotation;
 use std::marker::PhantomData;
 
-// this example is based on halo2 book example that can be found here https://zcash.github.io/halo2/user/simple-example.html
-// some parts are removed as this is a test example for code gen
 
 #[derive(Clone, Debug)]
 pub struct FieldConfig {
@@ -115,16 +116,16 @@ impl<F: Field> FieldChip<F> {
 }
 
 #[derive(Default, Debug)]
-pub struct MyCircuit<F: Field> {
+pub struct SimpleMulCircuit<F: Field> {
     constant: F,
     a: Value<F>,
     b: Value<F>,
     c: Value<F>,
 }
 
-impl<F: Field> MyCircuit<F> {
-    pub fn init(constant: F, a: F, b: F, c: F) -> MyCircuit<F> {
-        MyCircuit {
+impl<F: Field> SimpleMulCircuit<F> {
+    pub fn init(constant: F, a: F, b: F, c: F) -> SimpleMulCircuit<F> {
+        SimpleMulCircuit {
             constant,
             a: Value::known(a),
             b: Value::known(b),
@@ -132,7 +133,7 @@ impl<F: Field> MyCircuit<F> {
         }
     }
 }
-impl<F: Field> Circuit<F> for MyCircuit<F> {
+impl<F: Field> Circuit<F> for SimpleMulCircuit<F> {
     // Since we are using a single chip for everything, we can just reuse its config.
     type Config = FieldConfig;
     type FloorPlanner = SimpleFloorPlanner;
@@ -180,5 +181,33 @@ impl<F: Field> Circuit<F> for MyCircuit<F> {
             || "Assert equality",
             |mut region| region.constrain_equal(c_out.cell(), c.cell()),
         )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use blstrs::{Base, Scalar};
+    use halo2_proofs::dev::MockProver;
+    use halo2_proofs::plonk::k_from_circuit;
+    use ff::Field;
+    use crate::circuits::simple_mul_circuit::SimpleMulCircuit;
+
+    #[test]
+    fn test_lookup_circuit() {
+        // Prepare the private and public inputs to the circuit!
+        let constant = Scalar::from(7);
+        let a = Scalar::from(2);
+        let b = Scalar::from(3);
+        let c = constant * a.square() * b.square();
+
+        let circuit = SimpleMulCircuit::init(constant, a, b, c);
+
+        let pi = vec![vec![Base::from(42u64), Base::from(42u64), Base::from(42u64)]];
+
+        let k: u32 = k_from_circuit(&circuit);
+        let prover =
+            MockProver::run(k, &circuit, pi).expect("Failed to run ATMS verifier mock prover");
+
+        prover.assert_satisfied();
     }
 }
