@@ -43,7 +43,7 @@ that can validate proofs on-chain.
 2. Generate proving/verifying keys
 3. Extract circuit structure and constraints
 4. Generate Plinth verifier code using templates
-5. Deploy verifier to Cardano for on-chain verification
+5. Integrate verifier into Plinth smart-contract to be deployed on Cardano
 
 ## Build prerequisites
 
