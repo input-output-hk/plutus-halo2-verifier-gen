@@ -41,7 +41,7 @@ fn main() {
 }
 
 pub fn compile_atms_lookup_circuit() {
-    let seed = [0u8; 32]; // Choose a fixed seed for testing
+    let seed = [0u8; 32]; // UNSAFE, constant seed is used for testing purposes
     let mut rng: StdRng = SeedableRng::from_seed(seed);
 
     const NUM_PARTIES: usize = 6;
