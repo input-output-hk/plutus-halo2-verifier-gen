@@ -36,7 +36,7 @@ where
     S: PolynomialCommitmentScheme<Scalar, Commitment = G1Projective> + ExtractWitnesses,
 {
     // static locations of files in plutus directory
-    let verifier_template_file = Path::new("plutus-verifier/verification.hbs");
+    let verifier_template_file = Path::new("plutus-verifier/verification_multiopen.hbs");
     let vk_template_file = Path::new("plutus-verifier/vk_constants.hbs");
     let verifier_generated_file =
         Path::new("plutus-verifier/plutus-halo2/src/Plutus/Crypto/Halo2/Generic/Verifier.hs");
