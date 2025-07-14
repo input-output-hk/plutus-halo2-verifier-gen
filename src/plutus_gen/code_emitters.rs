@@ -6,13 +6,14 @@ use blstrs::G2Affine;
 use halo2_proofs::halo2curves::group::prime::PrimeCurveAffine;
 use handlebars::{Handlebars, RenderError};
 use itertools::Itertools;
-use log::info;
+use log::debug;
 use std::collections::HashMap;
 use std::fs::File;
+use std::path::Path;
 
 pub fn emit_verifier_code(
-    template_file: String, // haskell mustashe template
-    haskell_file: String,  // generated haskell file, output
+    template_file: &Path, // haskell mustashe template
+    haskell_file: &Path,  // generated haskell file, output
     circuit: &CircuitRepresentation,
 ) -> Result<String, RenderError> {
     let letters = 'a'..='z';
@@ -344,7 +345,7 @@ pub fn emit_verifier_code(
         .collect::<Vec<_>>();
     vanishing_expressions.extend(expressions);
 
-    let expressions_count = vanishing_expressions.len();
+    let _expressions_count = vanishing_expressions.len();
 
     data.insert(
         "VANISHING_EXPRESSIONS".to_string(),
@@ -620,98 +621,105 @@ pub fn emit_verifier_code(
     data.insert("PUBLIC_INPUTS".to_string(), public_inputs);
     data.insert("PUBLIC_INPUTS_LAGRANGE".to_string(), public_inputs_lagrange);
 
-    let constants_tracing = [
-        "(\"theta\", BlsUtils.traceScalar theta)",
-        "(\"beta\", BlsUtils.traceScalar beta)",
-        "(\"gamma\", BlsUtils.traceScalar gamma)",
-        "(\"x_prev\", BlsUtils.traceScalar x_prev)",
-        "(\"x_current\", BlsUtils.traceScalar x_current)",
-        "(\"x_next\", BlsUtils.traceScalar x_next)",
-        "(\"x_last\", BlsUtils.traceScalar x_last)",
-        "(\"x\", BlsUtils.traceScalar x)",
-        "(\"y\", BlsUtils.traceScalar y)",
-        "(\"v\", BlsUtils.traceScalar v)",
-        "(\"u\", BlsUtils.traceScalar u)",
-        "(\"hEval\", BlsUtils.traceScalar hEval)",
-        "(\"vanishing_s\", BlsUtils.traceScalar vanishing_s)",
-        "(\"vanishing_g\", BlsUtils.traceG1 vanishing_g)",
-        "(\"s_g2\", BlsUtils.traceG2 s_g2)",
-        "(\"el\", BlsUtils.traceG1 el)",
-        "(\"er\", BlsUtils.traceG1 er)",
-        "(\"vanishing_query\", BlsUtils.traceMVQ vanishing_query x_current)",
-        "(\"random_query\", BlsUtils.traceMVQ random_query x_current)",
-    ]
-    .to_vec()
-    .iter()
-    .map(|e| e.to_string())
-    .collect();
-
-    let gates_traces: Vec<_> = (1..=gates_count).map(|e| format!("gate_eq{}", e)).collect();
-    let expressions_traces: Vec<_> = (1..=expressions_count)
-        .map(|e| format!("expression{}", e))
+    // Include traces only in debug mode, because they increase cost of the Plutus verifier
+    #[cfg(feature = "plutus_debug")]
+    {
+        let constants_tracing = [
+            "(\"theta\", BlsUtils.traceScalar theta)",
+            "(\"beta\", BlsUtils.traceScalar beta)",
+            "(\"gamma\", BlsUtils.traceScalar gamma)",
+            "(\"x_prev\", BlsUtils.traceScalar x_prev)",
+            "(\"x_current\", BlsUtils.traceScalar x_current)",
+            "(\"x_next\", BlsUtils.traceScalar x_next)",
+            "(\"x_last\", BlsUtils.traceScalar x_last)",
+            "(\"x\", BlsUtils.traceScalar x)",
+            "(\"y\", BlsUtils.traceScalar y)",
+            "(\"v\", BlsUtils.traceScalar v)",
+            "(\"u\", BlsUtils.traceScalar u)",
+            "(\"hEval\", BlsUtils.traceScalar hEval)",
+            "(\"vanishing_s\", BlsUtils.traceScalar vanishing_s)",
+            "(\"vanishing_g\", BlsUtils.traceG1 vanishing_g)",
+            "(\"s_g2\", BlsUtils.traceG2 s_g2)",
+            "(\"el\", BlsUtils.traceG1 el)",
+            "(\"er\", BlsUtils.traceG1 er)",
+            "(\"vanishing_query\", BlsUtils.traceMVQ vanishing_query x_current)",
+            "(\"random_query\", BlsUtils.traceMVQ random_query x_current)",
+        ]
+        .to_vec()
+        .iter()
+        .map(|e| e.to_string())
         .collect();
 
-    let advice_queries_traces: Vec<_> = circuit
-        .advice_queries
-        .iter()
-        .zip(1..=circuit.advice_queries.len())
-        .map(|(q, idx)| (format!("a{}_query", idx), decode_rotation(&q.point)))
-        .collect();
+        let gates_traces: Vec<_> = (1..=gates_count).map(|e| format!("gate_eq{}", e)).collect();
+        let expressions_traces: Vec<_> = (1..=_expressions_count)
+            .map(|e| format!("expression{}", e))
+            .collect();
 
-    let fixed_queries_traces: Vec<_> = circuit
-        .fixed_queries
-        .iter()
-        .zip(1..=circuit.fixed_queries.len())
-        .map(|(q, idx)| (format!("f{}_query", idx), decode_rotation(&q.point)))
-        .collect();
+        let advice_queries_traces: Vec<_> = circuit
+            .advice_queries
+            .iter()
+            .zip(1..=circuit.advice_queries.len())
+            .map(|(q, idx)| (format!("a{}_query", idx), decode_rotation(&q.point)))
+            .collect();
 
-    let permutation_queries_traces: Vec<_> = circuit
-        .permutation_queries
-        .iter()
-        .zip(1..=circuit.permutation_queries.len())
-        .map(|(q, idx)| {
+        let fixed_queries_traces: Vec<_> = circuit
+            .fixed_queries
+            .iter()
+            .zip(1..=circuit.fixed_queries.len())
+            .map(|(q, idx)| (format!("f{}_query", idx), decode_rotation(&q.point)))
+            .collect();
+
+        let permutation_queries_traces: Vec<_> = circuit
+            .permutation_queries
+            .iter()
+            .zip(1..=circuit.permutation_queries.len())
+            .map(|(q, idx)| {
             (
                 format!("permutations_query{}", idx),
                 decode_rotation(&q.point),
             )
         })
-        .collect();
+            .collect();
 
-    let common_queries_traces: Vec<_> = circuit
-        .common_queries
-        .iter()
-        .zip(1..=circuit.common_queries.len())
-        .map(|(q, idx)| (format!("p{}_query", idx), decode_rotation(&q.point)))
-        .collect();
+        let common_queries_traces: Vec<_> = circuit
+            .common_queries
+            .iter()
+            .zip(1..=circuit.common_queries.len())
+            .map(|(q, idx)| (format!("p{}_query", idx), decode_rotation(&q.point)))
+            .collect();
 
-    let lookups_queries_traces: Vec<_> = circuit
-        .lookup_queries
-        .iter()
-        .zip(1..=circuit.lookup_queries.len())
-        .map(|(q, idx)| (format!("l{}_query", idx), decode_rotation(&q.point)))
-        .collect();
+        let lookups_queries_traces: Vec<_> = circuit
+            .lookup_queries
+            .iter()
+            .zip(1..=circuit.lookup_queries.len())
+            .map(|(q, idx)| (format!("l{}_query", idx), decode_rotation(&q.point)))
+            .collect();
 
-    let scalar_traces: Vec<_> = [gates_traces, expressions_traces]
+        let scalar_traces: Vec<_> = [gates_traces, expressions_traces]
+            .iter()
+            .flatten()
+            .map(|e| format!("(\"{}\", BlsUtils.traceScalar {})", e, e))
+            .collect();
+        let mvq_traces: Vec<_> = [
+            advice_queries_traces,
+            fixed_queries_traces,
+            permutation_queries_traces,
+            common_queries_traces,
+            lookups_queries_traces,
+        ]
         .iter()
         .flatten()
-        .map(|e| format!("(\"{}\", BlsUtils.traceScalar {})", e, e))
+        .map(|(e, p)| format!("(\"{}\", BlsUtils.traceMVQ {} {})", e, e, p))
         .collect();
-    let mvq_traces: Vec<_> = [
-        advice_queries_traces,
-        fixed_queries_traces,
-        permutation_queries_traces,
-        common_queries_traces,
-        lookups_queries_traces,
-    ]
-    .iter()
-    .flatten()
-    .map(|(e, p)| format!("(\"{}\", BlsUtils.traceMVQ {} {})", e, e, p))
-    .collect();
 
-    let all_traces = [constants_tracing, scalar_traces, mvq_traces];
-    let all_traces: Vec<_> = all_traces.iter().flatten().collect();
+        let all_traces = [constants_tracing, scalar_traces, mvq_traces];
+        let all_traces: Vec<_> = all_traces.iter().flatten().collect();
 
-    data.insert("TRACES".to_string(), all_traces.iter().join(",\n       "));
+        data.insert("TRACES".to_string(), all_traces.iter().join(",\n       "));
+    }
+
+    #[cfg(not(feature = "plutus_debug"))]
+    data.insert("TRACES".to_string(), "".to_string());
 
     let mut handlebars = Handlebars::new();
     handlebars.set_strict_mode(true);
@@ -722,8 +730,8 @@ pub fn emit_verifier_code(
 }
 
 pub fn emit_vk_code(
-    template_file: String, // haskell mustashe template
-    haskell_file: String,  // generated haskell file, output
+    template_file: &Path, // haskell mustashe template
+    haskell_file: &Path,  // generated haskell file, output
     circuit: &CircuitRepresentation,
     g2_encoder: fn(G2Affine) -> String,
 ) -> Result<String, RenderError> {
@@ -786,7 +794,7 @@ pub fn emit_vk_code(
     data.insert("PERMUTATION_COMMITMENT_G1".to_string(), assignment);
     let compressed_sg2 = g2_encoder(circuit.instantiation_data.s_g2);
 
-    info!("compressed_sg2: {}", compressed_sg2);
+    debug!("compressed_sg2: {}", compressed_sg2);
 
     data.insert(
         "G2_DEFINITIONS".to_string(),

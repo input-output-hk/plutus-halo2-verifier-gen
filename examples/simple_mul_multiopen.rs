@@ -1,30 +1,29 @@
 use blstrs::{Base, Bls12, Scalar};
 use ff::Field;
-use halo2_proofs::halo2curves::group::GroupEncoding;
-use halo2_proofs::plonk::{ProvingKey, VerifyingKey};
-use halo2_proofs::poly::kzg::KZGCommitmentScheme;
-use halo2_proofs::poly::kzg::msm::DualMSM;
-use halo2_proofs::utils::arithmetic::{eval_polynomial, lagrange_interpolate};
 use halo2_proofs::{
-    plonk::{create_proof, keygen_pk, keygen_vk, prepare},
-    poly::{commitment::Guard, kzg::params::ParamsKZG},
+    halo2curves::group::GroupEncoding,
+    plonk::{
+        ProvingKey, VerifyingKey, create_proof, k_from_circuit, keygen_pk, keygen_vk, prepare,
+    },
+    poly::{
+        commitment::Guard, kzg::KZGCommitmentScheme, kzg::msm::DualMSM, kzg::params::ParamsKZG,
+    },
     transcript::{CircuitTranscript, Transcript},
 };
 use log::info;
-use plutus_halo2_verifier_gen::circuit::MyCircuit;
-use plutus_halo2_verifier_gen::plutus_gen::adjusted_types::CardanoFriendlyState;
-use plutus_halo2_verifier_gen::plutus_gen::extraction::extract_circuit_multi_open;
-use plutus_halo2_verifier_gen::plutus_gen::proof_serialization::serialize_proof;
+use plutus_halo2_verifier_gen::{
+    circuits::simple_mul_circuit::SimpleMulCircuit,
+    plutus_gen::{
+        adjusted_types::CardanoFriendlyState, generate_plinth_verifier,
+        proof_serialization::serialize_proof,
+    },
+};
 use rand::rngs::StdRng;
 use rand_core::SeedableRng;
 use std::{fs::File, io::Write};
 
 fn main() {
     env_logger::init_from_env(env_logger::Env::default().filter_or("RUST_LOG", "info"));
-
-    // The number of rows in our circuit cannot exceed 2^k. Since our example
-    // circuit is very small, we can pick a very small value here.
-    let k = 4;
 
     // Prepare the private and public inputs to the circuit!
     let constant = Scalar::from(7);
@@ -39,12 +38,16 @@ fn main() {
     info!("c: {:?}", c);
 
     // Instantiate the circuit with the private inputs.
-    let circuit = MyCircuit::init(constant, a, b, c);
+    let circuit = SimpleMulCircuit::init(constant, a, b, c);
 
     info!("circuit: {:?}", circuit);
 
     let seed = [0u8; 32]; // Choose a fixed seed for testing
     let mut rng: StdRng = SeedableRng::from_seed(seed);
+
+    // The number of rows in our circuit cannot exceed 2^k. Since our example
+    // circuit is very small, we can pick a very small value here.
+    let k: u32 = k_from_circuit(&circuit);
 
     // Given the correct public input, our circuit will verify.
     let params: ParamsKZG<Bls12> = ParamsKZG::<Bls12>::unsafe_setup(k, rng.clone());
@@ -107,15 +110,6 @@ fn main() {
     )
     .unwrap();
 
-    let _data = extract_circuit_multi_open(
-        &params,
-        &vk,
-        instances,
-        "plutus-verifier/verification.hbs".to_string(),
-        "plutus-verifier/vk_constants.hbs".to_string(),
-        |a| hex::encode(a.to_bytes()),
-    )
-    .expect("extracting failed");
-
-
+    generate_plinth_verifier(&params, &vk, instances, |a| hex::encode(a.to_bytes()))
+        .expect("extracting failed");
 }
