@@ -1,8 +1,9 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 
-module Plutus.Crypto.Halo2.MultiOpenMSM where
+module Plutus.Crypto.Halo2.MultiOpenMSM (buildMSM) where
 
 import Plutus.Crypto.BlsTypes (
+    mkScalar,
     Scalar,
     recip,
  )
@@ -30,12 +31,17 @@ import PlutusTx.List (
     length,
     map,
     unzip,
+    take,
     zip,
     (++),
  )
 import PlutusTx.Prelude (
     Bool (False, True),
     Integer,
+    bls12_381_G1_compressed_generator,
+    bls12_381_G1_neg,
+    bls12_381_G1_uncompress,
+    enumFromTo,
     one,
     zero,
     (*),
@@ -43,7 +49,8 @@ import PlutusTx.Prelude (
     (-),
  )
 
--- this function takes commitment with point sets and returns left and right MSM for further evaluation
+-- this function takes commitment with point sets and returns only right MSM for further evaluation
+-- as left MSM is equal to ONE * PI commitment
 {-# INLINEABLE buildMSM #-}
 buildMSM ::
     Scalar ->
@@ -51,14 +58,15 @@ buildMSM ::
     Scalar ->
     Scalar ->
     BuiltinBLS12_381_G1_Element ->
+    BuiltinBLS12_381_G1_Element ->
     [Scalar] ->
     [(BuiltinBLS12_381_G1_Element, Integer, [Scalar], [Scalar])] ->
     [[Scalar]] ->
-    (MSM, MSM)
-buildMSM x1 x2 x3 x4 f_comm proofX3QEvals commitmentMap pointSets = (MSM [], MSM [])
+    MSM
+buildMSM x1 x2 x3 x4 f_comm pi_commitment proofX3QEvals commitmentMap pointSets = right
   where
     pointSetsIndexes :: [Integer]
-    pointSetsIndexes = [0 .. (length pointSets - 1)]
+    pointSetsIndexes = enumFromTo 0 (length pointSets - 1)
 
     x1Powers :: [Scalar]
     x1Powers = x1 : [x1 * x | x <- x1Powers]
@@ -105,6 +113,7 @@ buildMSM x1 x2 x3 x4 f_comm proofX3QEvals commitmentMap pointSets = (MSM [], MSM
             pointSetsIndexes
     (q_coms, q_eval_sets) = unzip result
 
+    f_eval :: Scalar
     f_eval =
         foldl
             ( \accEval ((points, evals), proofQEval) ->
@@ -118,8 +127,30 @@ buildMSM x1 x2 x3 x4 f_comm proofX3QEvals commitmentMap pointSets = (MSM [], MSM
             zero
             (zip (zip pointSets q_eval_sets) proofX3QEvals)
 
+    final_com :: MSM
     final_com =
         foldl
-            (\accMSM (x4Power, msm) -> addMSM accMSM (scaleMSM x4Power msm))
+            (\accMSM (point, msm) -> addMSM accMSM (scaleMSM point msm))
             (MSM [])
             (zip x4Powers (q_coms ++ [MSM [MSMElem ((one :: Scalar), f_comm)]]))
+
+    v :: Scalar
+    v =
+        foldl
+            (\acc (point, eval) -> acc + point * eval)
+            (zero :: Scalar)
+            (zip x4Powers (proofX3QEvals ++ [f_eval]))
+
+    right =
+        appendTerm
+            ( appendTerm
+                final_com
+                ( MSMElem
+                    -- -vG1
+                    (v, bls12_381_G1_neg (bls12_381_G1_uncompress bls12_381_G1_compressed_generator))
+                )
+            )
+            ( MSMElem
+                -- scaled pi
+                (x3, pi_commitment)
+            )
