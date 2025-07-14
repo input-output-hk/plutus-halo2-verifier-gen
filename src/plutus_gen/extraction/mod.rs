@@ -21,8 +21,14 @@ mod utils;
 type LegacyScheme = GwcKZGCommitmentScheme<Bls12>;
 type MultiOpenScheme = KZGCommitmentScheme<Bls12>;
 
+pub enum WitnessType {
+    Legacy,
+    MultiOpen,
+}
+
 pub trait ExtractWitnesses {
     fn extract_witnesses(circuit_representation: CircuitRepresentation) -> CircuitRepresentation;
+    fn witnesses_type() -> WitnessType;
 }
 
 impl ExtractWitnesses for LegacyScheme {
@@ -54,6 +60,10 @@ impl ExtractWitnesses for LegacyScheme {
             .proof_extraction_steps
             .push(ProofExtractionSteps::U);
         circuit_representation
+    }
+
+    fn witnesses_type() -> WitnessType {
+        WitnessType::Legacy
     }
 }
 
@@ -105,6 +115,10 @@ impl ExtractWitnesses for MultiOpenScheme {
             .push(ProofExtractionSteps::PI);
 
         circuit_representation
+    }
+
+    fn witnesses_type() -> WitnessType {
+        WitnessType::MultiOpen
     }
 }
 

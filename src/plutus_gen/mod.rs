@@ -1,5 +1,5 @@
 use crate::plutus_gen::code_emitters::{emit_verifier_code, emit_vk_code};
-use crate::plutus_gen::extraction::{ExtractWitnesses, extract_circuit};
+use crate::plutus_gen::extraction::{ExtractWitnesses, extract_circuit, WitnessType};
 use blstrs::{Bls12, G1Projective, G2Affine, Scalar};
 use halo2_proofs::plonk::VerifyingKey;
 use halo2_proofs::poly::commitment::PolynomialCommitmentScheme;
@@ -33,10 +33,14 @@ pub fn generate_plinth_verifier<S>(
     g2_encoder: fn(G2Affine) -> String,
 ) -> Result<(), String>
 where
-    S: PolynomialCommitmentScheme<Scalar, Commitment = G1Projective> + ExtractWitnesses,
+    S: PolynomialCommitmentScheme<Scalar, Commitment=G1Projective> + ExtractWitnesses,
 {
     // static locations of files in plutus directory
-    let verifier_template_file = Path::new("plutus-verifier/verification_multiopen.hbs");
+    let verifier_template_file = match S::witnesses_type() {
+        WitnessType::Legacy => Path::new("plutus-verifier/verification.hbs"),
+        WitnessType::MultiOpen => Path::new("plutus-verifier/verification_multiopen.hbs"),
+    };
+
     let vk_template_file = Path::new("plutus-verifier/vk_constants.hbs");
     let verifier_generated_file =
         Path::new("plutus-verifier/plutus-halo2/src/Plutus/Crypto/Halo2/Generic/Verifier.hs");
@@ -57,14 +61,14 @@ where
         verifier_generated_file,
         &circuit_representation,
     )
-    .map_err(|e| e.to_string())?;
+        .map_err(|e| e.to_string())?;
     emit_vk_code(
         vk_template_file,
         vk_generated_file,
         &circuit_representation,
         g2_encoder,
     )
-    .map_err(|e| e.to_string())?;
+        .map_err(|e| e.to_string())?;
 
     Ok(())
 }
