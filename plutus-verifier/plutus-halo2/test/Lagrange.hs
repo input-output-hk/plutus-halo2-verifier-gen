@@ -11,7 +11,7 @@ import qualified Test.Tasty.HUnit as Tasty
 test :: Tasty.TestTree
 test =
     Tasty.testGroup
-        "unit tests"
+        "unit tests for lagrange in place evaluation"
         [ Tasty.testCase "interpolation for (1,1) eval at 1" existingPoint
         , Tasty.testCase "interpolation for (1,1) (2,2) eval at 4" linearCase
         , Tasty.testCase "interpolation for 2 points provided, eval at 42" biggerNumber

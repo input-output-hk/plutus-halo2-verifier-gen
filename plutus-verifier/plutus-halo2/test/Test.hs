@@ -4,6 +4,7 @@ import qualified Generic.VerificationTestHaskell
 import qualified Generic.VerificationTestPlutus
 import Generic.VerifyCompiled (writeToFile)
 import qualified Lagrange
+import qualified MultiOpenMSM
 import Test.Tasty (defaultMain, testGroup)
 
 import EvalUtils (
@@ -38,4 +39,5 @@ main = do
             [ Generic.VerificationTestHaskell.test
             , Generic.VerificationTestPlutus.test
             , Lagrange.test
+            , MultiOpenMSM.test
             ]

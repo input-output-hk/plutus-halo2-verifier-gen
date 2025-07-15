@@ -634,8 +634,6 @@ pub fn emit_verifier_code(
             "(\"x_last\", BlsUtils.traceScalar x_last)",
             "(\"x\", BlsUtils.traceScalar x)",
             "(\"y\", BlsUtils.traceScalar y)",
-            "(\"v\", BlsUtils.traceScalar v)",
-            "(\"u\", BlsUtils.traceScalar u)",
             "(\"hEval\", BlsUtils.traceScalar hEval)",
             "(\"vanishing_s\", BlsUtils.traceScalar vanishing_s)",
             "(\"vanishing_g\", BlsUtils.traceG1 vanishing_g)",

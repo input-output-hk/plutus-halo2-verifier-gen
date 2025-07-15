@@ -1,9 +1,8 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 
-module Plutus.Crypto.Halo2.MultiOpenMSM (buildMSM) where
+module Plutus.Crypto.Halo2.MultiOpenMSM (buildMSM, buildQ, computeV, evaluateLagrange, finalCommitment) where
 
 import Plutus.Crypto.BlsTypes (
-    mkScalar,
     Scalar,
     recip,
  )
@@ -30,8 +29,8 @@ import PlutusTx.List (
     head,
     length,
     map,
+    reverse,
     unzip,
-    take,
     zip,
     (++),
  )
@@ -68,78 +67,24 @@ buildMSM x1 x2 x3 x4 f_comm pi_commitment proofX3QEvals commitmentMap pointSets 
     pointSetsIndexes :: [Integer]
     pointSetsIndexes = enumFromTo 0 (length pointSets - 1)
 
+    -- todo estimate, instead of using 15
+    -- this has to be equal the length of longest commitment set associated with a set index
     x1Powers :: [Scalar]
-    x1Powers = x1 : [x1 * x | x <- x1Powers]
-
+    x1Powers = powers 15 x1
+    -- length of this is max ( proofX3QEvals_len + 1 , q_coms_len + 1 )
     x4Powers :: [Scalar]
-    x4Powers = x4 : [x4 * x | x <- x1Powers]
+    x4Powers = powers 15 x4
 
-    result =
-        map
-            ( \set_index ->
-                let
-                    -- all commitments for given index
-                    commitmentsForIndex :: [(BuiltinBLS12_381_G1_Element, Integer, [Scalar], [Scalar])]
-                    commitmentsForIndex =
-                        filter
-                            ( \c -> case c of
-                                (_, set_index, _, _) -> True
-                                _ -> False
-                            )
-                            commitmentMap
-
-                    -- calculate inner products for commitments and for evaluations
-                    comm =
-                        foldl
-                            (\msm (x1Power, (c, _, _, _)) -> appendTerm msm (MSMElem (x1Power, c)))
-                            (MSM [])
-                            (zip x1Powers commitmentsForIndex)
-
-                    eval_set =
-                        -- this multiply all elements from evaluation list es and sums up result
-                        map
-                            ( \(x1Power, (_, _, _, es)) ->
-                                foldl
-                                    ( \acc evaluation ->
-                                        acc + evaluation * x1Power
-                                    )
-                                    (zero :: Scalar)
-                                    es
-                            )
-                            (zip x1Powers commitmentsForIndex)
-                 in
-                    (comm, eval_set)
-            )
-            pointSetsIndexes
-    (q_coms, q_eval_sets) = unzip result
+    (q_coms, q_eval_sets) = unzip (buildQ commitmentMap pointSetsIndexes x1Powers)
 
     f_eval :: Scalar
-    f_eval =
-        foldl
-            ( \accEval ((points, evals), proofQEval) ->
-                let
-                    rEval = lagrangeInPlace (zip points evals) x3
-                    den = foldl (\acc point -> acc * (x3 - point)) one points
-                    eval = (proofQEval - rEval) * (recip den)
-                 in
-                    accEval * x2 + eval
-            )
-            zero
-            (zip (zip pointSets q_eval_sets) proofX3QEvals)
+    f_eval = evaluateLagrange pointSets q_eval_sets x2 x3 proofX3QEvals
 
     final_com :: MSM
-    final_com =
-        foldl
-            (\accMSM (point, msm) -> addMSM accMSM (scaleMSM point msm))
-            (MSM [])
-            (zip x4Powers (q_coms ++ [MSM [MSMElem ((one :: Scalar), f_comm)]]))
+    final_com = finalCommitment q_coms f_comm x4Powers
 
     v :: Scalar
-    v =
-        foldl
-            (\acc (point, eval) -> acc + point * eval)
-            (zero :: Scalar)
-            (zip x4Powers (proofX3QEvals ++ [f_eval]))
+    v = computeV f_eval x4Powers proofX3QEvals
 
     right =
         appendTerm
@@ -154,3 +99,92 @@ buildMSM x1 x2 x3 x4 f_comm pi_commitment proofX3QEvals commitmentMap pointSets 
                 -- scaled pi
                 (x3, pi_commitment)
             )
+
+{-# INLINEABLE computeV #-}
+computeV ::
+    Scalar ->
+    [Scalar] ->
+    [Scalar] ->
+    Scalar
+computeV f_eval x4Powers proofX3QEvals =
+    foldl
+        (\acc (point, eval) -> acc + point * eval)
+        (zero :: Scalar)
+        (zip x4Powers (proofX3QEvals ++ [f_eval]))
+
+{-# INLINEABLE finalCommitment #-}
+finalCommitment ::
+    [MSM] ->
+    BuiltinBLS12_381_G1_Element ->
+    [Scalar] ->
+    MSM
+finalCommitment q_coms f_comm x4Powers =
+    foldl
+        (\accMSM (point, msm) -> addMSM accMSM (scaleMSM point msm))
+        (MSM [])
+        (zip x4Powers (q_coms ++ [MSM [MSMElem ((one :: Scalar), f_comm)]]))
+
+{-# INLINEABLE evaluateLagrange #-}
+evaluateLagrange ::
+    [[Scalar]] ->
+    [[Scalar]] ->
+    Scalar ->
+    Scalar ->
+    [Scalar] ->
+    Scalar
+evaluateLagrange pointSets q_eval_sets x2 x3 proofX3QEvals =
+    foldl
+        ( \accEval ((points, evals), proofQEval) ->
+            let
+                rEval = lagrangeInPlace (zip points evals) x3
+                den = foldl (\acc point -> acc * (x3 - point)) one points
+                eval = (proofQEval - rEval) * (recip den)
+             in
+                accEval * x2 + eval
+        )
+        zero
+        (reverse (zip (zip pointSets q_eval_sets) proofX3QEvals))
+
+{-# INLINEABLE buildQ #-}
+buildQ ::
+    [(BuiltinBLS12_381_G1_Element, Integer, [Scalar], [Scalar])] ->
+    [Integer] ->
+    [Scalar] ->
+    [(MSM, [Scalar])]
+buildQ commitmentMap pointSetsIndexes x1Powers =
+    map
+        ( \set_index ->
+            let
+                -- all commitments for given index
+                commitmentsForIndex :: [(BuiltinBLS12_381_G1_Element, Integer, [Scalar], [Scalar])]
+                commitmentsForIndex =
+                    filter
+                        ( \c -> case c of
+                            (_, set_index, _, _) -> True
+                            _ -> False
+                        )
+                        commitmentMap
+
+                -- calculate inner products for commitments
+                comm =
+                    foldl
+                        (\msm (x1Power, (c, _, _, _)) -> appendTerm msm (MSMElem (x1Power, c)))
+                        (MSM [])
+                        (zip x1Powers commitmentsForIndex)
+
+                -- calculate inner product for evaluations
+                eval_set =
+                    map
+                        ( \(x1Power, (_, _, _, es)) ->
+                            foldl
+                                ( \acc evaluation ->
+                                    acc + evaluation * x1Power
+                                )
+                                (zero :: Scalar)
+                                es
+                        )
+                        (zip x1Powers commitmentsForIndex)
+             in
+                (comm, eval_set)
+        )
+        pointSetsIndexes
