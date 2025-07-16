@@ -29,6 +29,7 @@ import PlutusTx.List (
     head,
     length,
     map,
+    replicate,
     reverse,
     unzip,
     zip,
@@ -46,6 +47,7 @@ import PlutusTx.Prelude (
     (*),
     (+),
     (-),
+    (==),
  )
 
 -- this function takes commitment with point sets and returns only right MSM for further evaluation
@@ -153,14 +155,14 @@ buildQ ::
     [(MSM, [Scalar])]
 buildQ commitmentMap pointSetsIndexes x1Powers =
     map
-        ( \set_index ->
+        ( \current_set_index ->
             let
                 -- all commitments for given index
                 commitmentsForIndex :: [(BuiltinBLS12_381_G1_Element, Integer, [Scalar], [Scalar])]
                 commitmentsForIndex =
                     filter
                         ( \c -> case c of
-                            (_, set_index, _, _) -> True
+                            (_, set_index, _, _) | set_index == current_set_index -> True
                             _ -> False
                         )
                         commitmentMap
@@ -174,15 +176,16 @@ buildQ commitmentMap pointSetsIndexes x1Powers =
 
                 -- calculate inner product for evaluations
                 eval_set =
-                    map
-                        ( \(x1Power, (_, _, _, es)) ->
-                            foldl
-                                ( \acc evaluation ->
-                                    acc + evaluation * x1Power
-                                )
-                                (zero :: Scalar)
-                                es
+                    foldl
+                        ( \acc (x1Power, (_, _, _, es)) ->
+                            let
+                                scaled = map (* x1Power) es
+                             in
+                                case acc of
+                                    [] -> scaled
+                                    accumulated -> map (\(a, b) -> a + b) (zip accumulated scaled)
                         )
+                        []
                         (zip x1Powers commitmentsForIndex)
              in
                 (comm, eval_set)

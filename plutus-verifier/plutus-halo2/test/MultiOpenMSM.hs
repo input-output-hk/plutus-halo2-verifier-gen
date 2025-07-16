@@ -50,6 +50,8 @@ test =
     Tasty.testGroup
         "unit tests for MSM multi open"
         [ Tasty.testCase "check V correctness for test case" assertCorrectV
+        , Tasty.testCase "check f evaluation correctness for test case" assertCorrectFEval
+        , Tasty.testCase "check q evaluation sets correctness for test case" assertCorrectQEvalSets
         ]
 
 x_current = mkScalar 0x65e2000f8ef4d864b59536948015f6d968e559ecaccae4d58aea34b54593652d
@@ -163,7 +165,6 @@ pi_term =
         , 0x7d44ff3d0c9bd1d36389205ea66e94fec5225a57762b35891b6cf92f96382f31d812de4c013da34b47b05c4b1c56c23
         )
 
-
 -- example point sets with correct order of sets in list
 pointSets :: [[Scalar]]
 pointSets = [[x_current, x_next], [x_current], [x_current, x_next, x_last]]
@@ -199,6 +200,12 @@ x4Powers = x4 : [x4 * x | x <- x1Powers]
 
 (q_coms, q_eval_sets) = unzip (buildQ commitmentMap pointSetsIndexes x1Powers)
 
+foo :: [MSM]
+foo = q_coms
+
+bar :: [[Scalar]]
+bar = q_eval_sets
+
 f_eval :: Scalar
 f_eval = evaluateLagrange pointSets q_eval_sets x2 x3 proofX3QEvals
 
@@ -208,9 +215,29 @@ final_com = finalCommitment q_coms f_commitment x4Powers
 v :: Scalar
 v = computeV f_eval x4Powers proofX3QEvals
 
-
 -- values extracted from rust version of multi open for this case
 expectedV = mkScalar 0x2884628a888c5cb437fd6589734866cffa56ec5c7870979785fbdeb21f0380ec
 
+expectedFEval = mkScalar 0x68254f544250d7c2b9bbdf4998c6643ea7ba4cffce8f1269d1df571084424282
+
+expectedQEvalSets =
+    [
+        [ mkScalar 0x1155cdbca5d1b7322d3fc79c28bea909a58db052c68a6905e63cdf1180a7e77a
+        , mkScalar 0x739fcc72d0e2cdc04c6b6f1c49794a5e14a1b1a0c09ed2429a38a2d50c46ac80
+        ]
+    , [mkScalar 0x488de24ae86e68664ac32e8d2360391791b8c60fef972c070fcd169411816bf5]
+    ,
+        [ mkScalar 0x403dd8f400926f35ca81b49a16bf39125bd5055a45859a65f87d36cd8d3f1bf5
+        , mkScalar 0x4d5929f64321f54286e7c88200c1bcc9dafeada8320f28276210a4c531c9ea9f
+        , mkScalar 0x452f3a5bfd621ecf05b14659a3f6ee668efc8a994c6ffea0f9427672848f4c1a
+        ]
+    ]
+
 assertCorrectV :: Tasty.Assertion
 assertCorrectV = v @?= expectedV
+
+assertCorrectFEval :: Tasty.Assertion
+assertCorrectFEval = f_eval @?= expectedFEval
+
+assertCorrectQEvalSets :: Tasty.Assertion
+assertCorrectQEvalSets = q_eval_sets @?= expectedQEvalSets
