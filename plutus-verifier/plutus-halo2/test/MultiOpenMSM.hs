@@ -197,7 +197,7 @@ x1Powers :: [Scalar]
 x1Powers = (one :: Scalar) : [x1 * x | x <- x1Powers]
 
 x4Powers :: [Scalar]
-x4Powers = (one :: Scalar) : [x4 * x | x <- x1Powers]
+x4Powers = (one :: Scalar) : [x4 * x | x <- x4Powers]
 
 (q_coms, q_eval_sets) = unzip (buildQ commitmentMap pointSetsIndexes x1Powers)
 
