@@ -38,6 +38,7 @@ import PlutusTx.Prelude (
     BuiltinBLS12_381_G1_Element,
     Integer,
     enumFromTo,
+    one,
     (*),
     (.),
  )
@@ -193,10 +194,10 @@ commitmentMap =
 proofX3QEvals = [q_eval_on_x3_1, q_eval_on_x3_2, q_eval_on_x3_3]
 
 x1Powers :: [Scalar]
-x1Powers = x1 : [x1 * x | x <- x1Powers]
+x1Powers = (one :: Scalar) : [x1 * x | x <- x1Powers]
 
 x4Powers :: [Scalar]
-x4Powers = x4 : [x4 * x | x <- x1Powers]
+x4Powers = (one :: Scalar) : [x4 * x | x <- x1Powers]
 
 (q_coms, q_eval_sets) = unzip (buildQ commitmentMap pointSetsIndexes x1Powers)
 
