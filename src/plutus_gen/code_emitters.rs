@@ -557,10 +557,18 @@ pub fn emit_verifier_code(
 
     data.insert("MSM_LOOKUP_QUERIES".to_string(), msm_lookup_queries);
 
+    // case for legacy verifier
     let w_values = (1..=circuit.instantiation_data.w_values_count)
         .map(|n| format!("              'w{}", n))
         .join(" ,\n");
     data.insert("W_VALUES".to_string(), w_values);
+    // ------
+    let q_evaluations = (1..=circuit.instantiation_data.q_evaluations_count)
+        .map(|n| format!("q_eval_on_x3_{}", n))
+        .join(", ");
+    // case for multi open verifier
+    data.insert("Q_EVALS_FROM_PROOF".to_string(), q_evaluations);
+    // ------
 
     let state = vec![];
     let rotation_order = circuit

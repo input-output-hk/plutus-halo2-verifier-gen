@@ -42,6 +42,7 @@ import PlutusTx.Prelude (
     bls12_381_G1_neg,
     bls12_381_G1_uncompress,
     enumFromTo,
+    max,
     one,
     zero,
     (*),
@@ -69,15 +70,16 @@ buildMSM x1 x2 x3 x4 f_comm pi_commitment proofX3QEvals commitmentMap pointSets 
     pointSetsIndexes :: [Integer]
     pointSetsIndexes = enumFromTo 0 (length pointSets - 1)
 
-    -- todo estimate, instead of using 15
-    -- this has to be equal the length of longest commitment set associated with a set index
+    -- x1Powers length can be precomputed
     x1Powers :: [Scalar]
-    x1Powers = powers 15 x1
-    -- length of this is max ( proofX3QEvals_len + 1 , q_coms_len + 1 )
-    x4Powers :: [Scalar]
-    x4Powers = powers 15 x4
+    x1Powers = powers (x1PowersCount pointSetsIndexes commitmentMap) x1
 
     (q_coms, q_eval_sets) = unzip (buildQ commitmentMap pointSetsIndexes x1Powers)
+
+    x4PowersCount = (max (length proofX3QEvals + 1) (length q_coms + 1))
+
+    x4Powers :: [Scalar]
+    x4Powers = powers x4PowersCount x4
 
     f_eval :: Scalar
     f_eval = evaluateLagrange pointSets q_eval_sets x2 x3 proofX3QEvals
@@ -147,6 +149,23 @@ evaluateLagrange pointSets q_eval_sets x2 x3 proofX3QEvals =
         zero
         (reverse (zip (zip pointSets q_eval_sets) proofX3QEvals))
 
+{-# INLINEABLE x1PowersCount #-}
+x1PowersCount :: [Integer] -> [(BuiltinBLS12_381_G1_Element, Integer, [Scalar], [Scalar])] -> Integer
+x1PowersCount pointSetsIndexes commitmentMap =
+    foldl
+        max
+        0
+        ( map
+            ( \idx ->
+                length
+                    ( filter
+                        (\(_, set_index, _, _) -> set_index == idx)
+                        commitmentMap
+                    )
+            )
+            pointSetsIndexes
+        )
+
 {-# INLINEABLE buildQ #-}
 buildQ ::
     [(BuiltinBLS12_381_G1_Element, Integer, [Scalar], [Scalar])] ->
@@ -160,12 +179,7 @@ buildQ commitmentMap pointSetsIndexes x1Powers =
                 -- all commitments for given index
                 commitmentsForIndex :: [(BuiltinBLS12_381_G1_Element, Integer, [Scalar], [Scalar])]
                 commitmentsForIndex =
-                    filter
-                        ( \c -> case c of
-                            (_, set_index, _, _) | set_index == current_set_index -> True
-                            _ -> False
-                        )
-                        commitmentMap
+                    filter (\(_, set_index, _, _) -> set_index == current_set_index) commitmentMap
 
                 -- calculate inner products for commitments
                 comm =

@@ -1,22 +1,23 @@
 use blstrs::{Base, Bls12, Scalar};
-use halo2_proofs::halo2curves::group::GroupEncoding;
-use halo2_proofs::plonk::{k_from_circuit, ProvingKey, VerifyingKey};
-use halo2_proofs::poly::gwc_kzg::GwcKZGCommitmentScheme;
 use halo2_proofs::{
-    plonk::{create_proof, keygen_pk, keygen_vk, prepare},
-    poly::{commitment::Guard, kzg::params::ParamsKZG},
+    halo2curves::group::GroupEncoding,
+    plonk::{
+        ProvingKey, VerifyingKey, create_proof, k_from_circuit, keygen_pk, keygen_vk, prepare,
+    },
+    poly::{commitment::Guard, gwc_kzg::GwcKZGCommitmentScheme, kzg::params::ParamsKZG},
     transcript::{CircuitTranscript, Transcript},
 };
 use log::info;
-use plutus_halo2_verifier_gen::circuits::atms_circuit::{prepare_test_signatures, AtmsSignatureCircuit};
-use plutus_halo2_verifier_gen::plutus_gen::adjusted_types::CardanoFriendlyState;
-use plutus_halo2_verifier_gen::plutus_gen::generate_plinth_verifier;
-use plutus_halo2_verifier_gen::plutus_gen::proof_serialization::serialize_proof;
+use plutus_halo2_verifier_gen::{
+    circuits::atms_circuit::{AtmsSignatureCircuit, prepare_test_signatures},
+    plutus_gen::{
+        adjusted_types::CardanoFriendlyState, generate_plinth_verifier,
+        proof_serialization::serialize_proof, public_inputs_export::export_public_inputs,
+    },
+};
 use rand::prelude::StdRng;
 use rand_core::SeedableRng;
 use std::fs::File;
-use std::io::Write;
-use std::path::Path;
 
 fn main() {
     env_logger::init_from_env(env_logger::Env::default().filter_or("RUST_LOG", "info"));
@@ -45,21 +46,19 @@ pub fn compile_atms_circuit() {
 
     let k: u32 = k_from_circuit(&circuit);
     let kzg_params: ParamsKZG<Bls12> = ParamsKZG::<Bls12>::unsafe_setup(k, rng.clone());
-    let vk: VerifyingKey<Scalar, GwcKZGCommitmentScheme<Bls12>> = keygen_vk(&kzg_params, &circuit).unwrap();
-    let pk: ProvingKey<Scalar, GwcKZGCommitmentScheme<Bls12>> = keygen_pk(vk.clone(), &circuit).unwrap();
+    let vk: VerifyingKey<Scalar, GwcKZGCommitmentScheme<Bls12>> =
+        keygen_vk(&kzg_params, &circuit).unwrap();
+    let pk: ProvingKey<Scalar, GwcKZGCommitmentScheme<Bls12>> =
+        keygen_pk(vk.clone(), &circuit).unwrap();
 
     // no instances, just dummy 42 to make prover and verifier happy
-    let instances: &[&[&[Scalar]]] =
-        &[&[&[pks_comm, msg, Base::from(threshold as u64)]]];
+    let instances: &[&[&[Scalar]]] = &[&[&[pks_comm, msg, Base::from(threshold as u64)]]];
     info!("Public inputs: {:?}", instances);
 
-    let instances_file = "./plutus-verifier/plutus-halo2/test/Generic/serialized_public_input.hex".to_string();
+    let instances_file =
+        "./plutus-verifier/plutus-halo2/test/Generic/serialized_public_input.hex".to_string();
     let mut output = File::create(instances_file).expect("failed to create instances file");
-    for instance in instances[0][0].iter() {
-        let mut value = instance.to_bytes_le();
-        value.reverse();
-        let _ = output.write((hex::encode(value) + "\n").as_bytes());
-    }
+    export_public_inputs(instances, &mut output);
 
     let mut transcript: CircuitTranscript<CardanoFriendlyState> =
         CircuitTranscript::<CardanoFriendlyState>::init();
@@ -72,7 +71,7 @@ pub fn compile_atms_circuit() {
         &mut rng,
         &mut transcript,
     )
-        .expect("proof generation should not fail");
+    .expect("proof generation should not fail");
 
     let proof = transcript.finalize();
     info!("proof size {:?}", proof.len());
@@ -85,19 +84,18 @@ pub fn compile_atms_circuit() {
         instances,
         &mut transcript_verifier,
     )
-        .expect("prepare verification failed");
+    .expect("prepare verification failed");
 
     verifier
         .verify(&kzg_params.verifier_params())
         .expect("verify failed");
 
-    serialize_proof("./plutus-verifier/plutus-halo2/test/Generic/serialized_proof.json".to_string(), proof).unwrap();
-
-    generate_plinth_verifier(
-        &kzg_params,
-        &vk,
-        instances,
-        |a| hex::encode(a.to_bytes()),
+    serialize_proof(
+        "./plutus-verifier/plutus-halo2/test/Generic/serialized_proof.json".to_string(),
+        proof,
     )
+    .unwrap();
+
+    generate_plinth_verifier(&kzg_params, &vk, instances, |a| hex::encode(a.to_bytes()))
         .expect("Plinth verifier generation failed");
 }

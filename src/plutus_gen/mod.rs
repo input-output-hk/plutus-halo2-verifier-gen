@@ -10,6 +10,7 @@ pub mod adjusted_types;
 mod code_emitters;
 pub mod extraction;
 pub mod proof_serialization;
+pub mod public_inputs_export;
 
 /// Generates a Plinth verifier for a specific circuit and saves the generated code
 /// to the specified file paths.
