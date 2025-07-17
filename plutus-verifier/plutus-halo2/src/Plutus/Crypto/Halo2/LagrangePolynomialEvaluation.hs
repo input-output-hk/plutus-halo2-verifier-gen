@@ -31,6 +31,7 @@ basis polynomials `l_i(X)` defined such that `l_i(omega^i) = 1` and
 -}
 
 -- | Evaluate lagrange polynomial using the same calcuations and constants as the halo2 rust poc
+-- this is equivalent to `l_i_range` from halo2 from src/poly/domain.rs
 {-# INLINEABLE lagrangePolynomialEvaluation #-}
 lagrangePolynomialEvaluation ::
     -- | x
