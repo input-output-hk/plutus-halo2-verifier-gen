@@ -29,16 +29,6 @@ import Plutus.Crypto.Halo2.LagrangePolynomialEvaluation (
   lagrangePolynomialEvaluation,
  )
 import Plutus.Crypto.Halo2.MSMEval (eval)
-import Plutus.Crypto.Halo2.MSMTH (
-  NameAnn (NameAnn),
-  buildMSMTH,
- )
-import Plutus.Crypto.Halo2.MSMTypes (
-  MSM (MSM),
-  MinimalVerifierQuery (MinimalVerifierQuery),
-  addMSM,
-  appendTerm,
- )
 import Plutus.Crypto.Halo2.MultiOpenMSM (
   buildMSM,
  )
@@ -65,12 +55,10 @@ import PlutusTx.Prelude (
   fst,
   scale,
   zero,
-  ($),
-  modulo,
-  negate
+  ($)
  )
 import PlutusTx.List (foldl,(!!),take,head,drop)
-import Plutus.Crypto.Halo2 (Proof, bls12_381_field_prime)
+import Plutus.Crypto.Halo2 (Proof)
 
 {-# INLINEABLE innerProduct #-}
 innerProduct :: [Scalar] -> [Scalar] -> Scalar
@@ -189,31 +177,12 @@ verify proof {{{PUBLIC_INPUTS_NAMES}}} = fst $ flip (M.run VKConstants.transcrip
       -- this is MSM done for h-commitments
 {{{H_COMMITMENTS}}}
 
-      --    advice queries
-{{{ADVICE_QUERIES}}}
-
-      --    fixed queries
-{{{FIXED_QUERIES}}}
-
-      --    permutation queries
-{{{PERMUTATION_QUERIES}}}
-
-      --    common queries
-{{{COMMON_QUERIES}}}
-
       -- commitment map, tuples are (commitment, point_set_index, points, evaluations)
       commitment_data :: [(BuiltinBLS12_381_G1_Element, Integer, [Scalar], [Scalar])]
 {{{COMMITMENT_MAP}}}
 
       -- point sets with correct order of sets in list
 {{{POINT_SETS}}}
-
-      --    lookups tables related queries
-{{{LOOKUP_QUERIES}}}
-
-      --    vanishing queries
-      !vanishing_query = MinimalVerifierQuery vanishing_g vanishing_s
-      !random_query = MinimalVerifierQuery vanishingRand randomEval
 
       -- left and s_g2
       -- right and g2
