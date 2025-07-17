@@ -55,10 +55,12 @@ import PlutusTx.Prelude (
   fst,
   scale,
   zero,
+  negate,
+  modulo,
   ($)
  )
 import PlutusTx.List (foldl,(!!),take,head,drop)
-import Plutus.Crypto.Halo2 (Proof)
+import Plutus.Crypto.Halo2 (Proof, bls12_381_field_prime)
 
 {-# INLINEABLE innerProduct #-}
 innerProduct :: [Scalar] -> [Scalar] -> Scalar
