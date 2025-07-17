@@ -22,8 +22,6 @@ import PlutusTx.Prelude (
     (+),
     (-),
     (/=),
-    --    sum,
-    --    (/),
  )
 import qualified Prelude
 
