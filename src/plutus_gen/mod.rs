@@ -18,10 +18,6 @@ pub mod proof_serialization;
 /// * `params` - Parameters for the KZG polynomial commitment scheme
 /// * `vk` - Verifying key for the circuit, it can have either GWC19, or halo2 based KZG
 /// * `instances` - Public inputs to the circuit
-/// * `verifier_template_file` - File path for the Plinth verifier template
-/// * `vk_template_file` - File path for the Plinth verification key template
-/// * `verifier_generated_file` - File path where the generated verifier code will be saved
-/// * `vk_generated_file` - File path for where the generated verification key will be saved
 /// * `g2_encoder` - Encoding function for G2Affine points
 ///
 /// # Returns
@@ -37,11 +33,11 @@ where
 {
     // static locations of files in plutus directory
     let verifier_template_file = match S::kzg_type() {
-        KzgType::GWC19 => Path::new("../../plutus-verifier/templates/verification.hbs"),
-        KzgType::Halo2MultiOpen => Path::new("../../plutus-verifier/templates/verification_multi_open.hbs"),
+        KzgType::GWC19 => Path::new("plutus-verifier/templates/verification.hbs"),
+        KzgType::Halo2MultiOpen => Path::new("plutus-verifier/templates/verification_multi_open.hbs"),
     };
 
-    let vk_template_file = Path::new("../../plutus-verifier/templates/vk_constants.hbs");
+    let vk_template_file = Path::new("plutus-verifier/templates/vk_constants.hbs");
     let verifier_generated_file =
         Path::new("plutus-verifier/plutus-halo2/src/Plutus/Crypto/Halo2/Generic/Verifier.hs");
     let vk_generated_file =
@@ -51,7 +47,7 @@ where
     let circuit_representation =
         extract_circuit(params, vk, instances).map_err(|e| e.to_string())?;
 
-    // Step 2: extract witnesses specific to used commitment scheme
+    // Step 2: extract KZG steps specific to used commitment scheme
     let circuit_representation = S::extract_kzg_steps(circuit_representation);
 
     // Step 3: Based on the circuit repr generate Plinth verifier and verification key constants

@@ -31,17 +31,14 @@ fn main() {
 
     match &args[1..] {
         [] => {
-            compile_simple_mul_circuit::<KZGCommitmentScheme<Bls12>>();
+            compile_simple_mul_circuit::<GwcKZGCommitmentScheme<Bls12>>();
         }
         [command] if command == "halo2" => {
             compile_simple_mul_circuit::<KZGCommitmentScheme<Bls12>>();
         }
-        [command] if command == "GWC19" => {
-            compile_simple_mul_circuit::<GwcKZGCommitmentScheme<Bls12>>();
-        }
         _ => {
             println!(
-                "usage: to run halo2 KZG variant do not pass any option or pass halo2, to run GWC19 variant pass GWC19"
+                "usage: to run halo2 KZG variant pass halo2, to run GWC19 variant do not pass any option"
             )
         }
     }

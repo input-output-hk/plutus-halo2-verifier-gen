@@ -28,9 +28,6 @@ import qualified Prelude
 {- | Computes evaluations (at the point `x`, where `xn = x^n`) of Lagrange
 basis polynomials `l_i(X)` defined such that `l_i(omega^i) = 1` and
 `l_i(omega^j) = 0` for all `j != i` at each provided rotation `i`.
--}
-
-{- | Evaluate lagrange polynomial using the same calcuations and constants as the halo2 rust poc
 this is equivalent to `l_i_range` from halo2 from src/poly/domain.rs
 https://github.com/input-output-hk/halo2/blob/plutus_verification/src/poly/domain.rs#L405-L474
 -}
