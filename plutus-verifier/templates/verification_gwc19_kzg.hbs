@@ -26,10 +26,10 @@ import qualified Plutus.Crypto.Halo2.Generic.VKConstants as VKConstants
 import qualified Plutus.Crypto.Halo2.ApplicativeParser as M
 import Plutus.Crypto.Halo2.LagrangePolynomialEvaluation (
   getRotatedOmegas,
-  lagrangePolynomialEvaluation,
+  lagrangePolynomialBasis,
  )
 import Plutus.Crypto.Halo2.MSMEval (eval)
-import Plutus.Crypto.Halo2.MSMTH (
+import Plutus.Crypto.Halo2.GwcMultiOpenMSM (
   NameAnn (NameAnn),
   buildMSMTH,
  )
@@ -56,6 +56,7 @@ import PlutusTx.Prelude (
   AdditiveGroup (..),
   AdditiveSemigroup (..),
   Bool,
+  Integer,
   MultiplicativeSemigroup (..),
   flip,
   fst,
@@ -136,7 +137,7 @@ verify proof {{{PUBLIC_INPUTS_NAMES}}} = fst $ flip (M.run VKConstants.transcrip
       !x_last = rotateOmega x (-(VKConstants.blinding_factors + 1))
 
       --    lagrange eval for instances (public inputs)
-      !lagrange_polynomial_instances = lagrangePolynomialEvaluation x xn barycentricWeight rotations_for_instances
+      !lagrange_polynomial_instances = lagrangePolynomialBasis x xn barycentricWeight rotations_for_instances
 
       !instanceEval1 = innerProduct lagrange_polynomial_instances [{{{PUBLIC_INPUTS_LAGRANGE}}}]
 
@@ -147,7 +148,7 @@ verify proof {{{PUBLIC_INPUTS_NAMES}}} = fst $ flip (M.run VKConstants.transcrip
 
       --    lagrange eval for vanishing polynomial
       !evaluations_of_lagrange_polynomial =
-        lagrangePolynomialEvaluation
+        lagrangePolynomialBasis
           x
           xn
           barycentricWeight
@@ -197,10 +198,11 @@ verify proof {{{PUBLIC_INPUTS_NAMES}}} = fst $ flip (M.run VKConstants.transcrip
       --    common queries
 {{{COMMON_QUERIES}}}
 
-      -- commitment map
+      -- commitment map, tuples are (commitment, point_set_index, points, evaluations)
+      commitment_data :: [(BuiltinBLS12_381_G1_Element, Integer, [Scalar], [Scalar])]
 {{{COMMITMENT_MAP}}}
 
-      -- point sets
+      -- point sets with correct order of sets in list
 {{{POINT_SETS}}}
 
       --    lookups tables related queries

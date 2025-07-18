@@ -106,18 +106,32 @@ The repository includes several example circuits:
 * `atms_with_lookups` - A circuit that verifies ATMS signature and lookup argument
 * `lookup_table` - A circuit with lookup argument
 
+those circuits can be run in 2 versions one with GWC19 flavor of KZG and one with halo2 variant
+
 ```bash
-# Simple multiplication circuit
+# Simple multiplication circuit GWC19 KZG
 cargo run --example simple_mul
 
-# ATMS (Aggregate Threshold Multisignature) circuit 
+# Simple multiplication circuit halo2 KZG
+cargo run --example simple_mul halo2
+
+# ATMS (Aggregate Threshold Multisignature) circuit GWC19 KZG
 cargo run --example atms
 
-# ATMS with lookup tables
+# ATMS (Aggregate Threshold Multisignature) circuit halo2 KZG
+cargo run --example atms halo2
+
+# ATMS with dummy lookup tables GWC19 KZG
 cargo run --example atms_with_lookups
 
-# Lookup table circuit
+# ATMS with dummy lookup tables halo2 KZG
+cargo run --example atms_with_lookups halo2
+
+# Lookup table circuit GWC19 KZG
 cargo run --example lookup_table
+
+# Simple multiplication circuit halo2 KZG
+cargo run --example atms_with_lookups halo2
 
 # With detailed logging
 RUST_LOG=debug cargo run --example simple_mul
@@ -131,12 +145,12 @@ inputs, and produce the corresponding Plinth verifier code. The generated files 
 locations within the plutus-verifier folder:
 
 * The generated proof is saved in `./plutus-verifier/plutus-halo2/test/Generic/serialized_proof.json`.
-* The public inputs are saved in `./templates/generic/plutus-halo2/test/Generic/serialized_public_inputs.hex`.
+* The public inputs are saved in `./plutus-verifier/plutus-halo2/test/Generic/serialized_public_inputs.hex`.
 * The generated Plinth code is saved in:
 
 ```
-./plutus-verifier/plutus-halo2/src/Plutus/Crypto/Halo2/generic/Verifier.hs
-./plutus-verifier/plutus-halo2/src/Plutus/Crypto/Halo2/generic/VKConstants.hs
+./plutus-verifier/plutus-halo2/src/Plutus/Crypto/Halo2/Generic/Verifier.hs
+./plutus-verifier/plutus-halo2/src/Plutus/Crypto/Halo2/Generic/VKConstants.hs
 ```
 
 ### Plutus part
@@ -151,7 +165,7 @@ cabal test all
 
 ## Benchmarks
 
-Below are the execution costs of Plutus scripts running the Halo2 verifier for various circuits:
+Below are the execution costs of Plutus scripts running the Halo2 verifier for various circuits (GWC19 KZG variant):
 
 | Circuit description             | Script size<br/>(% of script limit 14kb) | CPU usage               | Mem usage         |
 |---------------------------------|------------------------------------------|-------------------------|-------------------|
