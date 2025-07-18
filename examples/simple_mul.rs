@@ -1,4 +1,4 @@
-use blstrs::{Base, Bls12, Scalar};
+use blstrs::{Base, Bls12, G1Projective, Scalar};
 use ff::Field;
 use halo2_proofs::{
     halo2curves::group::GroupEncoding,
@@ -6,8 +6,8 @@ use halo2_proofs::{
         ProvingKey, VerifyingKey, create_proof, k_from_circuit, keygen_pk, keygen_vk, prepare,
     },
     poly::{
-        commitment::Guard, gwc_kzg::GwcKZGCommitmentScheme, kzg::msm::DualMSM,
-        kzg::params::ParamsKZG,
+        commitment::Guard, commitment::PolynomialCommitmentScheme, gwc_kzg::GwcKZGCommitmentScheme,
+        kzg::KZGCommitmentScheme, kzg::params::ParamsKZG, kzg::params::ParamsVerifierKZG,
     },
     transcript::{CircuitTranscript, Transcript},
 };
@@ -15,17 +15,46 @@ use log::{debug, info};
 use plutus_halo2_verifier_gen::{
     circuits::simple_mul_circuit::SimpleMulCircuit,
     plutus_gen::{
-        adjusted_types::CardanoFriendlyState, generate_plinth_verifier,
+        adjusted_types::CardanoFriendlyState, extraction::ExtractKZG, generate_plinth_verifier,
         proof_serialization::export_public_inputs, proof_serialization::serialize_proof,
     },
 };
 use rand::rngs::StdRng;
 use rand_core::SeedableRng;
+use std::env;
 use std::fs::File;
 
 fn main() {
     env_logger::init_from_env(env_logger::Env::default().filter_or("RUST_LOG", "info"));
 
+    let args: Vec<String> = env::args().collect();
+
+    match &args[1..] {
+        [] => {
+            compile_simple_mul_circuit::<KZGCommitmentScheme<Bls12>>();
+        }
+        [command] if command == "halo2" => {
+            compile_simple_mul_circuit::<KZGCommitmentScheme<Bls12>>();
+        }
+        [command] if command == "GWC19" => {
+            compile_simple_mul_circuit::<GwcKZGCommitmentScheme<Bls12>>();
+        }
+        _ => {
+            println!(
+                "usage: to run halo2 KZG variant do not pass any option or pass halo2, to run GWC19 variant pass GWC19"
+            )
+        }
+    }
+}
+
+fn compile_simple_mul_circuit<
+    S: PolynomialCommitmentScheme<
+            Scalar,
+            Commitment = G1Projective,
+            Parameters = ParamsKZG<Bls12>,
+            VerifierParameters = ParamsVerifierKZG<Bls12>,
+        > + ExtractKZG,
+>() {
     // Prepare the private and public inputs to the circuit!
     let constant = Scalar::from(7);
     let a = Scalar::from(2);
@@ -47,10 +76,8 @@ fn main() {
 
     let k: u32 = k_from_circuit(&circuit);
     let params: ParamsKZG<Bls12> = ParamsKZG::<Bls12>::unsafe_setup(k, rng.clone());
-    let vk: VerifyingKey<_, GwcKZGCommitmentScheme<Bls12>> =
-        keygen_vk(&params, &circuit).expect("keygen_vk should not fail");
-    let pk: ProvingKey<_, GwcKZGCommitmentScheme<Bls12>> =
-        keygen_pk(vk.clone(), &circuit).expect("keygen_pk should not fail");
+    let vk: VerifyingKey<_, S> = keygen_vk(&params, &circuit).expect("keygen_vk should not fail");
+    let pk: ProvingKey<_, S> = keygen_pk(vk.clone(), &circuit).expect("keygen_pk should not fail");
 
     let mut transcript: CircuitTranscript<CardanoFriendlyState> =
         CircuitTranscript::<CardanoFriendlyState>::init();
@@ -82,7 +109,7 @@ fn main() {
 
     let mut transcript_verifier: CircuitTranscript<CardanoFriendlyState> =
         CircuitTranscript::<CardanoFriendlyState>::init_from_bytes(&proof);
-    let verifier: DualMSM<_, _> = prepare::<_, _, CircuitTranscript<CardanoFriendlyState>>(
+    let verifier = prepare::<_, _, CircuitTranscript<CardanoFriendlyState>>(
         &vk,
         instances,
         &mut transcript_verifier,
