@@ -165,7 +165,7 @@ cabal test all
 
 ## Benchmarks
 
-Below are the execution costs of Plutus scripts running the Halo2 verifier for various circuits:
+Below are the execution costs of Plutus scripts running the Halo2 verifier for various circuits (GWC19 KZG variant):
 
 | Circuit description             | Script size<br/>(% of script limit 14kb) | CPU usage               | Mem usage         |
 |---------------------------------|------------------------------------------|-------------------------|-------------------|
