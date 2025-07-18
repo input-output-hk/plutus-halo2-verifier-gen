@@ -145,12 +145,12 @@ inputs, and produce the corresponding Plinth verifier code. The generated files 
 locations within the plutus-verifier folder:
 
 * The generated proof is saved in `./plutus-verifier/plutus-halo2/test/Generic/serialized_proof.json`.
-* The public inputs are saved in `./templates/generic/plutus-halo2/test/Generic/serialized_public_inputs.hex`.
+* The public inputs are saved in `./plutus-verifier/plutus-halo2/test/Generic/serialized_public_inputs.hex`.
 * The generated Plinth code is saved in:
 
 ```
-./plutus-verifier/plutus-halo2/src/Plutus/Crypto/Halo2/generic/Verifier.hs
-./plutus-verifier/plutus-halo2/src/Plutus/Crypto/Halo2/generic/VKConstants.hs
+./plutus-verifier/plutus-halo2/src/Plutus/Crypto/Halo2/Generic/Verifier.hs
+./plutus-verifier/plutus-halo2/src/Plutus/Crypto/Halo2/Generic/VKConstants.hs
 ```
 
 ### Plutus part
