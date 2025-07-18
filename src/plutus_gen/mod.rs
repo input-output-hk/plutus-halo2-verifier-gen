@@ -33,8 +33,8 @@ where
 {
     // static locations of files in plutus directory
     let verifier_template_file = match S::kzg_type() {
-        KzgType::GWC19 => Path::new("plutus-verifier/templates/verification.hbs"),
-        KzgType::Halo2MultiOpen => Path::new("plutus-verifier/templates/verification_multi_open.hbs"),
+        KzgType::GWC19 => Path::new("plutus-verifier/templates/verification_gwc19_kzg.hbs"),
+        KzgType::Halo2MultiOpen => Path::new("plutus-verifier/templates/verification_halo2_kzg.hbs"),
     };
 
     let vk_template_file = Path::new("plutus-verifier/templates/vk_constants.hbs");
