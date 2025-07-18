@@ -101,7 +101,7 @@ pub fn emit_verifier_code(
                         + &format!("  !permuted_table_eval_{} <- M.readScalar\n", number + 1)
                 })
                 .join(""),
-            // section for multi open GWC
+            // section for halo2 multi open version of KZG
             ProofExtractionSteps::X1 => "  !x1 <- M.squeezeChallange\n".to_string(),
             ProofExtractionSteps::X2 => "  !x2 <- M.squeezeChallange\n".to_string(),
             ProofExtractionSteps::X3 => "  !x3 <- M.squeezeChallange\n".to_string(),
@@ -113,7 +113,7 @@ pub fn emit_verifier_code(
                 .map(|(number, _permutation_common)| format!("  !q_eval_on_x3_{} <- M.readScalar\n", number + 1))
                 .join(""),
 
-            // section for legacy GWC
+            // section for GWC19 version of KZG
             ProofExtractionSteps::V => "  !v <- M.squeezeChallange\n".to_string(),
             ProofExtractionSteps::U => "  !u <- M.squeezeChallange\n".to_string(),
             ProofExtractionSteps::Witnesses => section
@@ -557,16 +557,16 @@ pub fn emit_verifier_code(
 
     data.insert("MSM_LOOKUP_QUERIES".to_string(), msm_lookup_queries);
 
-    // case for legacy verifier
+    // case for GWC19 version of KZG
     let w_values = (1..=circuit.instantiation_data.w_values_count)
         .map(|n| format!("              'w{}", n))
         .join(" ,\n");
     data.insert("W_VALUES".to_string(), w_values);
     // ------
+    // case for halo2 multi open version of KZG
     let q_evaluations = (1..=circuit.instantiation_data.q_evaluations_count)
         .map(|n| format!("q_eval_on_x3_{}", n))
         .join(", ");
-    // case for multi open verifier
     data.insert("Q_EVALS_FROM_PROOF".to_string(), q_evaluations);
     // ------
 

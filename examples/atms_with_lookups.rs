@@ -29,7 +29,7 @@ use plutus_halo2_verifier_gen::{
     },
     plutus_gen::{
         adjusted_types::CardanoFriendlyState, generate_plinth_verifier,
-        proof_serialization::serialize_proof, public_inputs_export::export_public_inputs,
+        proof_serialization::export_public_inputs, proof_serialization::serialize_proof,
     },
 };
 use rand::prelude::StdRng;

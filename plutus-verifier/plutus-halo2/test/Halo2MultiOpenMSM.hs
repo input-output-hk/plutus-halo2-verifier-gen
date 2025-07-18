@@ -1,7 +1,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE NoImplicitPrelude #-}
 
-module MultiOpenMSM (test) where
+module Halo2MultiOpenMSM (test) where
 
 import Data.Bifunctor (
     bimap,
@@ -12,7 +12,7 @@ import Plutus.Crypto.Halo2 (
     mkFp,
     mkScalar,
  )
-import Plutus.Crypto.Halo2.MultiOpenMSM (
+import Plutus.Crypto.Halo2.Halo2MultiOpenMSM (
     buildQ,
     computeV,
     evaluateLagrange,

@@ -29,7 +29,7 @@ use plutus_halo2_verifier_gen::{
     },
     plutus_gen::{
         adjusted_types::CardanoFriendlyState, generate_plinth_verifier,
-        proof_serialization::serialize_proof, public_inputs_export::export_public_inputs,
+        proof_serialization::export_public_inputs, proof_serialization::serialize_proof,
     },
 };
 use rand::prelude::StdRng;
@@ -70,15 +70,17 @@ pub fn compile_atms_lookup_circuit() {
 
     let k: u32 = k_from_circuit(&circuit);
     let kzg_params: ParamsKZG<Bls12> = ParamsKZG::<Bls12>::unsafe_setup(k, rng.clone());
-    let vk: VerifyingKey<Scalar, KZGCommitmentScheme<Bls12>> = keygen_vk(&kzg_params, &circuit).unwrap();
-    let pk: ProvingKey<Scalar, KZGCommitmentScheme<Bls12>> = keygen_pk(vk.clone(), &circuit).unwrap();
+    let vk: VerifyingKey<Scalar, KZGCommitmentScheme<Bls12>> =
+        keygen_vk(&kzg_params, &circuit).unwrap();
+    let pk: ProvingKey<Scalar, KZGCommitmentScheme<Bls12>> =
+        keygen_pk(vk.clone(), &circuit).unwrap();
 
     // no instances, just dummy 42 to make prover and verifier happy
-    let instances: &[&[&[Scalar]]] =
-        &[&[&[pks_comm, msg, Base::from(THRESHOLD as u64)]]];
+    let instances: &[&[&[Scalar]]] = &[&[&[pks_comm, msg, Base::from(THRESHOLD as u64)]]];
     info!("Public inputs: {:?}", instances);
 
-    let instances_file = "./plutus-verifier/plutus-halo2/test/Generic/serialized_public_input.hex".to_string();
+    let instances_file =
+        "./plutus-verifier/plutus-halo2/test/Generic/serialized_public_input.hex".to_string();
     let mut output = File::create(instances_file).expect("failed to create instances file");
     export_public_inputs(instances, &mut output);
 
@@ -93,7 +95,7 @@ pub fn compile_atms_lookup_circuit() {
         &mut rng,
         &mut transcript,
     )
-        .expect("proof generation should not fail");
+    .expect("proof generation should not fail");
 
     let proof = transcript.finalize();
     info!("proof size {:?}", proof.len());
@@ -106,19 +108,18 @@ pub fn compile_atms_lookup_circuit() {
         instances,
         &mut transcript_verifier,
     )
-        .expect("prepare verification failed");
+    .expect("prepare verification failed");
 
     verifier
         .verify(&kzg_params.verifier_params())
         .expect("verify failed");
 
-    serialize_proof("./plutus-verifier/plutus-halo2/test/Generic/serialized_proof.json".to_string(), proof).unwrap();
-
-    generate_plinth_verifier(
-        &kzg_params,
-        &vk,
-        instances,
-        |a| hex::encode(a.to_bytes()),
+    serialize_proof(
+        "./plutus-verifier/plutus-halo2/test/Generic/serialized_proof.json".to_string(),
+        proof,
     )
+    .unwrap();
+
+    generate_plinth_verifier(&kzg_params, &vk, instances, |a| hex::encode(a.to_bytes()))
         .expect("Plinth verifier generation failed");
 }

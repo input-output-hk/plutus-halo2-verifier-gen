@@ -1,6 +1,6 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 
-module Plutus.Crypto.Halo2.MultiOpenMSM (buildMSM, buildQ, computeV, evaluateLagrange, finalCommitment) where
+module Plutus.Crypto.Halo2.Halo2MultiOpenMSM (buildMSM, buildQ, computeV, evaluateLagrange, finalCommitment) where
 
 import Plutus.Crypto.BlsTypes (
     Scalar,
@@ -10,7 +10,7 @@ import Plutus.Crypto.BlsUtils (
     powers,
  )
 import Plutus.Crypto.Halo2.LagrangePolynomialEvaluation (
-    lagrangeInPlace,
+    lagrangeEvaluation,
  )
 import Plutus.Crypto.Halo2.MSMTypes (
     MSM (..),
@@ -53,6 +53,7 @@ import PlutusTx.Prelude (
 
 -- this function takes commitment with point sets and returns only right MSM for further evaluation
 -- as left MSM is equal to ONE * PI commitment
+-- algorithm is ported from halo2 book
 {-# INLINEABLE buildMSM #-}
 buildMSM ::
     Scalar ->
@@ -71,11 +72,13 @@ buildMSM x1 x2 x3 x4 f_comm pi_commitment proofX3QEvals commitmentMap pointSets 
     pointSetsIndexes = enumFromTo 0 (length pointSets - 1)
 
     -- x1Powers length can be precomputed
+    -- todo length can be precomputed
     x1Powers :: [Scalar]
     x1Powers = powers (x1PowersCount pointSetsIndexes commitmentMap) x1
 
     (q_coms, q_eval_sets) = unzip (buildQ commitmentMap pointSetsIndexes x1Powers)
 
+    -- todo length can be precomputed
     x4PowersCount = (max (length proofX3QEvals + 1) (length q_coms + 1))
 
     x4Powers :: [Scalar]
@@ -117,6 +120,7 @@ computeV f_eval x4Powers proofX3QEvals =
         (zip x4Powers (proofX3QEvals ++ [f_eval]))
 
 {-# INLINEABLE finalCommitment #-}
+-- todo this can be integrated into buildQ?
 finalCommitment ::
     [MSM] ->
     BuiltinBLS12_381_G1_Element ->
@@ -129,6 +133,7 @@ finalCommitment q_coms f_comm x4Powers =
         (zip x4Powers (q_coms ++ [MSM [MSMElem ((one :: Scalar), f_comm)]]))
 
 {-# INLINEABLE evaluateLagrange #-}
+-- todo can not be precompute
 evaluateLagrange ::
     [[Scalar]] ->
     [[Scalar]] ->
@@ -140,7 +145,7 @@ evaluateLagrange pointSets q_eval_sets x2 x3 proofX3QEvals =
     foldl
         ( \accEval ((points, evals), proofQEval) ->
             let
-                rEval = lagrangeInPlace (zip points evals) x3
+                rEval = lagrangeEvaluation (zip points evals) x3
                 den = foldl (\acc point -> acc * (x3 - point)) one points
                 eval = (proofQEval - rEval) * (recip den)
              in
@@ -177,11 +182,13 @@ buildQ commitmentMap pointSetsIndexes x1Powers =
         ( \current_set_index ->
             let
                 -- all commitments for given index
+                -- todo precomputed
                 commitmentsForIndex :: [(BuiltinBLS12_381_G1_Element, Integer, [Scalar], [Scalar])]
                 commitmentsForIndex =
                     filter (\(_, set_index, _, _) -> set_index == current_set_index) commitmentMap
 
                 -- calculate inner products for commitments
+                -- todo precomputed
                 comm =
                     foldl
                         (\msm (x1Power, (c, _, _, _)) -> appendTerm msm (MSMElem (x1Power, c)))
@@ -189,6 +196,7 @@ buildQ commitmentMap pointSetsIndexes x1Powers =
                         (zip x1Powers commitmentsForIndex)
 
                 -- calculate inner product for evaluations
+                -- todo can not be precomputed
                 eval_set =
                     foldl
                         ( \acc (x1Power, (_, _, _, es)) ->

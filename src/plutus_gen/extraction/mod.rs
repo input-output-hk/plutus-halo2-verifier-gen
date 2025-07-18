@@ -18,21 +18,21 @@ use std::collections::HashMap;
 pub mod data;
 mod utils;
 
-type LegacyScheme = GwcKZGCommitmentScheme<Bls12>;
-type MultiOpenScheme = KZGCommitmentScheme<Bls12>;
+type GWC19Scheme = GwcKZGCommitmentScheme<Bls12>;
+type Halo2MultiOpenScheme = KZGCommitmentScheme<Bls12>;
 
-pub enum WitnessType {
-    Legacy,
-    MultiOpen,
+pub enum KzgType {
+    GWC19,
+    Halo2MultiOpen,
 }
 
-pub trait ExtractWitnesses {
-    fn extract_witnesses(circuit_representation: CircuitRepresentation) -> CircuitRepresentation;
-    fn witnesses_type() -> WitnessType;
+pub trait ExtractKZG {
+    fn extract_kzg_steps(circuit_representation: CircuitRepresentation) -> CircuitRepresentation;
+    fn kzg_type() -> KzgType;
 }
 
-impl ExtractWitnesses for LegacyScheme {
-    fn extract_witnesses(
+impl ExtractKZG for GWC19Scheme {
+    fn extract_kzg_steps(
         mut circuit_representation: CircuitRepresentation,
     ) -> CircuitRepresentation {
         circuit_representation
@@ -62,13 +62,13 @@ impl ExtractWitnesses for LegacyScheme {
         circuit_representation
     }
 
-    fn witnesses_type() -> WitnessType {
-        WitnessType::Legacy
+    fn kzg_type() -> KzgType {
+        KzgType::GWC19
     }
 }
 
-impl ExtractWitnesses for MultiOpenScheme {
-    fn extract_witnesses(
+impl ExtractKZG for Halo2MultiOpenScheme {
+    fn extract_kzg_steps(
         mut circuit_representation: CircuitRepresentation,
     ) -> CircuitRepresentation {
         // sample 2 squeeze challenges x1 x2
@@ -117,8 +117,8 @@ impl ExtractWitnesses for MultiOpenScheme {
         circuit_representation
     }
 
-    fn witnesses_type() -> WitnessType {
-        WitnessType::MultiOpen
+    fn kzg_type() -> KzgType {
+        KzgType::Halo2MultiOpen
     }
 }
 

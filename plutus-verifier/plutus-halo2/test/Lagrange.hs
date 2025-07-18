@@ -3,7 +3,7 @@ module Lagrange (test) where
 import Plutus.Crypto.Halo2 (
     mkScalar,
  )
-import Plutus.Crypto.Halo2.LagrangePolynomialEvaluation (lagrangeInPlace)
+import Plutus.Crypto.Halo2.LagrangePolynomialEvaluation (lagrangeEvaluation)
 import qualified Test.Tasty as Tasty
 import Test.Tasty.HUnit ((@?=))
 import qualified Test.Tasty.HUnit as Tasty
@@ -25,7 +25,7 @@ existingPoint = do
         y1 = mkScalar 1
         x = mkScalar 2
         expected = mkScalar 1
-        result = lagrangeInPlace [(x1, y1)] x
+        result = lagrangeEvaluation [(x1, y1)] x
     result @?= expected
 
 linearCase :: Tasty.Assertion
@@ -39,7 +39,7 @@ linearCase = do
 
         x = mkScalar 4
         expected = mkScalar 4
-        result = lagrangeInPlace [(x1, y1), (x2, y2)] x
+        result = lagrangeEvaluation [(x1, y1), (x2, y2)] x
     result @?= expected
 
 biggerNumber :: Tasty.Assertion
@@ -53,7 +53,7 @@ biggerNumber = do
 
         x = mkScalar 42
         expected = mkScalar 0x3a7293683d1b89a083804afca51b323fa62924d60f0a40d3e46e6bc5d17ca858
-        result = lagrangeInPlace [(x1, y1), (x2, y2)] x
+        result = lagrangeEvaluation [(x1, y1), (x2, y2)] x
     result @?= expected
 
 nonLinearCase :: Tasty.Assertion
@@ -74,8 +74,8 @@ nonLinearCase = do
         x = mkScalar 42
         expected = mkScalar 0x3afdcbe845065bf92428e7d4f1b41856674f05fa9d1c73234cb15a8c1fc43663
 
-        result = lagrangeInPlace [(x1, y1), (x2, y2), (x3, y3), (x4, y4)] x
-        unorderedResult = lagrangeInPlace [(x3, y3), (x1, y1), (x4, y4), (x2, y2)] x
+        result = lagrangeEvaluation [(x1, y1), (x2, y2), (x3, y3), (x4, y4)] x
+        unorderedResult = lagrangeEvaluation [(x3, y3), (x1, y1), (x4, y4), (x2, y2)] x
 
     unorderedResult @?= expected
     result @?= expected

@@ -2,9 +2,9 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 
 module Plutus.Crypto.Halo2.LagrangePolynomialEvaluation (
-    lagrangePolynomialEvaluation,
+    lagrangePolynomialBasis,
     getRotatedOmegas,
-    lagrangeInPlace,
+    lagrangeEvaluation,
 ) where
 
 import Plutus.Crypto.BlsTypes (
@@ -30,10 +30,12 @@ basis polynomials `l_i(X)` defined such that `l_i(omega^i) = 1` and
 `l_i(omega^j) = 0` for all `j != i` at each provided rotation `i`.
 -}
 
--- | Evaluate lagrange polynomial using the same calcuations and constants as the halo2 rust poc
--- this is equivalent to `l_i_range` from halo2 from src/poly/domain.rs
-{-# INLINEABLE lagrangePolynomialEvaluation #-}
-lagrangePolynomialEvaluation ::
+{- | Evaluate lagrange polynomial using the same calcuations and constants as the halo2 rust poc
+this is equivalent to `l_i_range` from halo2 from src/poly/domain.rs
+https://github.com/input-output-hk/halo2/blob/plutus_verification/src/poly/domain.rs#L405-L474
+-}
+{-# INLINEABLE lagrangePolynomialBasis #-}
+lagrangePolynomialBasis ::
     -- | x
     Scalar ->
     -- | xn inverse
@@ -43,7 +45,7 @@ lagrangePolynomialEvaluation ::
     -- |  list of already rotated omegas
     [Scalar] ->
     [Scalar]
-lagrangePolynomialEvaluation x xn barycentricWeight rotations = result
+lagrangePolynomialBasis x xn barycentricWeight rotations = result
   where
     common :: Scalar
     !common = (xn - one) * barycentricWeight
@@ -80,9 +82,9 @@ batchInverses l@(a : aCons) = aInv
 -- where first element is treated as x and second as y
 -- then it evaluates interpolated polynomial with 2nd argument of the function X
 -- and returns interpolated_poly(x)
-{-# INLINEABLE lagrangeInPlace #-}
-lagrangeInPlace :: [(Scalar, Scalar)] -> Scalar -> Scalar
-lagrangeInPlace pts x =
+{-# INLINEABLE lagrangeEvaluation #-}
+lagrangeEvaluation :: [(Scalar, Scalar)] -> Scalar -> Scalar
+lagrangeEvaluation pts x =
     foldl
         (\a b -> a + b)
         zero

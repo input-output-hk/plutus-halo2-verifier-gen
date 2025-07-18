@@ -1,5 +1,6 @@
 use std::fs::File;
 use std::io::Write;
+use blstrs::Scalar;
 
 pub fn export_proof(proof_file: String, proof: Vec<u8>) -> Result<(), String> {
     let hex = hex::encode(proof);
@@ -13,4 +14,12 @@ pub fn serialize_proof(proof_file: String, proof: Vec<u8>) -> Result<(), String>
     let mut output = File::create(proof_file).map_err(|e| e.to_string())?;
     let _ = output.write(serialized_proof.as_bytes());
     Ok(())
+}
+
+pub fn export_public_inputs(instances: &[&[&[Scalar]]], output: &mut File) {
+    for instance in instances[0][0].iter() {
+        let mut value = instance.to_bytes_le();
+        value.reverse();
+        let _ = output.write((hex::encode(value) + "\n").as_bytes());
+    }
 }

@@ -8,7 +8,7 @@
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 
-module Plutus.Crypto.Halo2.MSMTH (
+module Plutus.Crypto.Halo2.GwcMultiOpenMSM (
     buildMSMTH,
     NameAnn (NameAnn),
 ) where
