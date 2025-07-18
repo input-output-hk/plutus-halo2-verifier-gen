@@ -24,19 +24,15 @@ import PlutusTx.Builtins (
  )
 import PlutusTx.List (
     filter,
-    find,
     foldl,
-    head,
     length,
     map,
-    replicate,
     reverse,
     unzip,
     zip,
     (++),
  )
 import PlutusTx.Prelude (
-    Bool (False, True),
     Integer,
     bls12_381_G1_compressed_generator,
     bls12_381_G1_neg,
