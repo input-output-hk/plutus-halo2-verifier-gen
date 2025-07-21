@@ -89,7 +89,15 @@ lagrangeEvaluation pts x =
   where
     basis :: Scalar -> Scalar
     basis xi =
-        foldl
-            (\a b -> a * b)
-            one
-            [(x - xj) * (recip (xi - xj)) | (xj, _) <- pts, xj /= xi]
+        let
+            (totalNumerator, totalDenominator) =
+                foldl
+                    ( \(numerator, denominator) (xj, _) ->
+                        if xj /= xi
+                            then (numerator * (x - xj), denominator * (xi - xj))
+                            else (numerator, denominator)
+                    )
+                    (one, one)
+                    pts
+         in
+            totalNumerator * recip totalDenominator

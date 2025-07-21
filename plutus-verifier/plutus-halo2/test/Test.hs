@@ -3,8 +3,8 @@ module Main where
 import qualified Generic.VerificationTestHaskell
 import qualified Generic.VerificationTestPlutus
 import Generic.VerifyCompiled (writeToFile)
-import qualified Lagrange
 import qualified Halo2MultiOpenMSM
+import qualified Lagrange
 import Test.Tasty (defaultMain, testGroup)
 
 import EvalUtils (
