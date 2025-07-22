@@ -5,6 +5,7 @@ module Plutus.Crypto.Halo2.LagrangePolynomialEvaluation (
     lagrangePolynomialBasis,
     getRotatedOmegas,
     lagrangeEvaluation,
+    basis,
 ) where
 
 import Plutus.Crypto.BlsTypes (
@@ -12,7 +13,7 @@ import Plutus.Crypto.BlsTypes (
     recip,
  )
 import Plutus.Crypto.BlsUtils (rotateOmega)
-import PlutusTx.List (foldl, foldr, head, reverse, tail, zip)
+import PlutusTx.List (foldl, head, reverse, tail, zip)
 import PlutusTx.Prelude (
     AdditiveMonoid (..),
     MultiplicativeMonoid (one),
@@ -88,7 +89,7 @@ lagrangeEvaluation pts x =
         pts
 
 {-# INLINEABLE basis #-}
-basis ::  Scalar -> Scalar -> [(Scalar, Scalar)] -> Scalar
+basis :: Scalar -> Scalar -> [(Scalar, Scalar)] -> Scalar
 basis x xi pts =
     let
         (totalNumerator, totalDenominator) =

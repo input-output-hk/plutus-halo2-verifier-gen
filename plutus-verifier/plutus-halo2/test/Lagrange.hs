@@ -1,12 +1,21 @@
+{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE TemplateHaskell #-}
+
 module Lagrange (test) where
 
 import Plutus.Crypto.Halo2 (
+    Scalar,
     mkScalar,
  )
-import Plutus.Crypto.Halo2.LagrangePolynomialEvaluation (lagrangeEvaluation)
+import Plutus.Crypto.Halo2.LagrangePolynomialEvaluation (basis, lagrangeEvaluation)
+import PlutusLedgerApi.Common (PlutusLedgerLanguage (..), alonzoPV)
+import PlutusLedgerApi.MachineParameters (machineParametersFor)
+import PlutusTx (CompiledCode, applyCode, compile, liftCodeDef, unsafeApplyCode)
+import PlutusTx.Test (EvalResult, displayEvalResult, evaluateCompiledCode, evaluateCompiledCode')
 import qualified Test.Tasty as Tasty
 import Test.Tasty.HUnit ((@?=))
 import qualified Test.Tasty.HUnit as Tasty
+import qualified Data.Text as T
 
 test :: Tasty.TestTree
 test =
@@ -16,6 +25,7 @@ test =
         , Tasty.testCase "interpolation for (1,1) (2,2) eval at 4" linearCase
         , Tasty.testCase "interpolation for 2 points provided, eval at 42" biggerNumber
         , Tasty.testCase "interpolation for 4 points provided, eval at 42" nonLinearCase
+        , Tasty.testCase "checks how much resources is used for basis calculations in plutus" basisCalculationPerformance
         ]
 
 existingPoint :: Tasty.Assertion
@@ -79,3 +89,20 @@ nonLinearCase = do
 
     unorderedResult @?= expected
     result @?= expected
+
+basisCalculationPerformance :: Tasty.Assertion
+basisCalculationPerformance = do
+    let
+        x = mkScalar 9686764663489690657
+        xi = mkScalar 9686764663489690657
+        compiledCode :: CompiledCode (Scalar -> Scalar -> [(Scalar, Scalar)] -> Scalar)
+        compiledCode = $$(compile [||basis||])
+        result :: EvalResult
+        result = evaluateCompiledCode
+                ( compiledCode
+                    `unsafeApplyCode` liftCodeDef x
+                    `unsafeApplyCode` liftCodeDef xi
+                    `unsafeApplyCode` liftCodeDef [(x, xi),(x, xi),(x, xi)]
+                )
+    putStr . T.unpack $ displayEvalResult result
+    x @?= xi
