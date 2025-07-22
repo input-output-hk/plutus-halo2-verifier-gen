@@ -12,7 +12,7 @@ import Plutus.Crypto.BlsTypes (
     recip,
  )
 import Plutus.Crypto.BlsUtils (rotateOmega)
-import PlutusTx.List (foldl, head, reverse, tail, zip)
+import PlutusTx.List (foldl, foldr, head, reverse, tail, zip)
 import PlutusTx.Prelude (
     AdditiveMonoid (..),
     MultiplicativeMonoid (one),
@@ -83,21 +83,22 @@ batchInverses l@(a : aCons) = aInv
 lagrangeEvaluation :: [(Scalar, Scalar)] -> Scalar -> Scalar
 lagrangeEvaluation pts x =
     foldl
-        (\a b -> a + b)
+        (\acc (xi, yi) -> acc + yi * basis x xi pts)
         zero
-        [yi * basis xi | (xi, yi) <- pts]
-  where
-    basis :: Scalar -> Scalar
-    basis xi =
-        let
-            (totalNumerator, totalDenominator) =
-                foldl
-                    ( \(numerator, denominator) (xj, _) ->
-                        if xj /= xi
-                            then (numerator * (x - xj), denominator * (xi - xj))
-                            else (numerator, denominator)
-                    )
-                    (one, one)
-                    pts
-         in
-            totalNumerator * recip totalDenominator
+        pts
+
+{-# INLINEABLE basis #-}
+basis ::  Scalar -> Scalar -> [(Scalar, Scalar)] -> Scalar
+basis x xi pts =
+    let
+        (totalNumerator, totalDenominator) =
+            foldl
+                ( \(numerator, denominator) (xj, _) ->
+                    if xj /= xi
+                        then (numerator * (x - xj), denominator * (xi - xj))
+                        else (numerator, denominator)
+                )
+                (one, one)
+                pts
+     in
+        totalNumerator * recip totalDenominator
