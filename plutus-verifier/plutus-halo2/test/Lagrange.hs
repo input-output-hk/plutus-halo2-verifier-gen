@@ -3,6 +3,7 @@
 
 module Lagrange (test) where
 
+import qualified Data.Text as T
 import Plutus.Crypto.Halo2 (
     Scalar,
     mkScalar,
@@ -15,7 +16,6 @@ import PlutusTx.Test (EvalResult, displayEvalResult, evaluateCompiledCode, evalu
 import qualified Test.Tasty as Tasty
 import Test.Tasty.HUnit ((@?=))
 import qualified Test.Tasty.HUnit as Tasty
-import qualified Data.Text as T
 
 test :: Tasty.TestTree
 test =
@@ -26,6 +26,7 @@ test =
         , Tasty.testCase "interpolation for 2 points provided, eval at 42" biggerNumber
         , Tasty.testCase "interpolation for 4 points provided, eval at 42" nonLinearCase
         , Tasty.testCase "checks how much resources is used for basis calculations in plutus" basisCalculationPerformance
+        , Tasty.testCase "checks how much resources is used for basis calculations in plutus" lagrangeCalculationPerformance
         ]
 
 existingPoint :: Tasty.Assertion
@@ -98,11 +99,41 @@ basisCalculationPerformance = do
         compiledCode :: CompiledCode (Scalar -> Scalar -> [(Scalar, Scalar)] -> Scalar)
         compiledCode = $$(compile [||basis||])
         result :: EvalResult
-        result = evaluateCompiledCode
+        result =
+            evaluateCompiledCode
                 ( compiledCode
                     `unsafeApplyCode` liftCodeDef x
                     `unsafeApplyCode` liftCodeDef xi
-                    `unsafeApplyCode` liftCodeDef [(x, xi),(x, xi),(x, xi)]
+                    `unsafeApplyCode` liftCodeDef [(x, xi), (x, xi), (x, xi)]
                 )
     putStr . T.unpack $ displayEvalResult result
     x @?= xi
+
+lagrangeCalculationPerformance :: Tasty.Assertion
+lagrangeCalculationPerformance = do
+    let
+        x1 = mkScalar 6763246453476578436
+        y1 = mkScalar 2465456672435897394
+
+        x2 = mkScalar 3476578436676324645
+        y2 = mkScalar 3589739432465456672
+
+        x3 = mkScalar 8796067088957874756
+        y3 = mkScalar 3623657456997093465
+
+        x4 = mkScalar 9686764663489690657
+        y4 = mkScalar 7957456354576897947
+
+        x = mkScalar 42
+
+        compiledCode :: CompiledCode ([(Scalar, Scalar)] -> Scalar -> Scalar)
+        compiledCode = $$(compile [||lagrangeEvaluation||])
+        result :: EvalResult
+        result =
+            evaluateCompiledCode
+                ( compiledCode
+                    `unsafeApplyCode` liftCodeDef [(x1, y1), (x2, y2), (x3, y3), (x4, y4)]
+                    `unsafeApplyCode` liftCodeDef x
+                )
+    putStr . T.unpack $ displayEvalResult result
+    x @?= x
