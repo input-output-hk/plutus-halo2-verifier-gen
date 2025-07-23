@@ -1,5 +1,6 @@
 module Main where
 
+import qualified Benchmarks
 import qualified Generic.VerificationTestHaskell
 import qualified Generic.VerificationTestPlutus
 import Generic.VerifyCompiled (writeToFile)
@@ -40,4 +41,5 @@ main = do
             , Generic.VerificationTestPlutus.test
             , Lagrange.test
             , Halo2MultiOpenMSM.test
+            , Benchmarks.runBenchmarks
             ]

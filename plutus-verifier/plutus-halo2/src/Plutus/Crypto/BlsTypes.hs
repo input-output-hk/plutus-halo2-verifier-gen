@@ -4,6 +4,7 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE InstanceSigs #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE ViewPatterns #-}
@@ -26,7 +27,6 @@ module Plutus.Crypto.BlsTypes (
     modularExponentiationScalar,
     modularExponentiationFp,
     modularExponentiationFp2,
-    powerOfTwoExponentiation,
     reverseByteString,
     one,
     Rotation (..),
@@ -73,6 +73,7 @@ import PlutusTx.Prelude (
     even,
     modulo,
     otherwise,
+    trace,
     ($),
     (&&),
     (.),
@@ -213,7 +214,7 @@ instance MultiplicativeGroup Scalar where
         | otherwise = a * recip b
     {-# INLINEABLE recip #-}
     recip :: Scalar -> Scalar
-    recip (Scalar a) = Scalar (go a bls12_381_field_prime 1 0)
+    recip (Scalar a) = trace "calling modulo inverse for scalar" $ Scalar (go a bls12_381_field_prime 1 0)
       where
         go !u !v !x1 !x2 =
             if u /= 1
@@ -223,16 +224,6 @@ instance MultiplicativeGroup Scalar where
                         x = x2 - q * x1
                      in go r u x x1
                 else x1 `modulo` bls12_381_field_prime
-
--- This is a special case of modular exponentiation, where the exponent is a power of two.
--- This saves alot of script budget. Note that for x^e,  e = 2^k, and k is used below
-{-# INLINEABLE powerOfTwoExponentiation #-}
-powerOfTwoExponentiation :: Scalar -> Integer -> Scalar
-powerOfTwoExponentiation x k = if k < 0 then error () else go x k
-  where
-    go x' k'
-        | k' == 0 = x'
-        | otherwise = powerOfTwoExponentiation (x' * x') (k' - 1)
 
 -- The field elements are the x and y coordinates of the points on the curve.
 newtype Fp = Fp {unFp :: Integer} deriving (Haskell.Show, Haskell.Eq)

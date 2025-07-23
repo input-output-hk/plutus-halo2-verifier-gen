@@ -91,6 +91,8 @@ test-suite run-vector-test
   other-modules:
     EvalUtils
     Lagrange
+    Benchmarks
+    ProofData
     Halo2MultiOpenMSM
     Generic.Proof
     Generic.VerificationTestPlutus

@@ -1,4 +1,5 @@
 {-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE NoImplicitPrelude #-}
 
 module Plutus.Crypto.Halo2.LagrangePolynomialEvaluation (
@@ -18,6 +19,7 @@ import PlutusTx.Prelude (
     AdditiveMonoid (..),
     MultiplicativeMonoid (one),
     fmap,
+    trace,
     ($),
     (*),
     (+),
@@ -84,7 +86,7 @@ batchInverses l@(a : aCons) = aInv
 lagrangeEvaluation :: [(Scalar, Scalar)] -> Scalar -> Scalar
 lagrangeEvaluation pts x =
     foldl
-        (\acc (xi, yi) -> acc + yi * basis x xi pts)
+        (\acc (xi, yi) -> acc + yi * (trace "calculating basis" $ basis x xi pts))
         zero
         pts
 
