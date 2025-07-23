@@ -3,6 +3,7 @@
 
 module Benchmarks (runBenchmarks) where
 
+import Control.Concurrent
 import qualified Data.Text as T
 import Plutus.Crypto.Halo2 (
     Scalar,
@@ -64,30 +65,71 @@ basisCalculation = do
 lagrangeCalculation :: Tasty.Assertion
 lagrangeCalculation = do
     let
-        ax = mkScalar 67632464534765784366763246453476578436
-        ay = mkScalar 24654566724358973942465456672435897394
+        -- first polynomial
+        p1_ax = mkScalar 0x65e2000f8ef4d864b59536948015f6d968e559ecaccae4d58aea34b54593652d
+        p1_ay = mkScalar 0x1155cdbca5d1b7322d3fc79c28bea909a58db052c68a6905e63cdf1180a7e77a
 
-        bx = mkScalar 34765784366763246453476578436676324645
-        by = mkScalar 35897394324654566723589739432465456672
+        p1_bx = mkScalar 0x31519ba428b9a878713c8271fddc7c6b865263177e914929e191ddcf6b5322ab
+        p1_by = mkScalar 0x739fcc72d0e2cdc04c6b6f1c49794a5e14a1b1a0c09ed2429a38a2d50c46ac80
 
-        cx = mkScalar 87960670889578747568796067088957874756
-        cy = mkScalar 36236574569970934653623657456997093465
+        -- second polynomial
+        p2_ax = mkScalar 0x65e2000f8ef4d864b59536948015f6d968e559ecaccae4d58aea34b54593652d
+        p2_ay = mkScalar 0x488de24ae86e68664ac32e8d2360391791b8c60fef972c070fcd169411816bf5
 
-        dx = mkScalar 96867646634896906579686764663489690657
-        dy = mkScalar 79574563545768979477957456354576897947
+        -- third polynomial
+        p3_ax = mkScalar 0x65e2000f8ef4d864b59536948015f6d968e559ecaccae4d58aea34b54593652d
+        p3_ay = mkScalar 0x403dd8f400926f35ca81b49a16bf39125bd5055a45859a65f87d36cd8d3f1bf5
 
-        x = mkScalar 96867646634896906579686764663489690657231
+        p3_bx = mkScalar 0x31519ba428b9a878713c8271fddc7c6b865263177e914929e191ddcf6b5322ab
+        p3_by = mkScalar 0x4d5929f64321f54286e7c88200c1bcc9dafeada8320f28276210a4c531c9ea9f
 
-        compiledCode :: CompiledCode ([(Scalar, Scalar)] -> Scalar -> Scalar)
-        compiledCode = $$(compile [||lagrangeEvaluation||])
-        result :: EvalResult
-        result =
+        p3_cx = mkScalar 0x3ec5492f557134eff7dc7496381d4b4e7201406b26f739bd34fcf882cfcbafe8
+        p3_cy = mkScalar 0x452f3a5bfd621ecf05b14659a3f6ee668efc8a994c6ffea0f9427672848f4c1a
+
+        p1 = [(p1_ax, p1_ay), (p1_bx, p1_by)]
+        p2 = [(p2_ax, p2_ay)]
+        p3 = [(p3_ax, p3_ay), (p3_bx, p3_by), (p3_cx, p3_cy)]
+
+        compiledCodeP1 :: CompiledCode ([(Scalar, Scalar)] -> Scalar -> Scalar)
+        compiledCodeP1 = $$(compile [||lagrangeEvaluation||])
+        resultP1 :: EvalResult
+        resultP1 =
             evaluateCompiledCode
-                ( compiledCode
-                    `unsafeApplyCode` liftCodeDef [(ax, ay), (bx, by), (cx, cy), (dx, dy)]
-                    `unsafeApplyCode` liftCodeDef x
+                ( compiledCodeP1
+                    `unsafeApplyCode` liftCodeDef p1
+                    `unsafeApplyCode` liftCodeDef x3
                 )
-    logResult result
+
+        compiledCodeP2 :: CompiledCode ([(Scalar, Scalar)] -> Scalar -> Scalar)
+        compiledCodeP2 = $$(compile [||lagrangeEvaluation||])
+        resultP2 :: EvalResult
+        resultP2 =
+            evaluateCompiledCode
+                ( compiledCodeP2
+                    `unsafeApplyCode` liftCodeDef p2
+                    `unsafeApplyCode` liftCodeDef x3
+                )
+
+        compiledCodeP3 :: CompiledCode ([(Scalar, Scalar)] -> Scalar -> Scalar)
+        compiledCodeP3 = $$(compile [||lagrangeEvaluation||])
+        resultP3 :: EvalResult
+        resultP3 =
+            evaluateCompiledCode
+                ( compiledCodeP3
+                    `unsafeApplyCode` liftCodeDef p3
+                    `unsafeApplyCode` liftCodeDef x3
+                )
+    threadDelay 1000000
+    putStrLn ""
+    putStrLn "\n complexity for 1st set"
+    logResult resultP1
+    putStrLn "\n complexity for 2nd set"
+    logResult resultP2
+    putStrLn "\n complexity for 3rd set"
+    logResult resultP3
+    putStrLn ""
+    threadDelay 1000000
+
     ignoreAssertion
 
 vCalculation :: Tasty.Assertion
@@ -131,6 +173,20 @@ lagrangePolynomialsCalculations = do
                     `unsafeApplyCode` liftCodeDef x3
                     `unsafeApplyCode` liftCodeDef proofX3QEvals
                 )
+    threadDelay 1000000
+    putStrLn ""
+    putStrLn "pointSets"
+    putStrLn $ show pointSets
+    putStrLn "q_eval_sets"
+    putStrLn $ show q_eval_sets
+    putStrLn "x2"
+    putStrLn $ show x2
+    putStrLn "x3"
+    putStrLn $ show x3
+    putStrLn "proofX3QEvals"
+    putStrLn $ show proofX3QEvals
+    putStrLn ""
+    threadDelay 1000000
     logResult result
     ignoreAssertion
 
