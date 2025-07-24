@@ -1,5 +1,8 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE NoImplicitPrelude #-}
+-- use remove-trace for checking performance numbers, use no-remove-trace to see traces
+{-# OPTIONS_GHC -fplugin-opt PlutusTx.Plugin:remove-trace #-}
 
 module Benchmarks (runBenchmarks) where
 
@@ -8,6 +11,7 @@ import qualified Data.Text as T
 import Plutus.Crypto.Halo2 (
     Scalar,
     mkScalar,
+    recip,
  )
 import Plutus.Crypto.Halo2.Halo2MultiOpenMSM (
     buildQ,
@@ -24,6 +28,7 @@ import PlutusTx (
     liftCodeDef,
     unsafeApplyCode,
  )
+import PlutusTx.Prelude ((*))
 import PlutusTx.Test (
     EvalResult,
     displayEvalResult,
@@ -32,18 +37,22 @@ import PlutusTx.Test (
 import ProofData
 import qualified Test.Tasty as Tasty
 import qualified Test.Tasty.HUnit as Tasty
+import qualified Prelude as Haskell
 
 runBenchmarks :: Tasty.TestTree
 runBenchmarks =
     Tasty.testGroup
-        "benchmarks to test how much CPU / MEM is used on Cardano"
-        [ Tasty.testCase "checks how much resources is used for basis calculations" basisCalculation
-        , Tasty.testCase "checks how much resources is used for full lagrange calculations" lagrangeCalculation
-        , Tasty.testCase "checks how much resources is used for scalar V calculations" vCalculation
-        , Tasty.testCase "checks how much resources is used for Q polynomials data" qCalculations
-        , Tasty.testCase "checks how much resources is used for interpolating and evaluating lagrange polynomials" lagrangePolynomialsCalculations
+        "benchmarks to test how much CPU / MEM is used on Cardano for calculating:"
+        [ Tasty.testCase "basis calculations" basisCalculation
+        , Tasty.testCase "mod inverse of large Scalars" modInverseCalculations
+        , Tasty.testCase "multiplication of large Scalars" mulCalculations
+        , Tasty.testCase "full lagrange calculations" lagrangeCalculation
+        , Tasty.testCase "scalar V calculations" vCalculation
+        , Tasty.testCase "Q polynomials data" qCalculations
+        , Tasty.testCase "interpolating and evaluating lagrange polynomials" lagrangePolynomialsCalculations
         ]
 
+-- 697,539 * 9
 basisCalculation :: Tasty.Assertion
 basisCalculation = do
     let
@@ -119,16 +128,14 @@ lagrangeCalculation = do
                     `unsafeApplyCode` liftCodeDef p3
                     `unsafeApplyCode` liftCodeDef x3
                 )
-    threadDelay 1000000
-    putStrLn ""
-    putStrLn "\n complexity for 1st set"
+    Haskell.putStrLn ""
+    Haskell.putStrLn "\n complexity for 1st set"
     logResult resultP1
-    putStrLn "\n complexity for 2nd set"
+    Haskell.putStrLn "\n complexity for 2nd set"
     logResult resultP2
-    putStrLn "\n complexity for 3rd set"
+    Haskell.putStrLn "\n complexity for 3rd set"
     logResult resultP3
-    putStrLn ""
-    threadDelay 1000000
+    Haskell.putStrLn ""
 
     ignoreAssertion
 
@@ -173,25 +180,54 @@ lagrangePolynomialsCalculations = do
                     `unsafeApplyCode` liftCodeDef x3
                     `unsafeApplyCode` liftCodeDef proofX3QEvals
                 )
-    threadDelay 1000000
-    putStrLn ""
-    putStrLn "pointSets"
-    putStrLn $ show pointSets
-    putStrLn "q_eval_sets"
-    putStrLn $ show q_eval_sets
-    putStrLn "x2"
-    putStrLn $ show x2
-    putStrLn "x3"
-    putStrLn $ show x3
-    putStrLn "proofX3QEvals"
-    putStrLn $ show proofX3QEvals
-    putStrLn ""
-    threadDelay 1000000
+    Haskell.putStrLn ""
+    Haskell.putStrLn "pointSets"
+    Haskell.putStrLn Haskell.$ Haskell.show pointSets
+    Haskell.putStrLn "q_eval_sets"
+    Haskell.putStrLn Haskell.$ Haskell.show q_eval_sets
+    Haskell.putStrLn "x2"
+    Haskell.putStrLn Haskell.$ Haskell.show x2
+    Haskell.putStrLn "x3"
+    Haskell.putStrLn Haskell.$ Haskell.show x3
+    Haskell.putStrLn "proofX3QEvals"
+    Haskell.putStrLn Haskell.$ Haskell.show proofX3QEvals
+    Haskell.putStrLn ""
+
     logResult result
     ignoreAssertion
 
-logResult :: EvalResult -> IO ()
-logResult result = putStr . T.unpack $ displayEvalResult result
+modInverseCalculations :: Tasty.Assertion
+modInverseCalculations = do
+    let
+        scalar = mkScalar 28660488001353076547504426006756572966782184885505848286094592365088145915263
+        compiledCode = $$(compile [||recip||])
+        result =
+            evaluateCompiledCode
+                ( compiledCode
+                    `unsafeApplyCode` liftCodeDef scalar
+                )
+    logResult result
+    ignoreAssertion
+
+mulCalculations :: Tasty.Assertion
+mulCalculations = do
+    let
+        scalar = mkScalar 28660488001353076547504426006756572966782184885505848286094592365088145915263
+        compiledCode = $$(compile [||(*)||])
+        result =
+            evaluateCompiledCode
+                ( compiledCode
+                    `unsafeApplyCode` liftCodeDef scalar
+                    `unsafeApplyCode` liftCodeDef scalar
+                )
+    logResult result
+    ignoreAssertion
+
+logResult :: EvalResult -> Haskell.IO ()
+logResult result = do
+    threadDelay 1000000
+    Haskell.putStr Haskell.. T.unpack Haskell.$ displayEvalResult result
+    threadDelay 1000000
 
 ignoreAssertion :: Tasty.Assertion
-ignoreAssertion = Tasty.assertBool "" True
+ignoreAssertion = Tasty.assertBool "" Haskell.True

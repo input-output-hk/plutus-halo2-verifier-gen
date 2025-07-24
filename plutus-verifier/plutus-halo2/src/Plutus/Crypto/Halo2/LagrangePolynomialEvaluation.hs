@@ -25,7 +25,9 @@ import PlutusTx.Prelude (
     (+),
     (-),
     (/=),
+    (<>),
  )
+import PlutusTx.Show (show)
 import qualified Prelude
 
 {- | Computes evaluations (at the point `x`, where `xn = x^n`) of Lagrange
@@ -86,7 +88,7 @@ batchInverses l@(a : aCons) = aInv
 lagrangeEvaluation :: [(Scalar, Scalar)] -> Scalar -> Scalar
 lagrangeEvaluation pts x =
     foldl
-        (\acc (xi, yi) -> acc + yi * (trace "calculating basis" $ basis x xi pts))
+        (\acc (xi, yi) -> acc + yi * basis x xi pts)
         zero
         pts
 
@@ -94,6 +96,16 @@ lagrangeEvaluation pts x =
 basis :: Scalar -> Scalar -> [(Scalar, Scalar)] -> Scalar
 basis x xi pts =
     let
+        !_ =
+            trace
+                ( "calculating basis for x = "
+                    <> show x
+                    <> " xi = "
+                    <> show xi
+                    <> " pts = "
+                    <> show pts
+                )
+                ()
         (totalNumerator, totalDenominator) =
             foldl
                 ( \(numerator, denominator) (xj, _) ->

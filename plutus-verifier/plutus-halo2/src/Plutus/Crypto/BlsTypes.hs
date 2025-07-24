@@ -82,6 +82,8 @@ import PlutusTx.Prelude (
     (>),
     (||),
  )
+
+import PlutusTx.Show (Show, show)
 import Text.Printf (printf)
 import qualified Prelude as Haskell
 
@@ -115,6 +117,10 @@ makeIsDataIndexed ''Scalar [('Scalar, 0)]
 instance Haskell.Show Scalar where
     show :: Scalar -> Haskell.String
     show = printf "0x%x" . unScalar
+
+instance PlutusTx.Show.Show Scalar where
+    {-# INLINEABLE show #-}
+    show = show . unScalar
 
 -- Exclude for safety negative integers and integers large/equal
 -- to the field prime. This is the primary interface to work with
@@ -214,8 +220,9 @@ instance MultiplicativeGroup Scalar where
         | otherwise = a * recip b
     {-# INLINEABLE recip #-}
     recip :: Scalar -> Scalar
-    recip (Scalar a) = trace "calling modulo inverse for scalar" $ Scalar (go a bls12_381_field_prime 1 0)
+    recip (Scalar a) = Scalar (go a bls12_381_field_prime 1 0)
       where
+        !_ = trace ("calling modulo inverse for scalar " <> show a) ()
         go !u !v !x1 !x2 =
             if u /= 1
                 then
