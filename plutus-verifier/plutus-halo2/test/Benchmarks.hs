@@ -51,7 +51,6 @@ runBenchmarks =
         , Tasty.testCase "Q polynomials data" qCalculations
         , Tasty.testCase "interpolating and evaluating lagrange polynomials" lagrangePolynomialsCalculations
         , Tasty.testCase "mod inverse of large Scalars" modInverseCalculations
-        , Tasty.testCase "mod inverse of large Scalars" modInverseCalculations
         , Tasty.testCase "multiplication of large Scalars" mulCalculations
         ]
 
