@@ -3,29 +3,9 @@
 
 module Halo2MultiOpenMSM (test) where
 
-import Data.Bifunctor (
-    bimap,
- )
 import Plutus.Crypto.Halo2 (
     Scalar,
-    compressG1Point,
-    mkFp,
     mkScalar,
- )
-import Plutus.Crypto.Halo2.Halo2MultiOpenMSM (
-    buildQ,
-    computeV,
-    evaluateLagrangePolynomials,
- )
-import PlutusTx.List (
-    unzip,
- )
-import PlutusTx.Prelude (
-    BuiltinBLS12_381_G1_Element,
-    Integer,
-    one,
-    (*),
-    (.),
  )
 import ProofData
 import qualified Test.Tasty as Tasty

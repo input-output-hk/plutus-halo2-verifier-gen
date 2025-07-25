@@ -175,6 +175,8 @@ Below are the execution costs of Plutus scripts running the Halo2 verifier for v
 | **ATMS (228 out of 408)**       | 12542 (87.5%)                            | 9,037,616,234  (90.3%)  | 4,488,266 (32.0%) |
 | **ATMS (50/90) + lookup table** | 15246 (106.3%)                           | 10,733,382,733 (107.3%) | 4,882,403 (34.8%) |
 
+**Note that the benchmark numbers are approximate.** Even for the same circuit, the verifier’s execution cost may vary slightly depending on the specific proof being verified. This variation stems from the randomness used during proof generation, which can be influenced by the initial seed or the platform on which the prover runs.
+
 ## License
 
 Copyright 2025 Input Output Global

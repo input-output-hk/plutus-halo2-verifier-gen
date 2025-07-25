@@ -19,18 +19,14 @@ import Plutus.Crypto.Halo2.Halo2MultiOpenMSM (
     buildQ,
     computeV,
     evaluateLagrangePolynomials,
-    x1PowersCount,
  )
 import Plutus.Crypto.Halo2.MSMTypes (MSM)
 import PlutusTx.List (
-    length,
     unzip,
  )
 import PlutusTx.Prelude (
     BuiltinBLS12_381_G1_Element,
     Integer,
-    max,
-    (+),
     (.),
  )
 
@@ -204,17 +200,13 @@ commitmentMap =
 proofX3QEvals :: [Scalar]
 proofX3QEvals = [q_eval_on_x3_1, q_eval_on_x3_2, q_eval_on_x3_3]
 
--- todo replace with constant
 x1Powers :: [Scalar]
-x1Powers = powers (x1PowersCount pointSetsIndexes commitmentMap) x1
+x1Powers = powers 8 x1
 
 (q_coms :: [MSM], q_eval_sets :: [[Scalar]]) = unzip (buildQ commitmentMap pointSetsIndexes x1Powers)
 
--- todo replace with constant
-x4PowersCount = (max (length proofX3QEvals + 1) (length q_coms + 1))
-
 x4Powers :: [Scalar]
-x4Powers = powers x4PowersCount x4
+x4Powers = powers 4 x4
 
 f_eval :: Scalar
 f_eval = evaluateLagrangePolynomials pointSets q_eval_sets x2 x3 proofX3QEvals
