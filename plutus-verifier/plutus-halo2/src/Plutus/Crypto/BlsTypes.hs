@@ -24,7 +24,6 @@ module Plutus.Crypto.BlsTypes (
     MultiplicativeGroup (..),
     pow,
     powMod,
-    modularExponentiationScalar,
     modularExponentiationFp,
     modularExponentiationFp2,
     reverseByteString,
@@ -50,6 +49,7 @@ import PlutusTx.Builtins (
     bls12_381_G2_uncompress,
     consByteString,
     emptyByteString,
+    expModInteger,
     indexByteString,
  )
 import PlutusTx.Numeric (
@@ -73,11 +73,9 @@ import PlutusTx.Prelude (
     even,
     modulo,
     otherwise,
-    trace,
     ($),
     (&&),
     (.),
-    (/=),
     (<>),
     (>),
     (||),
@@ -174,16 +172,6 @@ class (MultiplicativeMonoid a) => MultiplicativeGroup a where
     div :: a -> a -> a
     recip :: a -> a
 
--- Modular exponentiation by squaring. This assumes that the exponent is
--- a big endian bytestring. Note that integegerToByteString is little endian.
-{-# INLINEABLE modularExponentiationScalar #-}
-modularExponentiationScalar :: Scalar -> Integer -> Scalar
-modularExponentiationScalar b e
-    | e < 0 = zero
-    | e == 0 = one
-    | even e = modularExponentiationScalar (b * b) (e `divide` 2)
-    | otherwise = b * modularExponentiationScalar (b * b) ((e - 1) `divide` 2)
-
 -- Reverse a builtin byte string of arbitrary length
 -- This can convert between little and big endian.
 {-# INLINEABLE reverseByteString #-}
@@ -203,15 +191,6 @@ powMod b e
     | even e = powMod (b * b) (e `divide` 2)
     | otherwise = b * powMod (b * b) ((e - 1) `divide` 2)
 
--- In math this is b^a mod p, where b is of type scalar and a any integer
--- note that there is still some overhead here due to the conversion from
--- little endian to big endian (and bs <-> integer). This can be
--- optimized in the future.
-instance Module Integer Scalar where
-    {-# INLINEABLE scale #-}
-    scale :: Integer -> Scalar -> Scalar
-    scale a b = modularExponentiationScalar b a -- powMod b a is also a correct implementation
-
 instance MultiplicativeGroup Scalar where
     {-# INLINEABLE div #-}
     div :: Scalar -> Scalar -> Scalar
@@ -220,17 +199,7 @@ instance MultiplicativeGroup Scalar where
         | otherwise = a * recip b
     {-# INLINEABLE recip #-}
     recip :: Scalar -> Scalar
-    recip (Scalar a) = Scalar (go a bls12_381_field_prime 1 0)
-      where
-        !_ = trace ("calling modulo inverse for scalar " <> show a) ()
-        go !u !v !x1 !x2 =
-            if u /= 1
-                then
-                    let !q = v `divide` u
-                        r = v - q * u
-                        x = x2 - q * x1
-                     in go r u x x1
-                else x1 `modulo` bls12_381_field_prime
+    recip (Scalar a) = Scalar (expModInteger a (-1) bls12_381_field_prime)
 
 -- The field elements are the x and y coordinates of the points on the curve.
 newtype Fp = Fp {unFp :: Integer} deriving (Haskell.Show, Haskell.Eq)

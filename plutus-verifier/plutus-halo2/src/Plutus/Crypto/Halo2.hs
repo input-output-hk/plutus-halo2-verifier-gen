@@ -18,7 +18,6 @@ import Plutus.Crypto.BlsTypes as BlsTypes (
     mkScalar,
     modularExponentiationFp,
     modularExponentiationFp2,
-    modularExponentiationScalar,
     one,
     pow,
     powMod,
