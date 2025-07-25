@@ -22,7 +22,6 @@ import Plutus.Crypto.BlsTypes as BlsTypes (
     one,
     pow,
     powMod,
-    powerOfTwoExponentiation,
     reverseByteString,
  )
 import Plutus.Crypto.Halo2.CompressUncompress as CompressUncompress (

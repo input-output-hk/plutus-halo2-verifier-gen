@@ -50,10 +50,10 @@ library
     , file-embed
     , lens
     , mtl
-    , plutus-core        ^>=1.47
-    , plutus-ledger-api  ^>=1.47
-    , plutus-tx          ^>=1.47
-    , plutus-tx-plugin   ^>=1.47
+    , plutus-core        ^>=1.49
+    , plutus-ledger-api  ^>=1.49
+    , plutus-tx          ^>=1.49
+    , plutus-tx-plugin   ^>=1.49
     , template-haskell
     , th-lift
     , text
@@ -74,11 +74,12 @@ test-suite run-vector-test
     , flat
     , lens
     , mtl
-    , plutus-core           ^>=1.47
+    , plutus-core           ^>=1.49
     , plutus-halo2
-    , plutus-ledger-api     ^>=1.47
-    , plutus-tx             ^>=1.47
-    , plutus-tx-plugin      ^>=1.47
+    , plutus-ledger-api     ^>=1.49
+    , plutus-tx             ^>=1.49
+    , plutus-tx-plugin      ^>=1.49
+    , plutus-tx:plutus-tx-testlib
     , quickcheck-instances
     , tasty
     , tasty-hunit
@@ -90,6 +91,8 @@ test-suite run-vector-test
   other-modules:
     EvalUtils
     Lagrange
+    Benchmarks
+    ProofData
     Halo2MultiOpenMSM
     Generic.Proof
     Generic.VerificationTestPlutus

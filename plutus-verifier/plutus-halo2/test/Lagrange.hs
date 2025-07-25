@@ -1,3 +1,6 @@
+{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE TemplateHaskell #-}
+
 module Lagrange (test) where
 
 import Plutus.Crypto.Halo2 (

@@ -1,6 +1,15 @@
+{-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE NoImplicitPrelude #-}
 
-module Plutus.Crypto.Halo2.Halo2MultiOpenMSM (buildMSM, buildQ, computeV, evaluateLagrange, finalCommitment) where
+module Plutus.Crypto.Halo2.Halo2MultiOpenMSM (
+    buildMSM,
+    buildQ,
+    computeV,
+    evaluateLagrangePolynomials,
+    finalCommitment,
+    x1PowersCount,
+) where
 
 import Plutus.Crypto.BlsTypes (
     Scalar,
@@ -40,6 +49,7 @@ import PlutusTx.Prelude (
     enumFromTo,
     max,
     one,
+    trace,
     zero,
     (*),
     (+),
@@ -81,7 +91,7 @@ buildMSM x1 x2 x3 x4 f_comm pi_commitment proofX3QEvals commitmentMap pointSets 
     x4Powers = powers x4PowersCount x4
 
     f_eval :: Scalar
-    f_eval = evaluateLagrange pointSets q_eval_sets x2 x3 proofX3QEvals
+    f_eval = evaluateLagrangePolynomials pointSets q_eval_sets x2 x3 proofX3QEvals
 
     final_com :: MSM
     final_com = finalCommitment q_coms f_comm x4Powers
@@ -128,19 +138,20 @@ finalCommitment q_coms f_comm x4Powers =
         (MSM [])
         (zip x4Powers (q_coms ++ [MSM [MSMElem ((one :: Scalar), f_comm)]]))
 
-{-# INLINEABLE evaluateLagrange #-}
+{-# INLINEABLE evaluateLagrangePolynomials #-}
 -- todo can not be precompute
-evaluateLagrange ::
+evaluateLagrangePolynomials ::
     [[Scalar]] ->
     [[Scalar]] ->
     Scalar ->
     Scalar ->
     [Scalar] ->
     Scalar
-evaluateLagrange pointSets q_eval_sets x2 x3 proofX3QEvals =
+evaluateLagrangePolynomials pointSets q_eval_sets x2 x3 proofX3QEvals =
     foldl
         ( \accEval ((points, evals), proofQEval) ->
             let
+                !_ = trace "Evaluating lagrange polynomial" ()
                 rEval = lagrangeEvaluation (zip points evals) x3
                 den = foldl (\acc point -> acc * (x3 - point)) one points
                 eval = (proofQEval - rEval) * (recip den)

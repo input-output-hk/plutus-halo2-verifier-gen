@@ -1,10 +1,11 @@
 module Main where
 
+import qualified Benchmarks
 import qualified Generic.VerificationTestHaskell
 import qualified Generic.VerificationTestPlutus
 import Generic.VerifyCompiled (writeToFile)
-import qualified Lagrange
 import qualified Halo2MultiOpenMSM
+import qualified Lagrange
 import Test.Tasty (defaultMain, testGroup)
 
 import EvalUtils (
@@ -40,4 +41,5 @@ main = do
             , Generic.VerificationTestPlutus.test
             , Lagrange.test
             , Halo2MultiOpenMSM.test
+            , Benchmarks.runBenchmarks
             ]
