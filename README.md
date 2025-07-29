@@ -3,11 +3,12 @@
 A Rust tool that generates Plutus verifiers for Halo2 circuits, enabling verification of proofs on the Cardano
 blockchain.
 
-> ### ⚠️ Security Disclaimer
+> ### ⚠️ Important Disclaimer & Acceptance of Risk
 >
 > **This repository contains proof-of-concept implementations** intended to evaluate the feasibility of verifying Halo2
-> proofs in Plutus smart contracts. The code has not been thoroughly tested and audited and is not intended for
-> production use. It is provided for research and educational purposes only.
+> proofs in Plutus smart contracts. This code is provided "as is" for research and educational purposes only. It has not
+> been thoroughly tested and audited and is not intended for production use. By using this code, you acknowledge and
+> accept all associated risks, and our company disclaims any liability for damages or losses.
 
 ## Overview
 
@@ -156,6 +157,7 @@ locations within the plutus-verifier folder:
 ### Plutus part
 
 After the Rust part is executed you can test Plutus verifier as follows:
+
 ```bash
 nix develop github:input-output-hk/devx#ghc96-iog
 cd plutus-verifier
@@ -175,7 +177,9 @@ Below are the execution costs of Plutus scripts running the Halo2 verifier for v
 | **ATMS (228 out of 408)**       | 12542 (87.5%)                            | 9,037,616,234  (90.3%)  | 4,488,266 (32.0%) |
 | **ATMS (50/90) + lookup table** | 15246 (106.3%)                           | 10,733,382,733 (107.3%) | 4,882,403 (34.8%) |
 
-**Note that the benchmark numbers are approximate.** Even for the same circuit, the verifier’s execution cost may vary slightly depending on the specific proof being verified. This variation stems from the randomness used during proof generation, which can be influenced by the initial seed or the platform on which the prover runs.
+**Note that the benchmark numbers are approximate.** Even for the same circuit, the verifier’s execution cost may vary
+slightly depending on the specific proof being verified. This variation stems from the randomness used during proof
+generation, which can be influenced by the initial seed or the platform on which the prover runs.
 
 ## License
 
