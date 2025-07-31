@@ -151,7 +151,6 @@ evaluateLagrangePolynomials pointSets q_eval_sets x2 x3 proofX3QEvals =
     foldl
         ( \accEval ((points, evals), proofQEval) ->
             let
-                !_ = trace "Evaluating lagrange polynomial" ()
                 rEval = lagrangeEvaluation (zip points evals) x3
                 den = foldl (\acc point -> acc * (x3 - point)) one points
                 eval = (proofQEval - rEval) * (recip den)
