@@ -31,26 +31,26 @@ fn main() {
 
     match &args[1..] {
         [] => {
-            compile_simple_mul_circuit::<GwcKZGCommitmentScheme<Bls12>>();
-        }
-        [command] if command == "halo2" => {
             compile_simple_mul_circuit::<KZGCommitmentScheme<Bls12>>();
         }
+        [command] if command == "gwc_kzg" => {
+            compile_simple_mul_circuit::<GwcKZGCommitmentScheme<Bls12>>();
+        }
         _ => {
-            println!(
-                "usage: to run halo2 KZG variant pass halo2, to run GWC19 variant do not pass any option"
-            )
+            println!("Usage:");
+            println!("- to run the example: `cargo run --example example_name`");
+            println!("- to run the example using the GWC19 version of multi-open KZG, run: `cargo run --example example_name gwc_kzg`");
         }
     }
 }
 
 fn compile_simple_mul_circuit<
     S: PolynomialCommitmentScheme<
-            Scalar,
-            Commitment = G1Projective,
-            Parameters = ParamsKZG<Bls12>,
-            VerifierParameters = ParamsVerifierKZG<Bls12>,
-        > + ExtractKZG,
+        Scalar,
+        Commitment=G1Projective,
+        Parameters=ParamsKZG<Bls12>,
+        VerifierParameters=ParamsVerifierKZG<Bls12>,
+    > + ExtractKZG,
 >() {
     // Prepare the private and public inputs to the circuit!
     let constant = Scalar::from(7);
@@ -98,7 +98,7 @@ fn compile_simple_mul_circuit<
         &mut rng,
         &mut transcript,
     )
-    .expect("proof generation should not fail");
+        .expect("proof generation should not fail");
 
     let proof = transcript.finalize();
 
@@ -111,7 +111,7 @@ fn compile_simple_mul_circuit<
         instances,
         &mut transcript_verifier,
     )
-    .expect("prepare verification failed");
+        .expect("prepare verification failed");
 
     verifier
         .verify(&params.verifier_params())
@@ -121,7 +121,7 @@ fn compile_simple_mul_circuit<
         "./plutus-verifier/plutus-halo2/test/Generic/serialized_proof.json".to_string(),
         proof,
     )
-    .unwrap();
+        .unwrap();
 
     generate_plinth_verifier(&params, &vk, instances, |a| hex::encode(a.to_bytes()))
         .expect("Plinth verifier generation failed");

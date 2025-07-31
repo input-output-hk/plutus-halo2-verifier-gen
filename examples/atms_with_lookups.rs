@@ -46,15 +46,15 @@ fn main() {
 
     match &args[1..] {
         [] => {
-            compile_atms_lookup_circuit::<GwcKZGCommitmentScheme<Bls12>>();
-        }
-        [command] if command == "halo2" => {
             compile_atms_lookup_circuit::<KZGCommitmentScheme<Bls12>>();
         }
+        [command] if command == "gwc_kzg" => {
+            compile_atms_lookup_circuit::<GwcKZGCommitmentScheme<Bls12>>();
+        }
         _ => {
-            println!(
-                "usage: to run halo2 KZG variant pass halo2, to run GWC19 variant do not pass any option"
-            )
+            println!("Usage:");
+            println!("- to run the example: `cargo run --example example_name`");
+            println!("- to run the example using the GWC19 version of multi-open KZG, run: `cargo run --example example_name gwc_kzg`");
         }
     }
 }
