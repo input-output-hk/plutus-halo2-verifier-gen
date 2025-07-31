@@ -249,11 +249,7 @@ instance MultiplicativeMonoid Fp where
 
 {-# INLINEABLE modularExponentiationFp #-}
 modularExponentiationFp :: Fp -> Integer -> Fp
-modularExponentiationFp b e
-    | e < 0 = zero
-    | e == 0 = one
-    | even e = modularExponentiationFp (b * b) (e `divide` 2)
-    | otherwise = b * modularExponentiationFp (b * b) ((e - 1) `divide` 2)
+modularExponentiationFp (Fp b) e = Fp (expModInteger b e bls12_381_field_prime)
 
 instance Module Integer Fp where
     {-# INLINEABLE scale #-}
