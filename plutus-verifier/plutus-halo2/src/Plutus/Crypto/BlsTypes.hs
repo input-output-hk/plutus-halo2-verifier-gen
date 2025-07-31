@@ -181,15 +181,9 @@ reverseByteString bs
     | otherwise =
         reverseByteString (dropByteString 1 bs) <> consByteString (indexByteString bs 0) emptyByteString
 
--- this one costs around 12.1% of cpu budget
--- while bitshifts modExp cost around 9.6%
 {-# INLINEABLE powMod #-}
 powMod :: Scalar -> Integer -> Scalar
-powMod b e
-    | e < 0 = zero
-    | e == 0 = one
-    | even e = powMod (b * b) (e `divide` 2)
-    | otherwise = b * powMod (b * b) ((e - 1) `divide` 2)
+powMod (Scalar b) e = Scalar (expModInteger b e bls12_381_field_prime)
 
 instance MultiplicativeGroup Scalar where
     {-# INLINEABLE div #-}
