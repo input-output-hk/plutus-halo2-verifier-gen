@@ -36,7 +36,6 @@ pub enum ProofExtractionSteps {
     PI,
     QEvals,
     //
-    
     Theta,
     Beta,
     Gamma,
@@ -70,7 +69,7 @@ pub struct InstantiationSpecificData {
     pub public_inputs_count: usize,
 
     pub w_values_count: usize,
-    
+
     pub q_evaluations_count: usize,
 }
 

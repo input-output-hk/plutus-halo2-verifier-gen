@@ -42,7 +42,7 @@ run transcriptRepr (Parser f) proof = f (proof, Transcript.addScalarToTranscript
 readPoint :: Parser BuiltinBLS12_381_G1_Element
 readPoint = Parser $ \(proof, transcript) ->
     let (point, proof') = Proof.readPoint proof
-        transcript' = Transcript.addPointToTranscript' transcript point
+        transcript' = Transcript.addPointToTranscript transcript point
      in (point, (proof', transcript'))
 
 {-# INLINE readScalar #-}

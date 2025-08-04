@@ -18,7 +18,6 @@ import Plutus.Crypto.BlsTypes as BlsTypes (
     mkScalar,
     modularExponentiationFp,
     modularExponentiationFp2,
-    modularExponentiationScalar,
     one,
     pow,
     powMod,
@@ -36,7 +35,6 @@ import Plutus.Crypto.Halo2.Proof as Proof (
  )
 import Plutus.Crypto.Halo2.Transcript as Transcript (
     Transcript,
-    addPointToTranscript,
     addScalarToTranscript,
     squeezeChallange,
  )

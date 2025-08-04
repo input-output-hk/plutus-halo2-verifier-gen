@@ -5,7 +5,6 @@ module Plutus.Crypto.Halo2.Transcript (
     squeezeChallange,
     addScalarToTranscript,
     addPointToTranscript,
-    addPointToTranscript',
     addCommonScalarToTranscript,
 )
 where
@@ -84,9 +83,9 @@ squeezeChallange bs =
     , bs <> blake2bPrefixChallenge
     )
 
-{-# INLINEABLE addPointToTranscript' #-}
-addPointToTranscript' :: Transcript -> BuiltinBLS12_381_G1_Element -> Transcript
-addPointToTranscript' bs point =
+{-# INLINEABLE addPointToTranscript #-}
+addPointToTranscript :: Transcript -> BuiltinBLS12_381_G1_Element -> Transcript
+addPointToTranscript bs point =
     bs
         <> blake2bPrefixCommon
         <> bls12_381_G1_compress point
@@ -94,10 +93,3 @@ addPointToTranscript' bs point =
 {-# INLINEABLE addScalarToTranscript #-}
 addScalarToTranscript :: Transcript -> Scalar -> Transcript
 addScalarToTranscript bs s = bs <> blake2bPrefixCommon <> (integerToByteString LittleEndian 32 (unScalar s))
-
-{-# INLINEABLE addPointToTranscript #-}
-addPointToTranscript :: Transcript -> BuiltinBLS12_381_G1_Element -> Transcript
-addPointToTranscript bs point =
-    bs
-        <> blake2bPrefixCommon
-        <> bls12_381_G1_compress point

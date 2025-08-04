@@ -98,7 +98,9 @@ impl ExtractKZG for Halo2MultiOpenScheme {
         let (sets, _) = precompute_intermediate_sets(&circuit_representation);
         let number_of_witnesses = sets.len();
 
-        circuit_representation.instantiation_data.q_evaluations_count = number_of_witnesses;
+        circuit_representation
+            .instantiation_data
+            .q_evaluations_count = number_of_witnesses;
         // witnesses
         for _ in 0..number_of_witnesses {
             circuit_representation

@@ -110,7 +110,9 @@ pub fn emit_verifier_code(
             ProofExtractionSteps::PI => "  !pi_term <- M.readPoint\n".to_string(),
             ProofExtractionSteps::QEvals => section
                 .enumerate()
-                .map(|(number, _permutation_common)| format!("  !q_eval_on_x3_{} <- M.readScalar\n", number + 1))
+                .map(|(number, _permutation_common)| {
+                    format!("  !q_eval_on_x3_{} <- M.readScalar\n", number + 1)
+                })
                 .join(""),
 
             // section for GWC19 version of KZG
@@ -680,11 +682,11 @@ pub fn emit_verifier_code(
             .iter()
             .zip(1..=circuit.permutation_queries.len())
             .map(|(q, idx)| {
-            (
-                format!("permutations_query{}", idx),
-                decode_rotation(&q.point),
-            )
-        })
+                (
+                    format!("permutations_query{}", idx),
+                    decode_rotation(&q.point),
+                )
+            })
             .collect();
 
         let common_queries_traces: Vec<_> = circuit

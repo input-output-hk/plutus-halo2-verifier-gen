@@ -14,20 +14,17 @@ import Plutus.Crypto.BlsTypes (
     recip,
  )
 import Plutus.Crypto.BlsUtils (rotateOmega)
-import PlutusTx.List (foldl, head, reverse, tail, zip)
+import PlutusTx.List (foldl, zip)
 import PlutusTx.Prelude (
     AdditiveMonoid (..),
     MultiplicativeMonoid (one),
     fmap,
-    trace,
     ($),
     (*),
     (+),
     (-),
     (/=),
-    (<>),
  )
-import PlutusTx.Show (show)
 import qualified Prelude
 
 {- | Computes evaluations (at the point `x`, where `xn = x^n`) of Lagrange
@@ -53,7 +50,7 @@ lagrangePolynomialBasis x xn barycentricWeight rotations = result
     !common = (xn - one) * barycentricWeight
 
     inversed :: [Scalar]
-    !inversed = batchInverses $ fmap (\rotatedOmega -> x - rotatedOmega) rotations
+    !inversed = fmap (\rotatedOmega -> recip (x - rotatedOmega)) rotations
 
     result :: [Scalar]
     !result = fmap (\(inv, rotatedOmega) -> inv * common * rotatedOmega) $ zip inversed rotations
@@ -61,24 +58,6 @@ lagrangePolynomialBasis x xn barycentricWeight rotations = result
 getRotatedOmegas :: Scalar -> Scalar -> Prelude.Integer -> Prelude.Integer -> [Scalar]
 getRotatedOmegas omega omegaInv from to =
     fmap (rotateOmega omega omegaInv one) [from .. to]
-
-batchInverses :: [Scalar] -> [Scalar]
-batchInverses [] = []
-batchInverses l@(a : aCons) = aInv
-  where
-    !bRev =
-        foldl
-            (\accum elem -> elem * head accum : accum)
-            [a]
-            aCons
-    !aRev = reverse l
-    !bInvLast = recip $ head bRev
-    !(aInv', bInv_1) =
-        foldl
-            (\(aInvAccum, bInv_i) (b_i_min_1, a_i) -> (bInv_i * b_i_min_1 : aInvAccum, bInv_i * a_i))
-            ([], bInvLast)
-            (zip (tail bRev) aRev)
-    !aInv = bInv_1 : aInv'
 
 -- this function first does lagrange interpolation based on list of tuples,
 -- where first element is treated as x and second as y
@@ -96,16 +75,16 @@ lagrangeEvaluation pts x =
 basis :: Scalar -> Scalar -> [(Scalar, Scalar)] -> Scalar
 basis x xi pts =
     let
-        !_ =
-            trace
-                ( "calculating basis for x = "
-                    <> show x
-                    <> " xi = "
-                    <> show xi
-                    <> " pts = "
-                    <> show pts
-                )
-                ()
+--        !_ =
+--            trace
+--                ( "calculating basis for x = "
+--                    <> show x
+--                    <> " xi = "
+--                    <> show xi
+--                    <> " pts = "
+--                    <> show pts
+--                )
+--                ()
         (totalNumerator, totalDenominator) =
             foldl
                 ( \(numerator, denominator) (xj, _) ->

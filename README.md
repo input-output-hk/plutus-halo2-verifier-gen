@@ -107,32 +107,33 @@ The repository includes several example circuits:
 * `atms_with_lookups` - A circuit that verifies ATMS signature and lookup argument
 * `lookup_table` - A circuit with lookup argument
 
-those circuits can be run in 2 versions one with GWC19 flavor of KZG and one with halo2 variant
+These circuits can be run in two versions: one using the GWC19 flavor of multi-open KZG, and the other using the
+multi-open protocol described in Halo2 book.
 
 ```bash
-# Simple multiplication circuit GWC19 KZG
+# Simple multiplication circuit (Halo2 KZG)
 cargo run --example simple_mul
 
-# Simple multiplication circuit halo2 KZG
-cargo run --example simple_mul halo2
+# Simple multiplication circuit (GWC19 KZG)
+cargo run --example simple_mul gwc_kzg
 
-# ATMS (Aggregate Threshold Multisignature) circuit GWC19 KZG
+# ATMS (Aggregate Threshold Multisignature) circuit Halo2 KZG
 cargo run --example atms
 
-# ATMS (Aggregate Threshold Multisignature) circuit halo2 KZG
-cargo run --example atms halo2
+# ATMS (Aggregate Threshold Multisignature) circuit GWC19 KZG
+cargo run --example atms gwc_kzg
 
-# ATMS with dummy lookup tables GWC19 KZG
+# ATMS with dummy lookup tables (Halo2 KZG)
 cargo run --example atms_with_lookups
 
-# ATMS with dummy lookup tables halo2 KZG
-cargo run --example atms_with_lookups halo2
+# ATMS with dummy lookup tables (GWC19 KZG)
+cargo run --example atms_with_lookups gwc_kzg
 
-# Lookup table circuit GWC19 KZG
+# Lookup table circuit (Halo2 KZG)
 cargo run --example lookup_table
 
-# Simple multiplication circuit halo2 KZG
-cargo run --example atms_with_lookups halo2
+# Simple multiplication circuit (GWC19 KZG)
+cargo run --example atms_with_lookups gwc_kzg
 
 # With detailed logging
 RUST_LOG=debug cargo run --example simple_mul
@@ -167,15 +168,16 @@ cabal test all
 
 ## Benchmarks
 
-Below are the execution costs of Plutus scripts running the Halo2 verifier for various circuits (GWC19 KZG variant):
+Below are the execution costs of Plutus scripts running the Halo2 verifier for various circuits (with multiopen KZG
+variant from Halo2 book):
 
 | Circuit description             | Script size<br/>(% of script limit 14kb) | CPU usage               | Mem usage         |
 |---------------------------------|------------------------------------------|-------------------------|-------------------|
-| **Simple mul**                  | 6498  (45.3%)                            | 5,246,865,172  (52.47%) | 3,750,211 (26.7%) |
-| **Lookup table**                | 11981 (83.56%)                           | 8,508,800,375  (85.09%) | 4,506,048 (32.1%) |
-| **ATMS (50 out of 90)**         | 12542 (87.5%)                            | 9,049,726,110  (90.5%)  | 4,531,396 (32.3%) |
-| **ATMS (228 out of 408)**       | 12542 (87.5%)                            | 9,037,616,234  (90.3%)  | 4,488,266 (32.0%) |
-| **ATMS (50/90) + lookup table** | 15246 (106.3%)                           | 10,733,382,733 (107.3%) | 4,882,403 (34.8%) |
+| **Simple mul**                  | 6551  (45.7%)                            | 3,764,901,258  (37.65%) | 1,745,624 (12.4%) |
+| **Lookup table**                | 11359 (79.2%)                            | 6,585,396,799  (65.85%) | 3,444,710 (24.6%) |
+| **ATMS (50 out of 90)**         | 11947 (83.3%)                            | 7,715,973,120  (77.16%) | 3,485,174 (24.8%) |
+| **ATMS (50 out of 90)**         | 11947 (83.3%)                            | 7,715,973,120  (77.16%) | 3,485,174 (24.8%) |
+| **ATMS (50/90) + lookup table** | 14242 (99.3%)                            | 9,188,915,328  (91.89%) | 4,692,386 (33.5%) |
 
 **Note that the benchmark numbers are approximate.** Even for the same circuit, the verifier’s execution cost may vary
 slightly depending on the specific proof being verified. This variation stems from the randomness used during proof
