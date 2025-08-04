@@ -1,3 +1,5 @@
+use atms_halo2::rescue::{RescueParametersBls, RescueSponge};
+use atms_halo2::signatures::primitive::schnorr::Schnorr;
 use atms_halo2::{
     ecc::chip::EccInstructions,
     instructions::MainGateInstructions,
@@ -5,8 +7,6 @@ use atms_halo2::{
     signatures::schnorr::SchnorrSig,
     util::RegionCtx,
 };
-use atms_halo2::rescue::{RescueParametersBls, RescueSponge};
-use atms_halo2::signatures::primitive::schnorr::Schnorr;
 use blstrs::{Base, JubjubAffine};
 use halo2_proofs::{
     circuit::{Layouter, SimpleFloorPlanner, Value},
@@ -160,9 +160,9 @@ pub fn prepare_test_signatures(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use blstrs::Base;
     use ff::Field;
     use halo2_proofs::dev::MockProver;
-    use blstrs::Base;
     use halo2_proofs::plonk::k_from_circuit;
     use rand::SeedableRng;
 

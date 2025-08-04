@@ -167,7 +167,11 @@ mod tests {
             native_field: PhantomData,
         };
 
-        let pi = vec![vec![Base::from(42u64), Base::from(42u64), Base::from(42u64)]];
+        let pi = vec![vec![
+            Base::from(42u64),
+            Base::from(42u64),
+            Base::from(42u64),
+        ]];
 
         let k: u32 = k_from_circuit(&circuit);
         let prover =

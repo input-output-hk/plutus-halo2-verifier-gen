@@ -1,6 +1,6 @@
+use blstrs::Scalar;
 use std::fs::File;
 use std::io::Write;
-use blstrs::Scalar;
 
 pub fn export_proof(proof_file: String, proof: Vec<u8>) -> Result<(), String> {
     let hex = hex::encode(proof);

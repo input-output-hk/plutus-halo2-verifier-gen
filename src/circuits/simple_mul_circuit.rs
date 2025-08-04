@@ -1,12 +1,10 @@
 /// Simple multiplication example based on the Halo2 book example,
 /// available at: https://zcash.github.io/halo2/user/simple-example.html
-
 use ff::Field;
 use halo2_proofs::circuit::{AssignedCell, Chip, Layouter, Region, SimpleFloorPlanner, Value};
 use halo2_proofs::plonk::{Advice, Circuit, Column, ConstraintSystem, Error, Fixed, Selector};
 use halo2_proofs::poly::Rotation;
 use std::marker::PhantomData;
-
 
 #[derive(Clone, Debug)]
 pub struct FieldConfig {
@@ -186,11 +184,11 @@ impl<F: Field> Circuit<F> for SimpleMulCircuit<F> {
 
 #[cfg(test)]
 mod tests {
+    use crate::circuits::simple_mul_circuit::SimpleMulCircuit;
     use blstrs::{Base, Scalar};
+    use ff::Field;
     use halo2_proofs::dev::MockProver;
     use halo2_proofs::plonk::k_from_circuit;
-    use ff::Field;
-    use crate::circuits::simple_mul_circuit::SimpleMulCircuit;
 
     #[test]
     fn test_lookup_circuit() {
@@ -202,7 +200,11 @@ mod tests {
 
         let circuit = SimpleMulCircuit::init(constant, a, b, c);
 
-        let pi = vec![vec![Base::from(42u64), Base::from(42u64), Base::from(42u64)]];
+        let pi = vec![vec![
+            Base::from(42u64),
+            Base::from(42u64),
+            Base::from(42u64),
+        ]];
 
         let k: u32 = k_from_circuit(&circuit);
         let prover =

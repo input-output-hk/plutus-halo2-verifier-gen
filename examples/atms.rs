@@ -38,7 +38,9 @@ fn main() {
         _ => {
             println!("Usage:");
             println!("- to run the example: `cargo run --example example_name`");
-            println!("- to run the example using the GWC19 version of multi-open KZG, run: `cargo run --example example_name gwc_kzg`");
+            println!(
+                "- to run the example using the GWC19 version of multi-open KZG, run: `cargo run --example example_name gwc_kzg`"
+            );
         }
     }
 }
