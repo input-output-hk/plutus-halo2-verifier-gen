@@ -170,13 +170,13 @@ cabal test all
 Below are the execution costs of Plutus scripts running the Halo2 verifier for various circuits (with multiopen KZG
 variant from Halo2 book):
 
-| Circuit description             | Script size<br/>(% of script limit 14kb) | CPU usage               | Mem usage          |
-|---------------------------------|------------------------------------------|-------------------------|--------------------|
-| **Simple mul**                  | 6715  (46.8%)                            | 3,773,051,088  (37.73%) | 1,885,112 (13.46%) |
-| **Lookup table**                | 11517 (80.3%)                            | 6,593,546,629  (65.94%) | 3,584,198 (25.6%)  |
-| **ATMS (50 out of 90)**         | 12105 (84.3%)                            | 7,724,074,950  (77.24%) | 3,624,362 (25.8%)  |
-| **ATMS (228 out of 408)**       | 12105 (84.3%)                            | 7,724,074,950  (77.24%) | 3,624,362 (25.9%)  |
-| **ATMS (50/90) + lookup table** | 14403 (100.4%)                           | 9,197,113,158  (91.97%) | 4,832,174 (34.5%)  |
+| Circuit description             | Script size<br/>(% of script limit 14kb) | CPU usage               | Mem usage         |
+|---------------------------------|------------------------------------------|-------------------------|-------------------|
+| **Simple mul**                  | 6551  (45.7%)                            | 3,764,901,258  (37.65%) | 1,745,624 (12.4%) |
+| **Lookup table**                | 11359 (79.2%)                            | 6,585,396,799  (65.85%) | 3,444,710 (24.6%) |
+| **ATMS (50 out of 90)**         | 11947 (83.3%)                            | 7,715,973,120  (77.16%) | 3,485,174 (24.8%) |
+| **ATMS (50 out of 90)**         | 11947 (83.3%)                            | 7,715,973,120  (77.16%) | 3,485,174 (24.8%) |
+| **ATMS (50/90) + lookup table** | 14242 (99.3%)                            | 9,188,915,328  (91.89%) | 4,692,386 (33.5%) |
 
 **Note that the benchmark numbers are approximate.** Even for the same circuit, the verifier’s execution cost may vary
 slightly depending on the specific proof being verified. This variation stems from the randomness used during proof
