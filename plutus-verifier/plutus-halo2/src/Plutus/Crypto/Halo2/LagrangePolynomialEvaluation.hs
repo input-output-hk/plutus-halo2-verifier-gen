@@ -75,6 +75,16 @@ lagrangeEvaluation pts x =
 basis :: Scalar -> Scalar -> [(Scalar, Scalar)] -> Scalar
 basis x xi pts =
     let
+--        !_ =
+--            trace
+--                ( "calculating basis for x = "
+--                    <> show x
+--                    <> " xi = "
+--                    <> show xi
+--                    <> " pts = "
+--                    <> show pts
+--                )
+--                ()
         (totalNumerator, totalDenominator) =
             foldl
                 ( \(numerator, denominator) (xj, _) ->
