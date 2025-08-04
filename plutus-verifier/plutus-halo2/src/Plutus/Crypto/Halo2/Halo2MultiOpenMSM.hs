@@ -49,7 +49,7 @@ import PlutusTx.Prelude (
     enumFromTo,
     max,
     one,
-    trace,
+--    trace,
     zero,
     (*),
     (+),

@@ -35,7 +35,6 @@ import Plutus.Crypto.Halo2.Proof as Proof (
  )
 import Plutus.Crypto.Halo2.Transcript as Transcript (
     Transcript,
-    addPointToTranscript,
     addScalarToTranscript,
     squeezeChallange,
  )
