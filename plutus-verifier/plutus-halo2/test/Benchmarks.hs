@@ -1,8 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE NoImplicitPrelude #-}
--- use remove-trace for checking performance numbers, use no-remove-trace to see traces
-{-# OPTIONS_GHC -fplugin-opt PlutusTx.Plugin:remove-trace #-}
 
 module Benchmarks (runBenchmarks) where
 
@@ -177,7 +175,7 @@ logResult result = do
     threadDelay 500000
     H.putStrLn "\n    budget consumption (if traces are enabled values are artificially inflated): "
     H.putStrLn H.. T.unpack H.. displayExBudget H.$ evalResultBudget result
-    H.putStrLn "\n    traces (visible if no-remove-trace is set in plutus-verifier/plutus-halo2/test/Benchmarks.hs): "
+    H.putStrLn "\n    traces (visible if tracing code so uncommented): "
     _ <-
         H.sequence
             ( H.map
