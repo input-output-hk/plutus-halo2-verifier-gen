@@ -10,7 +10,7 @@ import Plutus.Crypto.BlsTypes (
     unScalar,
  )
 import Plutus.Crypto.Halo2.CompressUncompress (
-    unCompressG1Point,
+    deconstructG1Point,
  )
 import Plutus.Crypto.Halo2.MSMTypes
 import PlutusTx.Builtins (
@@ -83,7 +83,7 @@ instance Haskell.Show Tracing where
     show (TracingScalar t) = printf "0x%x" (unScalar t)
     show (TracingG1 t) =
         let
-            (x, y) = unCompressG1Point t
+            (x, y) = deconstructG1Point t
             x_s = unFp x
             y_s = unFp y
          in

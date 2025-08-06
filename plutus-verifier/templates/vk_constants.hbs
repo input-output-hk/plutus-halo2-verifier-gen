@@ -20,7 +20,7 @@ import Plutus.Crypto.BlsTypes (
   mkScalar,
  )
 import Plutus.Crypto.Halo2.CompressUncompress (
-  compressG1Point,
+  createG1Point,
  )
 import PlutusTx.Prelude (
   BuiltinBLS12_381_G1_Element,
@@ -52,7 +52,7 @@ p_commitment_val_pairs =
   ]
 
 commitments :: [(Integer, Integer)] -> [BuiltinBLS12_381_G1_Element]
-commitments = fmap (compressG1Point . bimap mkFp mkFp)
+commitments = fmap (createG1Point . bimap mkFp mkFp)
 
 p_commitments :: [BuiltinBLS12_381_G1_Element]
 p_commitments = commitments p_commitment_val_pairs
