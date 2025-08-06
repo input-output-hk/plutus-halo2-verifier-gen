@@ -4,6 +4,7 @@
 
 module Plutus.Crypto.Halo2.LagrangePolynomialEvaluation (
     lagrangePolynomialBasis,
+    getRotatedOmegas,
     lagrangeEvaluation,
     basis,
 ) where
@@ -12,6 +13,7 @@ import Plutus.Crypto.BlsTypes (
     Scalar,
     recip,
  )
+import Plutus.Crypto.BlsUtils (rotateOmega)
 import PlutusTx.List (foldl, zip)
 import PlutusTx.Prelude (
     AdditiveMonoid (..),
@@ -23,6 +25,7 @@ import PlutusTx.Prelude (
     (-),
     (/=),
  )
+import qualified Prelude
 
 {- | Computes evaluations (at the point `x`, where `xn = x^n`) of Lagrange
 basis polynomials `l_i(X)` defined such that `l_i(omega^i) = 1` and
@@ -52,6 +55,10 @@ lagrangePolynomialBasis x xn barycentricWeight rotations = result
     result :: [Scalar]
     !result = fmap (\(inv, rotatedOmega) -> inv * common * rotatedOmega) $ zip inversed rotations
 
+getRotatedOmegas :: Scalar -> Scalar -> Prelude.Integer -> Prelude.Integer -> [Scalar]
+getRotatedOmegas omega omegaInv from to =
+    fmap (rotateOmega omega omegaInv one) [from .. to]
+
 -- this function first does lagrange interpolation based on list of tuples,
 -- where first element is treated as x and second as y
 -- then it evaluates interpolated polynomial with 2nd argument of the function X
@@ -68,16 +75,16 @@ lagrangeEvaluation pts x =
 basis :: Scalar -> Scalar -> [(Scalar, Scalar)] -> Scalar
 basis x xi pts =
     let
-        --        !_ =
-        --            trace
-        --                ( "calculating basis for x = "
-        --                    <> show x
-        --                    <> " xi = "
-        --                    <> show xi
-        --                    <> " pts = "
-        --                    <> show pts
-        --                )
-        --                ()
+--        !_ =
+--            trace
+--                ( "calculating basis for x = "
+--                    <> show x
+--                    <> " xi = "
+--                    <> show xi
+--                    <> " pts = "
+--                    <> show pts
+--                )
+--                ()
         (totalNumerator, totalDenominator) =
             foldl
                 ( \(numerator, denominator) (xj, _) ->
