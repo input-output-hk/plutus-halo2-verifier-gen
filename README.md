@@ -176,7 +176,7 @@ variant from Halo2 book):
 | **Simple mul**                  | 6551  (45.7%)                            | 3,764,901,258  (37.65%) | 1,745,624 (12.4%) |
 | **Lookup table**                | 11359 (79.2%)                            | 6,585,396,799  (65.85%) | 3,444,710 (24.6%) |
 | **ATMS (50 out of 90)**         | 11947 (83.3%)                            | 7,715,973,120  (77.16%) | 3,485,174 (24.8%) |
-| **ATMS (50 out of 90)**         | 11947 (83.3%)                            | 7,715,973,120  (77.16%) | 3,485,174 (24.8%) |
+| **ATMS ATMS (228 out of 408)**  | 11947 (83.3%)                            | 7,715,973,120  (77.16%) | 3,485,174 (24.8%) |
 | **ATMS (50/90) + lookup table** | 14242 (99.3%)                            | 9,188,915,328  (91.89%) | 4,692,386 (33.5%) |
 
 **Note that the benchmark numbers are approximate.** Even for the same circuit, the verifier’s execution cost may vary

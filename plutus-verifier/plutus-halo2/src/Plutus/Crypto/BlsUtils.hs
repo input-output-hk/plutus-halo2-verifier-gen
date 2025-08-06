@@ -1,6 +1,6 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 
-module Plutus.Crypto.BlsUtils (powers, rotateOmega, Tracing, traceG1, traceG2, traceScalar, traceMVQ, traceMSM) where
+module Plutus.Crypto.BlsUtils (powers, rotateOmega, Tracing, traceG1, traceG2, traceScalar, traceMVQ, traceMSM, getRotatedOmegas) where
 
 import Plutus.Crypto.BlsTypes (
     Scalar,
@@ -20,8 +20,10 @@ import PlutusTx.Builtins (
 import PlutusTx.Prelude (
     BuiltinByteString,
     Integer,
+    MultiplicativeMonoid (one),
     abs,
     bls12_381_G2_compress,
+    fmap,
     fromBuiltin,
     otherwise,
     (*),
@@ -45,6 +47,11 @@ powers num base = go (mkScalar 1) num
         if num' == 0
             then []
             else first : go (base * first) (num' - 1)
+
+-- this code is called only inside template haskell so it is not executed on chain
+getRotatedOmegas :: Scalar -> Scalar -> Haskell.Integer -> Haskell.Integer -> [Scalar]
+getRotatedOmegas omega omegaInv from to =
+    fmap (rotateOmega omega omegaInv one) [from .. to]
 
 {-# INLINEABLE rotateOmega #-}
 rotateOmega :: Scalar -> Scalar -> Scalar -> Integer -> Scalar

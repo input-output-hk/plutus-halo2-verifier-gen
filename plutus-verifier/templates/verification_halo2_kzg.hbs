@@ -25,7 +25,6 @@ import qualified Plutus.Crypto.Constants as Constants
 import qualified Plutus.Crypto.Halo2.Generic.VKConstants as VKConstants
 import qualified Plutus.Crypto.Halo2.ApplicativeParser as M
 import Plutus.Crypto.Halo2.LagrangePolynomialEvaluation (
-  getRotatedOmegas,
   lagrangePolynomialBasis,
  )
 import Plutus.Crypto.Halo2.MSMEval (eval)
@@ -97,12 +96,12 @@ s_g2 = $(lift VKConstants.s_g2_val)
 {{{PERMUTATION_COMMITMENT_LIFTS}}}
 
 rotations_for_instances :: [Scalar]
-rotations_for_instances = $(lift (getRotatedOmegas VKConstants.omega_val VKConstants.omegaInv_val 0 {{{PUBLIC_INPUTS_COUNT}}}))
+rotations_for_instances = $(lift (BlsUtils.getRotatedOmegas VKConstants.omega_val VKConstants.omegaInv_val 0 {{{PUBLIC_INPUTS_COUNT}}}))
 
 rotations_for_vanishing :: [Scalar]
 rotations_for_vanishing =
   $( lift
-      ( getRotatedOmegas
+      ( BlsUtils.getRotatedOmegas
           VKConstants.omega_val
           VKConstants.omegaInv_val
           (-(VKConstants.blinding_factors + 1))
