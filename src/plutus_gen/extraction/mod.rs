@@ -549,7 +549,7 @@ where
     ));
 
     /// this function handles only 3 types of rotations,
-    /// this is done to reduce number of scalars tha have to be on the plutus side
+    /// this is done to reduce number of scalars that have to be on the plutus side
     fn decode(input: i32) -> RotationDescription {
         match input {
             -1 => RotationDescription::Previous,
