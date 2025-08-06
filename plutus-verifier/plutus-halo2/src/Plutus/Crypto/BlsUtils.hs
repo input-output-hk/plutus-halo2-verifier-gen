@@ -1,6 +1,6 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 
-module Plutus.Crypto.BlsUtils (powers, rotateOmega, Tracing, traceG1, traceG2, traceScalar, traceMVQ, traceMSM) where
+module Plutus.Crypto.BlsUtils (powers, rotateOmega, Tracing, traceG1, traceG2, traceScalar, traceMVQ, traceMSM, getRotatedOmegas) where
 
 import Plutus.Crypto.BlsTypes (
     Scalar,
@@ -10,7 +10,7 @@ import Plutus.Crypto.BlsTypes (
     unScalar,
  )
 import Plutus.Crypto.Halo2.CompressUncompress (
-    unCompressG1Point,
+    deconstructG1Point,
  )
 import Plutus.Crypto.Halo2.MSMTypes
 import PlutusTx.Builtins (
@@ -20,8 +20,10 @@ import PlutusTx.Builtins (
 import PlutusTx.Prelude (
     BuiltinByteString,
     Integer,
+    MultiplicativeMonoid (one),
     abs,
     bls12_381_G2_compress,
+    fmap,
     fromBuiltin,
     otherwise,
     (*),
@@ -45,6 +47,11 @@ powers num base = go (mkScalar 1) num
         if num' == 0
             then []
             else first : go (base * first) (num' - 1)
+
+-- this code is called only inside template haskell so it is not executed on chain
+getRotatedOmegas :: Scalar -> Scalar -> Haskell.Integer -> Haskell.Integer -> [Scalar]
+getRotatedOmegas omega omegaInv from to =
+    fmap (rotateOmega omega omegaInv one) [from .. to]
 
 {-# INLINEABLE rotateOmega #-}
 rotateOmega :: Scalar -> Scalar -> Scalar -> Integer -> Scalar
@@ -76,7 +83,7 @@ instance Haskell.Show Tracing where
     show (TracingScalar t) = printf "0x%x" (unScalar t)
     show (TracingG1 t) =
         let
-            (x, y) = unCompressG1Point t
+            (x, y) = deconstructG1Point t
             x_s = unFp x
             y_s = unFp y
          in

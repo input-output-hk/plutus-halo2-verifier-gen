@@ -548,12 +548,17 @@ where
         vanishing_splits_count - 1
     ));
 
+    /// this function handles only 3 types of rotations,
+    /// this is done to reduce number of scalars that have to be on the plutus side
     fn decode(input: i32) -> RotationDescription {
         match input {
             -1 => RotationDescription::Previous,
             0 => RotationDescription::Current,
             1 => RotationDescription::Next,
-            _ => panic!("unknown number {} for rotation", input),
+            _ => panic!(
+                "unknown number {} for rotation, only -1 0 and 1 are supported",
+                input
+            ),
         }
     }
 

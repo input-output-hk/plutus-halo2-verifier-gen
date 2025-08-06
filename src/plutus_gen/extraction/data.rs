@@ -74,6 +74,12 @@ pub struct InstantiationSpecificData {
 }
 
 // todo handle cases with custom gates that have more rotations then those 4?
+
+/// RotationDescription handles only rotations with value -1 0 and 1
+/// this is done to reduce number of scalars that have to be on the plutus side
+/// if allowing custom rotations is implemented remember about halo2 query collision described here
+/// https://blog.zksecurity.xyz/posts/halo2-query-collision/
+/// especially handle case where rotation 2^k is used to check for wrapping of the trace table rows
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq, Default, Hash)]
 pub enum RotationDescription {
     Last,
