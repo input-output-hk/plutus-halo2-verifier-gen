@@ -24,7 +24,7 @@ import Plutus.Crypto.BlsTypes as BlsTypes (
     reverseByteString,
  )
 import Plutus.Crypto.Halo2.CompressUncompress as CompressUncompress (
-    createG1Point,
+    constructG1Point,
     deconstructG1Point,
  )
 import Plutus.Crypto.Halo2.Proof as Proof (

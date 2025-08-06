@@ -2,7 +2,7 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 
 module Plutus.Crypto.Halo2.CompressUncompress (
-    createG1Point,
+    constructG1Point,
     deconstructG1Point,
 ) where
 
@@ -64,10 +64,10 @@ testBitByteString bs idx = readBit bs idx
 g1_zero :: BuiltinBLS12_381_G1_Element
 g1_zero = (bls12_381_G1_uncompress bls12_381_G1_compressed_zero)
 
-{-# INLINEABLE createG1Point #-}
-createG1Point :: (Fp, Fp) -> BuiltinBLS12_381_G1_Element
-createG1Point (Fp x, Fp y) | x == 0 && y == 1 = g1_zero
-createG1Point (x, y) = result
+{-# INLINEABLE constructG1Point #-}
+constructG1Point :: (Fp, Fp) -> BuiltinBLS12_381_G1_Element
+constructG1Point (Fp x, Fp y) | x == 0 && y == 1 = g1_zero
+constructG1Point (x, y) = result
   where
     x_bs = integerToByteString LittleEndian 48 (unFp x)
     prefixed =
