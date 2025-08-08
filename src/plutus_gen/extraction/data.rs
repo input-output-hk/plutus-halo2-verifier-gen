@@ -21,13 +21,12 @@ pub enum ProofExtractionSteps {
     XCoordinate,
     YCoordinate,
 
-    // elements specific to legacy GWC
+    // elements specific to GWC19 version of multiopen KZG
     V,
     U,
     Witnesses,
-    //
 
-    //elements related to multi open GWC
+    //elements related to Halo2 version of multiopen KZG
     X1,
     X2,
     X3,

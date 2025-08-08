@@ -8,7 +8,6 @@ module Plutus.Crypto.Halo2.Halo2MultiOpenMSM (
     computeV,
     evaluateLagrangePolynomials,
     finalCommitment,
-    x1PowersCount,
 ) where
 
 import Plutus.Crypto.BlsTypes (
@@ -62,7 +61,7 @@ import PlutusTx.Prelude (
 -- algorithm is ported from halo2 book
 {-# INLINEABLE buildMSM #-}
 buildMSM ::
-    Scalar ->
+    [Scalar] ->
     Scalar ->
     Scalar ->
     Scalar ->
@@ -72,15 +71,10 @@ buildMSM ::
     [(BuiltinBLS12_381_G1_Element, Integer, [Scalar], [Scalar])] ->
     [[Scalar]] ->
     MSM
-buildMSM x1 x2 x3 x4 f_comm pi_commitment proofX3QEvals commitmentMap pointSets = right
+buildMSM x1Powers x2 x3 x4 f_comm pi_commitment proofX3QEvals commitmentMap pointSets = right
   where
     pointSetsIndexes :: [Integer]
     pointSetsIndexes = enumFromTo 0 (length pointSets - 1)
-
-    -- x1Powers length can be precomputed
-    -- todo length can be precomputed
-    x1Powers :: [Scalar]
-    x1Powers = powers (x1PowersCount pointSetsIndexes commitmentMap) x1
 
     (q_coms, q_eval_sets) = unzip (buildQ commitmentMap pointSetsIndexes x1Powers)
 
@@ -161,22 +155,6 @@ evaluateLagrangePolynomials pointSets q_eval_sets x2 x3 proofX3QEvals =
         zero
         (reverse (zip (zip pointSets q_eval_sets) proofX3QEvals))
 
-{-# INLINEABLE x1PowersCount #-}
-x1PowersCount :: [Integer] -> [(BuiltinBLS12_381_G1_Element, Integer, [Scalar], [Scalar])] -> Integer
-x1PowersCount pointSetsIndexes commitmentMap =
-    foldl
-        max
-        0
-        ( map
-            ( \idx ->
-                length
-                    ( filter
-                        (\(_, set_index, _, _) -> set_index == idx)
-                        commitmentMap
-                    )
-            )
-            pointSetsIndexes
-        )
 
 {-# INLINEABLE buildQ #-}
 buildQ ::

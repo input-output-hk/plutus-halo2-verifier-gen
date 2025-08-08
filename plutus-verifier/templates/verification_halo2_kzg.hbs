@@ -91,6 +91,9 @@ barycentricWeight = $(lift VKConstants.barycentricWeight_val)
 s_g2 :: BuiltinBLS12_381_G2_Element
 s_g2 = $(lift VKConstants.s_g2_val)
 
+x1PowersCount :: Integer
+x1PowersCount = {{{X1_POWERS_COUNT}}}
+
 {{{FIXED_COMMITMENT_LIFTS}}}
 
 {{{PERMUTATION_COMMITMENT_LIFTS}}}
@@ -190,9 +193,11 @@ verify proof {{{PUBLIC_INPUTS_NAMES}}} = fst $ flip (M.run VKConstants.transcrip
       -- g2 is not negated as bls12_381_finalVerify is doing negation
       !g2 = (bls12_381_G2_uncompress bls12_381_G2_compressed_generator)
 
+      !x1Powers = BlsUtils.powers x1PowersCount x1
+
       !alt_right =
           buildMSM
-              x1
+              x1Powers
               x2
               x3
               x4
