@@ -78,8 +78,7 @@ buildMSM x1Powers x2 x3 x4 f_comm pi_commitment proofX3QEvals commitmentMap poin
 
     (q_coms, q_eval_sets) = unzip (buildQ commitmentMap pointSetsIndexes x1Powers)
 
-    -- todo length can be precomputed
-    x4PowersCount = (max (length proofX3QEvals + 1) (length q_coms + 1))
+    x4PowersCount = length pointSets + 1
 
     x4Powers :: [Scalar]
     x4Powers = powers x4PowersCount x4
