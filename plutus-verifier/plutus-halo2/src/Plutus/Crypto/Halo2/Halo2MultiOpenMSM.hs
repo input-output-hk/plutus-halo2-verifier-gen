@@ -14,9 +14,6 @@ import Plutus.Crypto.BlsTypes (
     Scalar,
     recip,
  )
-import Plutus.Crypto.BlsUtils (
-    powers,
- )
 import Plutus.Crypto.Halo2.LagrangePolynomialEvaluation (
     lagrangeEvaluation,
  )
@@ -46,7 +43,6 @@ import PlutusTx.Prelude (
     bls12_381_G1_neg,
     bls12_381_G1_uncompress,
     enumFromTo,
-    max,
     one,
 --    trace,
     zero,
