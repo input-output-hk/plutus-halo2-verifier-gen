@@ -56,32 +56,28 @@ import PlutusTx.Prelude (
     (==),
  )
 
--- this function takes commitment with point sets and returns only right MSM for further evaluation
--- as left MSM is equal to ONE * PI commitment
--- algorithm is ported from halo2 book
+-- Prepares MSM for multi-open KZG polynomial commitment verification.
+-- When evaluated, it represents the `right` input of the pairing check equation: `e(left, sG2) == e(right, G2)`,
+-- where left = PI commitment.
+-- For reference, see `https://github.com/input-output-hk/halo2/blob/plutus_verification/src/poly/kzg/mod.rs#L193`
 {-# INLINEABLE buildMSM #-}
 buildMSM ::
     [Scalar] ->
     Scalar ->
     Scalar ->
-    Scalar ->
+    [Scalar] ->
     BuiltinBLS12_381_G1_Element ->
     BuiltinBLS12_381_G1_Element ->
     [Scalar] ->
     [(BuiltinBLS12_381_G1_Element, Integer, [Scalar], [Scalar])] ->
     [[Scalar]] ->
     MSM
-buildMSM x1Powers x2 x3 x4 f_comm pi_commitment proofX3QEvals commitmentMap pointSets = right
+buildMSM x1Powers x2 x3 x4Powers f_comm pi_commitment proofX3QEvals commitmentMap pointSets = right
   where
     pointSetsIndexes :: [Integer]
     pointSetsIndexes = enumFromTo 0 (length pointSets - 1)
 
     (q_coms, q_eval_sets) = unzip (buildQ commitmentMap pointSetsIndexes x1Powers)
-
-    x4PowersCount = length pointSets + 1
-
-    x4Powers :: [Scalar]
-    x4Powers = powers x4PowersCount x4
 
     f_eval :: Scalar
     f_eval = evaluateLagrangePolynomials pointSets q_eval_sets x2 x3 proofX3QEvals

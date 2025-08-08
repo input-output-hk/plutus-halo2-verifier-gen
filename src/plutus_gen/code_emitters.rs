@@ -448,6 +448,11 @@ pub fn emit_verifier_code(
         max_commitments_per_points_set.to_string(),
     );
 
+    data.insert(
+        "X4_POWERS_COUNT".to_string(),
+        (point_sets_indexes.len() + 1).to_string(),
+    );
+
     let commitment_data = commitment_data
         .iter()
         .map(|commitment_data| {
