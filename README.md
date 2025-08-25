@@ -173,11 +173,11 @@ variant from Halo2 book):
 
 | Circuit description             | Script size<br/>(% of script limit 14kb) | CPU usage               | Mem usage         |
 |---------------------------------|------------------------------------------|-------------------------|-------------------|
-| **Simple mul**                  | 6551  (45.7%)                            | 3,764,901,258  (37.65%) | 1,745,624 (12.4%) |
-| **Lookup table**                | 11359 (79.2%)                            | 6,585,396,799  (65.85%) | 3,444,710 (24.6%) |
-| **ATMS (50 out of 90)**         | 11947 (83.3%)                            | 7,715,973,120  (77.16%) | 3,485,174 (24.8%) |
-| **ATMS ATMS (228 out of 408)**  | 11947 (83.3%)                            | 7,715,973,120  (77.16%) | 3,485,174 (24.8%) |
-| **ATMS (50/90) + lookup table** | 14242 (99.3%)                            | 9,188,915,328  (91.89%) | 4,692,386 (33.5%) |
+| **Simple mul**                  | 6434  (44.8%)                            | 3,729,441,762  (37.29%) | 1,549,444 (11.0%) |
+| **Lookup table**                | 11250 (78.4%)                            | 6,490,814,414  (64.91%) | 2,915,417 (20.8%) |
+| **ATMS (50 out of 90)**         | 11838 (82.5%)                            | 7,624,238,863  (76.24%) | 2,974,279 (21.2%) |
+| **ATMS (228 out of 408)**       | 11838 (82.5%)                            | 7,624,238,863  (76.24%) | 2,974,279 (21.2%) |
+| **ATMS (50/90) + lookup table** | 14128 (98.5%)                            | 9,043,652,303  (90.44%) | 3,877,297 (27.7%) |
 
 **Note that the benchmark numbers are approximate.** Even for the same circuit, the verifier’s execution cost may vary
 slightly depending on the specific proof being verified. This variation stems from the randomness used during proof

@@ -8,15 +8,11 @@ module Plutus.Crypto.Halo2.Halo2MultiOpenMSM (
     computeV,
     evaluateLagrangePolynomials,
     finalCommitment,
-    x1PowersCount,
 ) where
 
 import Plutus.Crypto.BlsTypes (
     Scalar,
     recip,
- )
-import Plutus.Crypto.BlsUtils (
-    powers,
  )
 import Plutus.Crypto.Halo2.LagrangePolynomialEvaluation (
     lagrangeEvaluation,
@@ -47,7 +43,6 @@ import PlutusTx.Prelude (
     bls12_381_G1_neg,
     bls12_381_G1_uncompress,
     enumFromTo,
-    max,
     one,
 --    trace,
     zero,
@@ -57,38 +52,28 @@ import PlutusTx.Prelude (
     (==),
  )
 
--- this function takes commitment with point sets and returns only right MSM for further evaluation
--- as left MSM is equal to ONE * PI commitment
--- algorithm is ported from halo2 book
+-- Prepares MSM for multi-open KZG polynomial commitment verification.
+-- When evaluated, it represents the `right` input of the pairing check equation: `e(left, sG2) == e(right, G2)`,
+-- where left = PI commitment.
+-- For reference, see `https://github.com/input-output-hk/halo2/blob/plutus_verification/src/poly/kzg/mod.rs#L193`
 {-# INLINEABLE buildMSM #-}
 buildMSM ::
+    [Scalar] ->
     Scalar ->
     Scalar ->
-    Scalar ->
-    Scalar ->
+    [Scalar] ->
     BuiltinBLS12_381_G1_Element ->
     BuiltinBLS12_381_G1_Element ->
     [Scalar] ->
     [(BuiltinBLS12_381_G1_Element, Integer, [Scalar], [Scalar])] ->
     [[Scalar]] ->
     MSM
-buildMSM x1 x2 x3 x4 f_comm pi_commitment proofX3QEvals commitmentMap pointSets = right
+buildMSM x1Powers x2 x3 x4Powers f_comm pi_commitment proofX3QEvals commitmentMap pointSets = right
   where
     pointSetsIndexes :: [Integer]
     pointSetsIndexes = enumFromTo 0 (length pointSets - 1)
 
-    -- x1Powers length can be precomputed
-    -- todo length can be precomputed
-    x1Powers :: [Scalar]
-    x1Powers = powers (x1PowersCount pointSetsIndexes commitmentMap) x1
-
     (q_coms, q_eval_sets) = unzip (buildQ commitmentMap pointSetsIndexes x1Powers)
-
-    -- todo length can be precomputed
-    x4PowersCount = (max (length proofX3QEvals + 1) (length q_coms + 1))
-
-    x4Powers :: [Scalar]
-    x4Powers = powers x4PowersCount x4
 
     f_eval :: Scalar
     f_eval = evaluateLagrangePolynomials pointSets q_eval_sets x2 x3 proofX3QEvals
@@ -161,22 +146,6 @@ evaluateLagrangePolynomials pointSets q_eval_sets x2 x3 proofX3QEvals =
         zero
         (reverse (zip (zip pointSets q_eval_sets) proofX3QEvals))
 
-{-# INLINEABLE x1PowersCount #-}
-x1PowersCount :: [Integer] -> [(BuiltinBLS12_381_G1_Element, Integer, [Scalar], [Scalar])] -> Integer
-x1PowersCount pointSetsIndexes commitmentMap =
-    foldl
-        max
-        0
-        ( map
-            ( \idx ->
-                length
-                    ( filter
-                        (\(_, set_index, _, _) -> set_index == idx)
-                        commitmentMap
-                    )
-            )
-            pointSetsIndexes
-        )
 
 {-# INLINEABLE buildQ #-}
 buildQ ::

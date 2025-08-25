@@ -190,12 +190,15 @@ verify proof {{{PUBLIC_INPUTS_NAMES}}} = fst $ flip (M.run VKConstants.transcrip
       -- g2 is not negated as bls12_381_finalVerify is doing negation
       !g2 = (bls12_381_G2_uncompress bls12_381_G2_compressed_generator)
 
+      !x1Powers = BlsUtils.powers {{{X1_POWERS_COUNT}}} x1
+      !x4Powers = BlsUtils.powers {{{X4_POWERS_COUNT}}} x4
+
       !alt_right =
           buildMSM
-              x1
+              x1Powers
               x2
               x3
-              x4
+              x4Powers
               f_commitment
               pi_term
               [{{{Q_EVALS_FROM_PROOF}}}]

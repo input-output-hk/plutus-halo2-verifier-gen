@@ -430,6 +430,29 @@ pub fn emit_verifier_code(
 
     let (unique_grouped_points, commitment_data) = precompute_intermediate_sets(circuit);
 
+    // Precompute maximum number of commitments queried for any points set,
+    // it will define the number of X1 powers that we would need to compute during verification
+    let point_sets_indexes: Vec<usize> = (0..unique_grouped_points.len()).collect();
+    let max_commitments_per_points_set = point_sets_indexes
+        .iter()
+        .map(|&idx| {
+            commitment_data
+                .iter()
+                .filter(|cd| cd.point_set_index == idx)
+                .count()
+        })
+        .max()
+        .unwrap_or(0);
+    data.insert(
+        "X1_POWERS_COUNT".to_string(),
+        max_commitments_per_points_set.to_string(),
+    );
+
+    data.insert(
+        "X4_POWERS_COUNT".to_string(),
+        (point_sets_indexes.len() + 1).to_string(),
+    );
+
     let commitment_data = commitment_data
         .iter()
         .map(|commitment_data| {
