@@ -15,3 +15,5 @@ VerifierScript.flat
 benchmark.json
 plutus-verifier/dist-newstyle
 Cargo.lock
+plutus.json
+.env
