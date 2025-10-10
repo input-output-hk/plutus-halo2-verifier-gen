@@ -1,8 +1,8 @@
 mod api;
 mod utils;
 
-use crate::api::{BlockFrostNodeAPI, load_env_vars};
-use crate::utils::{to_address, to_config};
+use crate::api::{BlockFrostNodeAPI, load_env_vars, to_config};
+use crate::utils::to_address;
 use cardano_serialization_lib::{
     Address, BigInt, CostModel, Costmdls, Credential, EnterpriseAddress, ExUnits, FixedTransaction,
     Int, Language, MintBuilder, MintWitness, PlutusData, PlutusScript, PlutusScriptSource,
@@ -149,7 +149,7 @@ pub async fn mint(
 
     res.insert(
         &Language::new_plutus_v3(),
-        &CostModel::from(protocol_params.cost_models_raw.PlutusV3.clone()),
+        &CostModel::from(protocol_params.get_cost_model()),
     );
 
     let mut tx_input_builder = TxInputsBuilder::new();

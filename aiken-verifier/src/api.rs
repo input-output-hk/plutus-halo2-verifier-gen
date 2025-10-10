@@ -1,5 +1,6 @@
 use cardano_serialization_lib::{
-    Address, BigNum, PrivateKey, Transaction, TransactionHash, TransactionInput,
+    Address, BigNum, ExUnitPrices, LinearFee, PrivateKey, Transaction, TransactionBuilderConfig,
+    TransactionBuilderConfigBuilder, TransactionHash, TransactionInput, UnitInterval,
     Value as CardanoValue,
 };
 use dotenvy::dotenv;
@@ -13,17 +14,23 @@ use tokio::time::sleep;
 
 #[derive(Deserialize, Debug)]
 pub struct ProtocolParams {
-    pub min_fee_a: u64,
-    pub min_fee_b: u64,
-    pub max_tx_size: u32,
-    pub key_deposit: String,
-    pub pool_deposit: String,
-    pub coins_per_utxo_word: String,
-    pub max_val_size: String,
-    pub min_fee_ref_script_cost_per_byte: u32,
-    pub price_mem: f64,
-    pub price_step: f64,
-    pub cost_models_raw: RawModels,
+    min_fee_a: u64,
+    min_fee_b: u64,
+    max_tx_size: u32,
+    key_deposit: String,
+    pool_deposit: String,
+    coins_per_utxo_word: String,
+    max_val_size: String,
+    min_fee_ref_script_cost_per_byte: u32,
+    price_mem: f64,
+    price_step: f64,
+    cost_models_raw: RawModels,
+}
+
+impl ProtocolParams {
+    pub(crate) fn get_cost_model(&self) -> Vec<i128> {
+        self.cost_models_raw.PlutusV3.clone()
+    }
 }
 
 #[expect(non_snake_case)]
@@ -183,4 +190,38 @@ pub fn load_env_vars() -> (String, PrivateKey) {
         PrivateKey::from_bech32(private_key.as_str()).expect("private key is not valid");
 
     (block_frost_api_key, private_key)
+}
+
+pub fn to_config(
+    protocol_params: &ProtocolParams,
+) -> Result<TransactionBuilderConfig, Box<dyn Error>> {
+    let config = TransactionBuilderConfigBuilder::new()
+        .fee_algo(&LinearFee::new(
+            &BigNum::from(protocol_params.min_fee_a),
+            &BigNum::from(protocol_params.min_fee_b),
+        ))
+        .pool_deposit(&BigNum::from_str(protocol_params.pool_deposit.as_str())?)
+        .key_deposit(&BigNum::from_str(protocol_params.key_deposit.as_str())?)
+        .max_value_size(protocol_params.max_val_size.parse::<u32>()?)
+        .max_tx_size(protocol_params.max_tx_size)
+        .coins_per_utxo_byte(&BigNum::from_str(
+            protocol_params.coins_per_utxo_word.as_str(),
+        )?)
+        .ref_script_coins_per_byte(&UnitInterval::new(
+            &BigNum::from(protocol_params.min_fee_ref_script_cost_per_byte),
+            &BigNum::from_str("1")?,
+        ))
+        .ex_unit_prices(&ExUnitPrices::new(
+            // those are hardcoded for now
+            // "price_mem": 0.0577,
+            // "price_step": 0.0000721,
+            &UnitInterval::new(&BigNum::from_str("577")?, &BigNum::from_str("10000")?),
+            &UnitInterval::new(&BigNum::from_str("721")?, &BigNum::from_str("10000000")?),
+        ))
+        .build()?;
+
+    trace!("price_mem {}", protocol_params.price_mem);
+    trace!("price_step {}", protocol_params.price_step);
+
+    Ok(config)
 }
