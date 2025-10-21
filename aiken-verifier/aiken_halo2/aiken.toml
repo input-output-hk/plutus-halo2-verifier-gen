@@ -1,13 +1,13 @@
-name = "iog/aiken_helo2"
+name = "iog/aiken_halo2"
 version = "0.0.0"
 compiler = "v1.1.19"
 plutus = "v3"
 license = "Apache-2.0"
-description = "Aiken contracts for project 'iog/aiken_helo2'"
+description = "Aiken contracts for project 'iog/aiken_halo2'"
 
 [repository]
 user = "iog"
-project = "aiken_helo2"
+project = "aiken_halo2"
 platform = "github"
 
 [[dependencies]]
