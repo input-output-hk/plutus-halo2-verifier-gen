@@ -1,0 +1,22 @@
+name = "iog/aiken_halo2"
+version = "0.0.0"
+compiler = "v1.1.19"
+plutus = "v3"
+license = "Apache-2.0"
+description = "Aiken contracts for project 'iog/aiken_halo2'"
+
+[repository]
+user = "iog"
+project = "aiken_halo2"
+platform = "github"
+
+[[dependencies]]
+name = "aiken-lang/stdlib"
+version = "v2.2.0"
+source = "github"
+
+[config]
+
+[config.default]
+#magic number for pre prod
+network_id = 1
