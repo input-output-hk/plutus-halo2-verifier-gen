@@ -53,22 +53,20 @@ impl Circuit<Base> for AtmsSignatureCircuit {
             |region| {
                 let offset = 0;
                 let mut ctx = RegionCtx::new(region, offset);
+
                 let assigned_sigs = self
                     .signatures
                     .iter()
                     .map(|&signature| {
                         if let Some(sig) = signature {
-                            Some(
-                                atms_gate
-                                    .schnorr_gate
-                                    .assign_sig(&mut ctx, &Value::known(sig))
-                                    .ok()?,
-                            )
+                            atms_gate
+                                .schnorr_gate
+                                .assign_sig(&mut ctx, &Value::known(sig))
                         } else {
-                            None
+                            atms_gate.schnorr_gate.assign_dummy_sig(&mut ctx)
                         }
                     })
-                    .collect::<Vec<_>>();
+                    .collect::<Result<Vec<_>, Error>>()?;
                 let assigned_pks = self
                     .pks
                     .iter()
@@ -160,10 +158,18 @@ pub fn prepare_test_signatures(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use blstrs::Base;
+    use crate::plutus_gen::adjusted_types::CardanoFriendlyState;
+    use blstrs::{Base, Bls12, Scalar};
     use ff::Field;
     use halo2_proofs::dev::MockProver;
-    use halo2_proofs::plonk::k_from_circuit;
+    use halo2_proofs::plonk::{
+        ProvingKey, VerifyingKey, create_proof, k_from_circuit, keygen_pk, keygen_vk, prepare,
+    };
+    use halo2_proofs::poly::commitment::Guard;
+    use halo2_proofs::poly::gwc_kzg::GwcKZGCommitmentScheme;
+    use halo2_proofs::poly::kzg::params::ParamsKZG;
+    use halo2_proofs::transcript::{CircuitTranscript, Transcript};
+    use log::info;
     use rand::SeedableRng;
 
     #[test]
@@ -194,5 +200,113 @@ mod tests {
             MockProver::run(k, &circuit, pi).expect("Failed to run ATMS verifier mock prover");
 
         prover.assert_satisfied();
+    }
+
+    #[test]
+    fn test_atms_circuit_for_different_proofs() {
+        type PCS = GwcKZGCommitmentScheme<Bls12>;
+
+        let seed = [0u8; 32];
+        let mut rng: StdRng = SeedableRng::from_seed(seed);
+
+        let num_parties = 6;
+        let threshold = 3;
+        let msg = Base::from(42u64);
+
+        let (signatures, pks, pks_comm) =
+            prepare_test_signatures(num_parties, threshold, msg, &mut rng);
+
+        let circuit = AtmsSignatureCircuit {
+            signatures,
+            pks,
+            pks_comm,
+            msg,
+            threshold: Base::from(threshold as u64),
+        };
+
+        let k: u32 = k_from_circuit(&circuit);
+        let kzg_params: ParamsKZG<Bls12> = ParamsKZG::<Bls12>::unsafe_setup(k, rng.clone());
+        let vk: VerifyingKey<Scalar, PCS> = keygen_vk(&kzg_params, &circuit).unwrap();
+        let pk: ProvingKey<Scalar, PCS> = keygen_pk(vk.clone(), &circuit).unwrap();
+
+        let instances: &[&[&[Scalar]]] = &[&[&[pks_comm, msg, Base::from(threshold as u64)]]];
+        info!("Public inputs: {:?}", instances);
+
+        let mut transcript: CircuitTranscript<CardanoFriendlyState> =
+            CircuitTranscript::<CardanoFriendlyState>::init();
+
+        create_proof(
+            &kzg_params,
+            &pk,
+            &[circuit],
+            instances,
+            &mut rng,
+            &mut transcript,
+        )
+        .expect("proof generation should not fail");
+
+        let proof = transcript.finalize();
+        info!("proof size {:?}", proof.len());
+
+        let mut transcript_verifier: CircuitTranscript<CardanoFriendlyState> =
+            CircuitTranscript::<CardanoFriendlyState>::init_from_bytes(&proof);
+
+        let verifier = prepare::<_, PCS, CircuitTranscript<CardanoFriendlyState>>(
+            &vk,
+            instances,
+            &mut transcript_verifier,
+        )
+        .expect("prepare verification failed");
+
+        verifier
+            .verify(&kzg_params.verifier_params())
+            .expect("verify failed");
+
+        //=========================================================
+        // Create the second proof using the same VK/PK setup
+
+        let (signatures, pks, pks_comm) =
+            prepare_test_signatures(num_parties, threshold, msg, &mut rng);
+
+        let circuit = AtmsSignatureCircuit {
+            signatures,
+            pks,
+            pks_comm,
+            msg,
+            threshold: Base::from(threshold as u64),
+        };
+
+        let instances: &[&[&[Scalar]]] = &[&[&[pks_comm, msg, Base::from(threshold as u64)]]];
+        info!("Public inputs: {:?}", instances);
+
+        let mut transcript: CircuitTranscript<CardanoFriendlyState> =
+            CircuitTranscript::<CardanoFriendlyState>::init();
+
+        create_proof(
+            &kzg_params,
+            &pk,
+            &[circuit],
+            instances,
+            &mut rng,
+            &mut transcript,
+        )
+        .expect("proof generation should not fail");
+
+        let proof = transcript.finalize();
+        info!("proof size {:?}", proof.len());
+
+        let mut transcript_verifier: CircuitTranscript<CardanoFriendlyState> =
+            CircuitTranscript::<CardanoFriendlyState>::init_from_bytes(&proof);
+
+        let verifier = prepare::<_, PCS, CircuitTranscript<CardanoFriendlyState>>(
+            &vk,
+            instances,
+            &mut transcript_verifier,
+        )
+        .expect("prepare verification failed");
+
+        verifier
+            .verify(&kzg_params.verifier_params())
+            .expect("verify failed");
     }
 }
