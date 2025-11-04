@@ -8,6 +8,7 @@ target/
 .idea
 /target
 serialized_proof.json
+serialized_proof.hex
 serialized_public_input.hex
 Verifier.hs
 VKConstants.hs
