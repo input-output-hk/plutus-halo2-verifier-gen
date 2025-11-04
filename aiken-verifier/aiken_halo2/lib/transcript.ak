@@ -30,42 +30,42 @@ pub fn construct_transcript(
   common_scalar(transcript_repr, transcript)
 }
 
-pub fn read_scalar(proof: Transcript) -> (State<Scalar>, Transcript) {
-  let scalar_bytes = bytearray.take(proof.remaining_proof, 32)
+pub fn read_scalar(transcript: Transcript) -> (State<Scalar>, Transcript) {
+  let scalar_bytes = bytearray.take(transcript.remaining_proof, 32)
   let scalar_integer = bytearray_to_integer(False, scalar_bytes)
   let scalar = from_int(scalar_integer)
 
-  let remaining_proof_data = bytearray.drop(proof.remaining_proof, 32)
+  let remaining_proof_data = bytearray.drop(transcript.remaining_proof, 32)
 
   let new_proof =
     common_scalar(
       scalar,
-      Transcript { ..proof, remaining_proof: remaining_proof_data },
+      Transcript { ..transcript, remaining_proof: remaining_proof_data },
     )
 
   (scalar, new_proof)
 }
 
-pub fn common_scalar(scalar: State<Scalar>, proof: Transcript) -> Transcript {
+pub fn common_scalar(scalar: State<Scalar>, transcript: Transcript) -> Transcript {
   let scalar_integer = to_int(scalar)
   let scalar_bytes = integer_to_bytearray(False, 32, scalar_integer)
 
   let bytes_to_append = bytearray.concat(prefix_common, scalar_bytes)
   let new_bytes_for_hash =
-    bytearray.concat(proof.accumulated_for_hash, bytes_to_append)
+    bytearray.concat(transcript.accumulated_for_hash, bytes_to_append)
 
-  Transcript { ..proof, accumulated_for_hash: new_bytes_for_hash }
+  Transcript { ..transcript, accumulated_for_hash: new_bytes_for_hash }
 }
 
-pub fn read_point(proof: Transcript) -> (G1Element, Transcript) {
-  let g1_bytes = bytearray.take(proof.remaining_proof, 48)
+pub fn read_point(transcript: Transcript) -> (G1Element, Transcript) {
+  let g1_bytes = bytearray.take(transcript.remaining_proof, 48)
   let g1 = bls12_381_g1_uncompress(g1_bytes)
 
-  let remaining_proof_data = bytearray.drop(proof.remaining_proof, 48)
+  let remaining_proof_data = bytearray.drop(transcript.remaining_proof, 48)
 
   let bytes_to_append = bytearray.concat(prefix_common, g1_bytes)
   let new_bytes_for_hash =
-    bytearray.concat(proof.accumulated_for_hash, bytes_to_append)
+    bytearray.concat(transcript.accumulated_for_hash, bytes_to_append)
 
   (
     g1,
@@ -76,9 +76,9 @@ pub fn read_point(proof: Transcript) -> (G1Element, Transcript) {
   )
 }
 
-pub fn squeeze_challenge(proof: Transcript) -> (State<Scalar>, Transcript) {
+pub fn squeeze_challenge(transcript: Transcript) -> (State<Scalar>, Transcript) {
   let data_for_squeeze =
-    bytearray.concat(proof.accumulated_for_hash, prefix_challenge)
+    bytearray.concat(transcript.accumulated_for_hash, prefix_challenge)
   let squeeze_hash = blake2b_256(data_for_squeeze)
   let squeeze_integer = bytearray_to_integer(False, squeeze_hash)
   let squeeze_integer = mod_integer(squeeze_integer, bls12_381_field_prime)
@@ -87,7 +87,7 @@ pub fn squeeze_challenge(proof: Transcript) -> (State<Scalar>, Transcript) {
 
   (
     squeeze_scalar,
-    Transcript { ..proof, accumulated_for_hash: data_for_squeeze },
+    Transcript { ..transcript, accumulated_for_hash: data_for_squeeze },
   )
 }
 
