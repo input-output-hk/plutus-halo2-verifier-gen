@@ -35,15 +35,15 @@ pub fn read_scalar(transcript: Transcript) -> (State<Scalar>, Transcript) {
   let scalar_integer = bytearray_to_integer(False, scalar_bytes)
   let scalar = from_int(scalar_integer)
 
-  let remaining_proof_data = bytearray.drop(transcript.remaining_proof, 32)
+  let remaining_transcript_data = bytearray.drop(transcript.remaining_proof, 32)
 
-  let new_proof =
+  let new_transcript =
     common_scalar(
       scalar,
-      Transcript { ..transcript, remaining_proof: remaining_proof_data },
+      Transcript { ..transcript, remaining_proof: remaining_transcript_data },
     )
 
-  (scalar, new_proof)
+  (scalar, new_transcript)
 }
 
 pub fn common_scalar(scalar: State<Scalar>, transcript: Transcript) -> Transcript {
@@ -61,7 +61,7 @@ pub fn read_point(transcript: Transcript) -> (G1Element, Transcript) {
   let g1_bytes = bytearray.take(transcript.remaining_proof, 48)
   let g1 = bls12_381_g1_uncompress(g1_bytes)
 
-  let remaining_proof_data = bytearray.drop(transcript.remaining_proof, 48)
+  let remaining_transcript_data = bytearray.drop(transcript.remaining_proof, 48)
 
   let bytes_to_append = bytearray.concat(prefix_common, g1_bytes)
   let new_bytes_for_hash =
@@ -70,7 +70,7 @@ pub fn read_point(transcript: Transcript) -> (G1Element, Transcript) {
   (
     g1,
     Transcript {
-      remaining_proof: remaining_proof_data,
+      remaining_proof: remaining_transcript_data,
       accumulated_for_hash: new_bytes_for_hash,
     },
   )
@@ -96,8 +96,8 @@ test transcript_representation_test() {
     from_int(0x53772fda8c4d27d16e6d1b3b0ed0f0c492414695f8050480aaeb9f0c1257bc6b)
   let proof_for_testing = #"00"
 
-  let proof_data = construct_transcript(proof_for_testing, rep)
-  let (squeeze, _) = squeeze_challenge(proof_data)
+  let transcript_data = construct_transcript(proof_for_testing, rep)
+  let (squeeze, _) = squeeze_challenge(transcript_data)
   expect
     squeeze == from_int(
       0x4adae634053c0c9ed84859d0be4afad0dce2a7fe3e3e29e09a02e19d603022ad,
@@ -110,8 +110,8 @@ test point_deserialization_generator() {
   let generator_bytes =
     #"97f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb"
 
-  let proof_data = construct_transcript(generator_bytes, rep)
-  let (point, _) = read_point(proof_data)
+  let transcript_data = construct_transcript(generator_bytes, rep)
+  let (point, _) = read_point(transcript_data)
 
   expect generator == point
 }
@@ -122,8 +122,8 @@ test point_deserialization_negated_generator() {
   let negated_generator_bytes =
     #"b7f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb"
 
-  let proof_data = construct_transcript(negated_generator_bytes, rep)
-  let (point, _) = read_point(proof_data)
+  let transcript_data = construct_transcript(negated_generator_bytes, rep)
+  let (point, _) = read_point(transcript_data)
 
   expect bls12_381_g1_neg(generator) == point
 }
@@ -132,8 +132,8 @@ test point_deserialization() {
   let rep = from_int(1)
   let point_bytes =
     #"8ce3b57b791798433fd323753489cac9bca43b98deaafaed91f4cb010730ae1e38b186ccd37a09b8aed62ce23b699c48"
-  let proof_data = construct_transcript(point_bytes, rep)
-  let (point, _) = read_point(proof_data)
+  let transcript_data = construct_transcript(point_bytes, rep)
+  let (point, _) = read_point(transcript_data)
 
   expect bls12_381_g1_scalar_mul(42, generator) == point
 }
@@ -143,8 +143,8 @@ test scalar_deserialization_field_prime() {
   let scalar_bytes =
     #"01000000fffffffffe5bfeff02a4bd5305d8a10908d83933487d9d2953a7ed73"
 
-  let proof_data = construct_transcript(scalar_bytes, rep)
-  let (scalar, _) = read_scalar(proof_data)
+  let transcript_data = construct_transcript(scalar_bytes, rep)
+  let (scalar, _) = read_scalar(transcript_data)
 
   expect scalar == from_int(0)
 }
@@ -153,8 +153,8 @@ test overflow_scalar_deserialization() {
   let rep = from_int(1)
   let scalar_bytes =
     #"01000000fffffffffe5bfeff42a4bd5305d8a10908d83933487d9d2953a7ed71"
-  let proof_data = construct_transcript(scalar_bytes, rep)
-  let (scalar, _) = read_scalar(proof_data)
+  let transcript_data = construct_transcript(scalar_bytes, rep)
+  let (scalar, _) = read_scalar(transcript_data)
   expect
     scalar == from_int(
       0x71eda753299d7d483339d80809a1d80553bda442fffe5bfeffffffff00000001,
@@ -167,10 +167,10 @@ test adding_scalar_to_transcript() {
 
   let c_scalar = from_int(42)
 
-  let proof_data = construct_transcript(proof_for_testing, rep)
-  let proof_data = common_scalar(c_scalar, proof_data)
+  let transcript_data = construct_transcript(proof_for_testing, rep)
+  let transcript_data = common_scalar(c_scalar, transcript_data)
 
-  let (challenge, _) = squeeze_challenge(proof_data)
+  let (challenge, _) = squeeze_challenge(transcript_data)
 
   expect
     challenge == from_int(
@@ -185,11 +185,11 @@ test squeeze_challenge_calculations() {
 
   let c_scalar = from_int(42)
 
-  let proof_data = construct_transcript(proof_for_testing, rep)
-  let proof_data = common_scalar(c_scalar, proof_data)
-  let (point, proof_data) = read_point(proof_data)
-  let (scalar, proof_data) = read_scalar(proof_data)
-  let (challenge, _) = squeeze_challenge(proof_data)
+  let transcript_data = construct_transcript(proof_for_testing, rep)
+  let transcript_data = common_scalar(c_scalar, transcript_data)
+  let (point, transcript_data) = read_point(transcript_data)
+  let (scalar, transcript_data) = read_scalar(transcript_data)
+  let (challenge, _) = squeeze_challenge(transcript_data)
 
   expect bls12_381_g1_neg(generator) == point
   expect
@@ -202,6 +202,8 @@ test squeeze_challenge_calculations() {
     )
 }
 
+// reference data was generated with Plinth verifier example, by using tracing feature
+// this test is based on simple mul example run with halo2 flavor of KZG
 test full_proof_deserialization_for_simple_mul_circuit() {
   let transcript_repr_for_tests =
     0x53772fda8c4d27d16e6d1b3b0ed0f0c492414695f8050480aaeb9f0c1257bc6b
@@ -216,52 +218,52 @@ test full_proof_deserialization_for_simple_mul_circuit() {
   let inputs_2 = from_int(42)
   let inputs_3 = from_int(42)
 
-  let proof_data = construct_transcript(proof_for_testing, rep)
+  let transcript_data = construct_transcript(proof_for_testing, rep)
 
-  let proof_data = common_scalar(inputs_count, proof_data)
+  let transcript_data = common_scalar(inputs_count, transcript_data)
 
-  let proof_data = common_scalar(inputs_1, proof_data)
-  let proof_data = common_scalar(inputs_2, proof_data)
-  let proof_data = common_scalar(inputs_3, proof_data)
+  let transcript_data = common_scalar(inputs_1, transcript_data)
+  let transcript_data = common_scalar(inputs_2, transcript_data)
+  let transcript_data = common_scalar(inputs_3, transcript_data)
 
-  let (_a1, proof_data) = read_point(proof_data)
-  let (_a2, proof_data) = read_point(proof_data)
+  let (_a1, transcript_data) = read_point(transcript_data)
+  let (_a2, transcript_data) = read_point(transcript_data)
 
-  let (_theta, proof_data) = squeeze_challenge(proof_data)
-  let (_beta, proof_data) = squeeze_challenge(proof_data)
-  let (gamma, proof_data) = squeeze_challenge(proof_data)
+  let (_theta, transcript_data) = squeeze_challenge(transcript_data)
+  let (_beta, transcript_data) = squeeze_challenge(transcript_data)
+  let (gamma, transcript_data) = squeeze_challenge(transcript_data)
 
   expect
     gamma == from_int(
       0x581743998eb1b602aa993ad12813fac838fe438153b29827d5216c98c4471960,
     )
 
-  let (_permutations_committed_a, proof_data) = read_point(proof_data)
-  let (_permutations_committed_b, proof_data) = read_point(proof_data)
-  let (_permutations_committed_c, proof_data) = read_point(proof_data)
+  let (_permutations_committed_a, transcript_data) = read_point(transcript_data)
+  let (_permutations_committed_b, transcript_data) = read_point(transcript_data)
+  let (_permutations_committed_c, transcript_data) = read_point(transcript_data)
 
-  let (_vanishingRand, proof_data) = read_point(proof_data)
+  let (_vanishingRand, transcript_data) = read_point(transcript_data)
 
-  let (y, proof_data) = squeeze_challenge(proof_data)
+  let (y, transcript_data) = squeeze_challenge(transcript_data)
 
   expect
     y == from_int(
       0x4b57e2385bb505b146a1fd814e70f776617d92b8c413a9d6d369c6865fd01870,
     )
 
-  let (_vanishingSplit1, proof_data) = read_point(proof_data)
-  let (_vanishingSplit2, proof_data) = read_point(proof_data)
+  let (_vanishingSplit1, transcript_data) = read_point(transcript_data)
+  let (_vanishingSplit2, transcript_data) = read_point(transcript_data)
 
-  let (x, proof_data) = squeeze_challenge(proof_data)
+  let (x, transcript_data) = squeeze_challenge(transcript_data)
 
   expect
     x == from_int(
       0x65e2000f8ef4d864b59536948015f6d968e559ecaccae4d58aea34b54593652d,
     )
 
-  let (adviceEval1, proof_data) = read_scalar(proof_data)
-  let (adviceEval2, proof_data) = read_scalar(proof_data)
-  let (adviceEval3, proof_data) = read_scalar(proof_data)
+  let (adviceEval1, transcript_data) = read_scalar(transcript_data)
+  let (adviceEval2, transcript_data) = read_scalar(transcript_data)
+  let (adviceEval3, transcript_data) = read_scalar(transcript_data)
 
   expect
     adviceEval1 == from_int(
@@ -278,26 +280,26 @@ test full_proof_deserialization_for_simple_mul_circuit() {
       0x1e22146e243252e9abcf8b0b6c04e66c11aded7e51514fecaabef5f072d0ebe4,
     )
 
-  let (_fixedEval1, proof_data) = read_scalar(proof_data)
-  let (_fixedEval2, proof_data) = read_scalar(proof_data)
+  let (_fixedEval1, transcript_data) = read_scalar(transcript_data)
+  let (_fixedEval2, transcript_data) = read_scalar(transcript_data)
 
-  let (_randomEval, proof_data) = read_scalar(proof_data)
+  let (_randomEval, transcript_data) = read_scalar(transcript_data)
 
-  let (_permutationCommon1, proof_data) = read_scalar(proof_data)
-  let (_permutationCommon2, proof_data) = read_scalar(proof_data)
-  let (_permutationCommon3, proof_data) = read_scalar(proof_data)
+  let (_permutationCommon1, transcript_data) = read_scalar(transcript_data)
+  let (_permutationCommon2, transcript_data) = read_scalar(transcript_data)
+  let (_permutationCommon3, transcript_data) = read_scalar(transcript_data)
 
-  let (_permutations_evaluated_a_1, proof_data) = read_scalar(proof_data)
-  let (_permutations_evaluated_a_2, proof_data) = read_scalar(proof_data)
-  let (_permutations_evaluated_a_3, proof_data) = read_scalar(proof_data)
-  let (_permutations_evaluated_b_1, proof_data) = read_scalar(proof_data)
-  let (_permutations_evaluated_b_2, proof_data) = read_scalar(proof_data)
-  let (_permutations_evaluated_b_3, proof_data) = read_scalar(proof_data)
-  let (_permutations_evaluated_c_1, proof_data) = read_scalar(proof_data)
-  let (_permutations_evaluated_c_2, proof_data) = read_scalar(proof_data)
+  let (_permutations_evaluated_a_1, transcript_data) = read_scalar(transcript_data)
+  let (_permutations_evaluated_a_2, transcript_data) = read_scalar(transcript_data)
+  let (_permutations_evaluated_a_3, transcript_data) = read_scalar(transcript_data)
+  let (_permutations_evaluated_b_1, transcript_data) = read_scalar(transcript_data)
+  let (_permutations_evaluated_b_2, transcript_data) = read_scalar(transcript_data)
+  let (_permutations_evaluated_b_3, transcript_data) = read_scalar(transcript_data)
+  let (_permutations_evaluated_c_1, transcript_data) = read_scalar(transcript_data)
+  let (_permutations_evaluated_c_2, transcript_data) = read_scalar(transcript_data)
 
-  let (x1, proof_data) = squeeze_challenge(proof_data)
-  let (x2, proof_data) = squeeze_challenge(proof_data)
+  let (x1, transcript_data) = squeeze_challenge(transcript_data)
+  let (x2, transcript_data) = squeeze_challenge(transcript_data)
 
   expect
     x1 == from_int(
@@ -307,21 +309,21 @@ test full_proof_deserialization_for_simple_mul_circuit() {
     x2 == from_int(
       0x453fe79d8e3a830d417882a1403b735fe5150db8de91c8277e4bca08eb8c9830,
     )
-  let (_f_commitment, proof_data) = read_point(proof_data)
-  let (x3, proof_data) = squeeze_challenge(proof_data)
+  let (_f_commitment, transcript_data) = read_point(transcript_data)
+  let (x3, transcript_data) = squeeze_challenge(transcript_data)
 
   expect
     x3 == from_int(
       0x6c180a84842b308c78d360330b43eb74047473918589c83ff05e2971b82a7025,
     )
 
-  let (_q_eval_on_x3_1, proof_data) = read_scalar(proof_data)
-  let (_q_eval_on_x3_2, proof_data) = read_scalar(proof_data)
-  let (_q_eval_on_x3_3, proof_data) = read_scalar(proof_data)
+  let (_q_eval_on_x3_1, transcript_data) = read_scalar(transcript_data)
+  let (_q_eval_on_x3_2, transcript_data) = read_scalar(transcript_data)
+  let (_q_eval_on_x3_3, transcript_data) = read_scalar(transcript_data)
 
-  let (x4, proof_data) = squeeze_challenge(proof_data)
+  let (x4, transcript_data) = squeeze_challenge(transcript_data)
 
-  let (pi_term, _) = read_point(proof_data)
+  let (pi_term, _) = read_point(transcript_data)
 
   expect
     x4 == from_int(
