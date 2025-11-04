@@ -17,3 +17,5 @@ plutus-verifier/dist-newstyle
 Cargo.lock
 plutus.json
 .env
+plutus.json
+.env

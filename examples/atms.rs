@@ -61,7 +61,7 @@ pub fn compile_atms_circuit<
     let msg = Base::from(42u64);
 
     let (signatures, pks, pks_comm) =
-        prepare_test_signatures(num_parties, threshold, msg, &mut rng);
+        prepare_test_signatures(num_parties, threshold, msg, &mut rng.clone());
 
     let circuit = AtmsSignatureCircuit {
         signatures,

@@ -5,7 +5,7 @@ use aiken/crypto/bls12_381/g1.{
 use aiken/crypto/bls12_381/g2.{
   add as addG2, generator as generatorG2, scale as scaleG2, sub as subG2,
 }
-use aiken/crypto/bls12_381/scalar.{new}
+use aiken/crypto/bls12_381/scalar.{from_int}
 use cardano/assets.{PolicyId}
 use cardano/transaction.{Transaction}
 
@@ -23,7 +23,7 @@ validator halo2 {
 }
 
 fn verifier(magic_number: Int) -> Bool {
-  expect Some(scalar) = new(42)
+  let scalar = from_int(42)
 
   let result = scaleG1(generatorG1, scalar)
   let result = scaleG1(result, scalar)
