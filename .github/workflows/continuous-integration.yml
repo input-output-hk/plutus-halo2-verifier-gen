@@ -13,6 +13,6 @@ jobs:
       - uses: aiken-lang/setup-aiken@v1
         with:
           version: v1.1.19
-      - run: aiken fmt --check
-      - run: aiken check -D
-      - run: aiken build
+      - run: cd aiken-verifier/aiken_halo2 && aiken fmt --check
+      - run: cd aiken-verifier/aiken_halo2 && aiken check -D
+      - run: cd aiken-verifier/aiken_halo2 && aiken build
