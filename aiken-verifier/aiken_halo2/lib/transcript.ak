@@ -35,18 +35,21 @@ pub fn read_scalar(transcript: Transcript) -> (State<Scalar>, Transcript) {
   let scalar_integer = bytearray_to_integer(False, scalar_bytes)
   let scalar = from_int(scalar_integer)
 
-  let remaining_transcript_data = bytearray.drop(transcript.remaining_proof, 32)
+  let remaining_proof_data = bytearray.drop(transcript.remaining_proof, 32)
 
   let new_transcript =
     common_scalar(
       scalar,
-      Transcript { ..transcript, remaining_proof: remaining_transcript_data },
+      Transcript { ..transcript, remaining_proof: remaining_proof_data },
     )
 
   (scalar, new_transcript)
 }
 
-pub fn common_scalar(scalar: State<Scalar>, transcript: Transcript) -> Transcript {
+pub fn common_scalar(
+  scalar: State<Scalar>,
+  transcript: Transcript,
+) -> Transcript {
   let scalar_integer = to_int(scalar)
   let scalar_bytes = integer_to_bytearray(False, 32, scalar_integer)
 
@@ -61,7 +64,7 @@ pub fn read_point(transcript: Transcript) -> (G1Element, Transcript) {
   let g1_bytes = bytearray.take(transcript.remaining_proof, 48)
   let g1 = bls12_381_g1_uncompress(g1_bytes)
 
-  let remaining_transcript_data = bytearray.drop(transcript.remaining_proof, 48)
+  let remaining_proof_data = bytearray.drop(transcript.remaining_proof, 48)
 
   let bytes_to_append = bytearray.concat(prefix_common, g1_bytes)
   let new_bytes_for_hash =
@@ -70,7 +73,7 @@ pub fn read_point(transcript: Transcript) -> (G1Element, Transcript) {
   (
     g1,
     Transcript {
-      remaining_proof: remaining_transcript_data,
+      remaining_proof: remaining_proof_data,
       accumulated_for_hash: new_bytes_for_hash,
     },
   )
@@ -289,14 +292,22 @@ test full_proof_deserialization_for_simple_mul_circuit() {
   let (_permutationCommon2, transcript_data) = read_scalar(transcript_data)
   let (_permutationCommon3, transcript_data) = read_scalar(transcript_data)
 
-  let (_permutations_evaluated_a_1, transcript_data) = read_scalar(transcript_data)
-  let (_permutations_evaluated_a_2, transcript_data) = read_scalar(transcript_data)
-  let (_permutations_evaluated_a_3, transcript_data) = read_scalar(transcript_data)
-  let (_permutations_evaluated_b_1, transcript_data) = read_scalar(transcript_data)
-  let (_permutations_evaluated_b_2, transcript_data) = read_scalar(transcript_data)
-  let (_permutations_evaluated_b_3, transcript_data) = read_scalar(transcript_data)
-  let (_permutations_evaluated_c_1, transcript_data) = read_scalar(transcript_data)
-  let (_permutations_evaluated_c_2, transcript_data) = read_scalar(transcript_data)
+  let (_permutations_evaluated_a_1, transcript_data) =
+    read_scalar(transcript_data)
+  let (_permutations_evaluated_a_2, transcript_data) =
+    read_scalar(transcript_data)
+  let (_permutations_evaluated_a_3, transcript_data) =
+    read_scalar(transcript_data)
+  let (_permutations_evaluated_b_1, transcript_data) =
+    read_scalar(transcript_data)
+  let (_permutations_evaluated_b_2, transcript_data) =
+    read_scalar(transcript_data)
+  let (_permutations_evaluated_b_3, transcript_data) =
+    read_scalar(transcript_data)
+  let (_permutations_evaluated_c_1, transcript_data) =
+    read_scalar(transcript_data)
+  let (_permutations_evaluated_c_2, transcript_data) =
+    read_scalar(transcript_data)
 
   let (x1, transcript_data) = squeeze_challenge(transcript_data)
   let (x2, transcript_data) = squeeze_challenge(transcript_data)
