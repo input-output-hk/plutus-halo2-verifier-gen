@@ -12,6 +12,7 @@ use halo2_proofs::{
     transcript::{CircuitTranscript, Transcript},
 };
 use log::{debug, info};
+use plutus_halo2_verifier_gen::plutus_gen::proof_serialization::export_proof;
 use plutus_halo2_verifier_gen::{
     circuits::simple_mul_circuit::SimpleMulCircuit,
     plutus_gen::{
@@ -121,6 +122,12 @@ fn compile_simple_mul_circuit<
 
     serialize_proof(
         "./plutus-verifier/plutus-halo2/test/Generic/serialized_proof.json".to_string(),
+        proof.clone(),
+    )
+    .unwrap();
+
+    export_proof(
+        "./plutus-verifier/plutus-halo2/test/Generic/serialized_proof.hex".to_string(),
         proof,
     )
     .unwrap();
