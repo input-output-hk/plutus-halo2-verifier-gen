@@ -8,6 +8,7 @@ use aiken/crypto/bls12_381/g2.{
 use aiken/crypto/bls12_381/scalar.{from_int}
 use cardano/assets.{PolicyId}
 use cardano/transaction.{Transaction}
+use transcript.{common_scalar, construct_transcript, read_scalar}
 
 type Redeemer =
   Int

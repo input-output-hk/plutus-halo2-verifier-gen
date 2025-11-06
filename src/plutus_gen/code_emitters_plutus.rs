@@ -1,7 +1,8 @@
+use crate::plutus_gen::extraction::compile_plutus_expressions;
 use crate::plutus_gen::extraction::data::{
     CircuitRepresentation, ProofExtractionSteps, RotationDescription,
 };
-use crate::plutus_gen::extraction::precompute_intermediate_sets;
+use crate::plutus_gen::extraction::{collapse_plutus_expressions, precompute_intermediate_sets};
 use blstrs::G2Affine;
 use halo2_proofs::halo2curves::group::prime::PrimeCurveAffine;
 use handlebars::{Handlebars, RenderError};
@@ -144,7 +145,13 @@ pub fn emit_verifier_code(
         .compiled_gate_equations
         .iter()
         .enumerate()
-        .map(|(id, gate)| format!("      !gate_eq{:?} = {}\n", id + 1, gate))
+        .map(|(id, gate)| {
+            format!(
+                "      !gate_eq{:?} = {}\n",
+                id + 1,
+                compile_plutus_expressions(gate)
+            )
+        })
         .join("");
     data.insert("GATES".to_string(), gates);
 
@@ -153,7 +160,13 @@ pub fn emit_verifier_code(
         .1
         .iter()
         .enumerate()
-        .map(|(id, gate)| format!("      !lookup_table_eq{:?} = {}\n", id + 1, gate))
+        .map(|(id, gate)| {
+            format!(
+                "      !lookup_table_eq{:?} = {}\n",
+                id + 1,
+                collapse_plutus_expressions(gate.clone())
+            )
+        })
         .join("");
     data.insert("LOOKUP_TABLES_EXPRESSIONS".to_string(), lookup_tables);
 
@@ -162,7 +175,13 @@ pub fn emit_verifier_code(
         .0
         .iter()
         .enumerate()
-        .map(|(id, gate)| format!("      !lookup_input_eq{:?} = {}\n", id + 1, gate))
+        .map(|(id, gate)| {
+            format!(
+                "      !lookup_input_eq{:?} = {}\n",
+                id + 1,
+                collapse_plutus_expressions(gate.clone())
+            )
+        })
         .join("");
     data.insert("LOOKUP_INPUTS_EXPRESSIONS".to_string(), lookup_inputs);
 

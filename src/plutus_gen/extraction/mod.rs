@@ -1,12 +1,12 @@
 use crate::plutus_gen::extraction::data::{
     CircuitRepresentation, CommitmentData, ProofExtractionSteps, Query, RotationDescription,
 };
-use crate::plutus_gen::extraction::utils::{compile_expressions, get_any_query_index};
+use crate::plutus_gen::extraction::utils::get_any_query_index;
 use blstrs::{Bls12, G1Affine, G1Projective, Scalar};
 use ff::Field;
 use halo2_proofs::halo2curves::group::Curve;
 use halo2_proofs::halo2curves::group::prime::PrimeCurveAffine;
-use halo2_proofs::plonk::{Any, Error, VerifyingKey};
+use halo2_proofs::plonk::{Any, Error, Expression, VerifyingKey};
 use halo2_proofs::poly::commitment::PolynomialCommitmentScheme;
 use halo2_proofs::poly::{
     Rotation, gwc_kzg::GwcKZGCommitmentScheme, kzg::KZGCommitmentScheme, kzg::params::ParamsKZG,
@@ -14,6 +14,10 @@ use halo2_proofs::poly::{
 use itertools::Itertools;
 use log::debug;
 use std::collections::HashMap;
+pub use utils::{
+    collapse_aiken_expressions, collapse_plutus_expressions, compile_aiken_expressions,
+    compile_plutus_expressions,
+};
 
 pub mod data;
 mod utils;
@@ -345,57 +349,36 @@ where
             .push(ProofExtractionSteps::LookupEval)
     });
 
-    let mut compiled_gates: Vec<_> = vk
+    let mut compiled_gates: Vec<Expression<Scalar>> = vk
         .cs()
         .gates()
         .iter()
-        .flat_map(move |gate| gate.polynomials().iter().map(compile_expressions))
+        .flat_map(move |gate| gate.polynomials().iter().cloned())
         .collect();
 
-    // fold expressions for particular lookup
-    // initial ACC = ZERO
-    // folding : ACC = (acc * theta + eval)
-    // where eval is subsequent expressions
-    // separate for input and for table expression
-
-    let compiled_lookups: Vec<(String, String)> = vk
+    let compiled_lookups: (Vec<Vec<Expression<Scalar>>>, Vec<Vec<Expression<Scalar>>>) = vk
         .cs()
         .lookups()
         .iter()
         .map(|argument| {
-            let input_expressions: Vec<_> = argument
-                .input_expressions()
-                .iter()
-                .map(compile_expressions)
-                .collect();
-
-            let folded_input_expressions = input_expressions
-                .iter()
-                .fold("scalarZero".to_string(), |acc, eval| {
-                    format!("({} * theta + {})", acc, eval)
-                });
-
-            let table_expressions: Vec<_> = argument
-                .table_expressions()
-                .iter()
-                .map(compile_expressions)
-                .collect();
-
-            let folded_table_expressions = table_expressions
-                .iter()
-                .fold("scalarZero".to_string(), |acc, eval| {
-                    format!("({} * theta + {})", acc, eval)
-                });
-
-            (folded_input_expressions, folded_table_expressions)
+            let input_expressions: Vec<Expression<Scalar>> = argument.input_expressions().to_vec();
+            let table_expressions: Vec<Expression<Scalar>> = argument.table_expressions().to_vec();
+            (input_expressions, table_expressions)
         })
-        .collect();
+        .fold(
+            (vec![], vec![]),
+            |(mut inputs, mut tables), (input_expressions, table_expressions)| {
+                inputs.push(input_expressions);
+                tables.push(table_expressions);
+                (inputs, tables)
+            },
+        );
 
     circuit_description
         .compiled_gate_equations
         .append(&mut compiled_gates);
 
-    circuit_description.compiled_lookups_equations = compiled_lookups.iter().cloned().unzip();
+    circuit_description.compiled_lookups_equations = compiled_lookups;
 
     //todo add stages to extract data for final pairing check preparation
 
