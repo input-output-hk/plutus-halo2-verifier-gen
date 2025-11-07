@@ -1,9 +1,55 @@
+use aiken/builtin.{bls12_381_final_verify, bls12_381_miller_loop}
+use aiken/crypto/bls12_381/g1.{
+add as addG1, generator as generatorG1, scale as scaleG1, sub as subG1,
+}
+use aiken/crypto/bls12_381/g2.{
+add as addG2, generator as generatorG2, scale as scaleG2, sub as subG2,
+}
+use cardano/assets.{PolicyId}
+use cardano/transaction.{Transaction}
+use transcript.{common_scalar, construct_transcript, read_scalar, read_point,squeeze_challenge}
+use aiken/crypto/bls12_381/scalar.{
+Scalar, add, field_prime as bls12_381_field_prime, from_int, mul, neg, to_int, sub
+}
+use aiken/crypto/bitwise.{State}
 
-{{{PUBLIC_INPUTS_COUNT}}}
+type Redeemer = Int
+
+validator halo2 {
+    mint(redeemer: Redeemer, _policy_id: PolicyId, _self: Transaction) {
+        verifier(#"00", from_int(42), from_int(42), from_int(42), from_int(42))
+    }
+
+    else(_) {
+        fail
+    }
+}
+
+fn verifier(proof: Data, transcript_rep: State<Scalar>, {{{PUBLIC_INPUTS_NAMES}}}) -> Bool {
+
+    // todo for now those are set as constants to check if other parts compiles and works as expected
+    let evaluation_at_0 = from_int(1)
+    let last_evaluation = from_int(2)
+    let active_rows = from_int(3)
+    // -----------------------------------------------------------------------------------------------
+
+    let scalarZero = from_int(0)
+    let scalarOne = from_int(1)
+
+
+    let proof_for_testing =
+        #"00"
+
+    let x_exponent = {{{X_EXPONENT}}}
+
+    let inputs_count = from_int({{{PUBLIC_INPUTS_COUNT}}})
+
+    let transcript = construct_transcript(proof_for_testing, transcript_rep)
+    let transcript = common_scalar(inputs_count, transcript)
+
+{{{PUBLIC_INPUTS}}}
 
 {{{PES}}}
-
-{{{X_EXPONENT}}}
 
 {{{GATES}}}
 
@@ -12,3 +58,6 @@
 {{{LOOKUP_INPUTS_EXPRESSIONS}}}
 
 {{{LOOKUPS}}}
+
+    True
+}

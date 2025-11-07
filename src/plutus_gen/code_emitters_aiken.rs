@@ -43,13 +43,13 @@ pub fn emit_verifier_code(
             ProofExtractionSteps::AdviceEval => section
                 .enumerate()
                 .map(|(number, _advice_eval)| {
-                    format!("let (advice_eval{}, transcript) = read_scalar(transcript)\n", number + 1)
+                    format!("let (advice_eval_{}, transcript) = read_scalar(transcript)\n", number + 1)
                 })
                 .join(""),
             ProofExtractionSteps::FixedEval => section
                 .enumerate()
                 .map(|(number, _fixed_eval)| {
-                    format!("let (fixed_eval{}, transcript) = read_scalar(transcript)\n", number + 1)
+                    format!("let (fixed_eval_{}, transcript) = read_scalar(transcript)\n", number + 1)
                 })
                 .join(""),
             ProofExtractionSteps::RandomEval => "let (random_eval, transcript) = read_scalar(transcript)\n".to_string(),
@@ -127,6 +127,18 @@ pub fn emit_verifier_code(
         circuit.public_inputs.to_string(),
     );
 
+    let public_inputs = (1..=circuit.instantiation_data.public_inputs_count)
+        .map(|n| format!("let transcript = common_scalar(i_{}, transcript)\n", n))
+        .join("");
+
+    data.insert("PUBLIC_INPUTS".to_string(), public_inputs);
+
+    let public_inputs_names = (1..=circuit.instantiation_data.public_inputs_count)
+        .map(|n| format!("i_{}: State<Scalar>", n))
+        .join(", ");
+
+    data.insert("PUBLIC_INPUTS_NAMES".to_string(), public_inputs_names);
+
     let proof_extraction_stage = proof_extraction.join("");
     data.insert("PES".to_string(), proof_extraction_stage);
 
@@ -193,13 +205,13 @@ pub fn emit_verifier_code(
             // !l5 = (permuted_input_eval_1 - permuted_table_eval_1)
             //     * &(permuted_input_eval_1 - permuted_input_inv_eval_1) * active_rows
 
-            let l1 = format!("evaluation_at_0 * (scalarOne - product_eval_{})", id);
-            let l2 = format!("last_evaluation * (product_eval_{} * product_eval_{} - product_eval_{})", id, id, id);
-            let left = format!("product_next_eval_{} * (permuted_input_eval_{} + beta) * (permuted_table_eval_{} + gamma)", id, id, id);
-            let right = format!("product_eval_{} * (lookup_input_eq{} + beta) * (lookup_table_eq{} + gamma)", id, id, id);
-            let l3 = format!("(lookup_left_{} - lookup_right_{}) * active_rows", id, id);
-            let l4 = format!("evaluation_at_0 * (permuted_input_eval_{} - permuted_table_eval_{})", id, id);
-            let l5 = format!("(permuted_input_eval_{} - permuted_table_eval_{}) * (permuted_input_eval_{} - permuted_input_inv_eval_{}) * active_rows", id, id, id, id);
+            let l1 = format!("mul(evaluation_at_0, sub(scalarOne, product_eval_{}))", id);
+            let l2 = format!("mul(last_evaluation, sub(mul(product_eval_{}, product_eval_{}), product_eval_{}))", id, id, id);
+            let left = format!("mul(mul(product_next_eval_{}, add(permuted_input_eval_{}, beta)), add(permuted_table_eval_{}, gamma))", id, id, id);
+            let right = format!("mul(mul(product_eval_{}, add(lookup_input_eq{}, beta)), add(lookup_table_eq{}, gamma))", id, id, id);
+            let l3 = format!("mul(sub(lookup_left_{}, lookup_right_{}), active_rows)", id, id);
+            let l4 = format!("mul(evaluation_at_0, sub(permuted_input_eval_{}, permuted_table_eval_{}))", id, id);
+            let l5 = format!("mul(mul(sub(permuted_input_eval_{}, permuted_table_eval_{}), sub(permuted_input_eval_{}, permuted_input_inv_eval_{})), active_rows)", id, id, id, id);
 
             format!("let lookup_expression_1_{} = {}\n", id, l1) +
                 format!("let lookup_expression_2_{} = {}\n", id, l2).as_str() +

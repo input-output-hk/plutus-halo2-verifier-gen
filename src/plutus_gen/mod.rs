@@ -66,7 +66,7 @@ where
     .map_err(|e| e.to_string())?;
     emit_verifier_code_aiken(
         Path::new("aiken-verifier/templates/verification.hbs"),
-        Path::new("aiken-verifier/aiken_halo2/verifier.ak"),
+        Path::new("aiken-verifier/aiken_halo2/validators/verifier.ak"),
         &circuit_representation,
     )
     .map_err(|e| e.to_string())?;
