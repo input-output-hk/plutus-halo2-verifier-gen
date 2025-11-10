@@ -70,7 +70,7 @@ pub fn compile_atms_lookup_circuit<
         > + ExtractKZG,
 >() {
     let seed = [0u8; 32]; // UNSAFE, constant seed is used for testing purposes
-    let mut rng: StdRng = SeedableRng::from_seed(seed);
+    let rng: StdRng = SeedableRng::from_seed(seed);
 
     const NUM_PARTIES: usize = 6;
     const THRESHOLD: usize = 3;
@@ -79,7 +79,7 @@ pub fn compile_atms_lookup_circuit<
     let msg = Base::from(42u64);
 
     let (signatures, pks, pks_comm) =
-        prepare_test_signatures(NUM_PARTIES, THRESHOLD, msg, &mut rng);
+        prepare_test_signatures(NUM_PARTIES, THRESHOLD, msg, &mut rng.clone());
 
     let circuit = AtmsLookupCircuit {
         // lookup fields
@@ -116,7 +116,7 @@ pub fn compile_atms_lookup_circuit<
         &pk,
         &[circuit],
         instances,
-        &mut rng,
+        &mut rng.clone(),
         &mut transcript,
     )
     .expect("proof generation should not fail");

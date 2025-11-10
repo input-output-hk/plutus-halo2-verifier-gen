@@ -1,4 +1,4 @@
-use crate::plutus_gen::code_emitters_aiken::emit_verifier_code as emit_verifier_code_aiken;
+pub use crate::plutus_gen::code_emitters_aiken::emit_verifier_code as emit_verifier_code_aiken;
 use crate::plutus_gen::code_emitters_plutus::{
     emit_verifier_code as emit_verifier_code_plutus, emit_vk_code,
 };
@@ -64,6 +64,8 @@ where
         &circuit_representation,
     )
     .map_err(|e| e.to_string())?;
+    //todo for now I added aiken code gen to plinth code gen so they happen at the same time
+    //todo for final solution there should be separate command for generating aiken verifier
     emit_verifier_code_aiken(
         Path::new("aiken-verifier/templates/verification.hbs"),
         Path::new("aiken-verifier/aiken_halo2/validators/verifier.ak"),
