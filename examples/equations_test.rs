@@ -1,5 +1,5 @@
 use blstrs::{Base, Bls12, Scalar};
-use halo2_proofs::plonk::{ProvingKey, VerifyingKey, k_from_circuit, keygen_pk, keygen_vk};
+use halo2_proofs::plonk::{VerifyingKey, k_from_circuit, keygen_vk};
 use halo2_proofs::poly::kzg::KZGCommitmentScheme;
 use halo2_proofs::poly::kzg::params::ParamsKZG;
 use plutus_halo2_verifier_gen::circuits::atms_circuit::prepare_test_signatures;
@@ -35,7 +35,6 @@ fn main() {
     let k: u32 = k_from_circuit(&circuit);
     let kzg_params: ParamsKZG<Bls12> = ParamsKZG::<Bls12>::unsafe_setup(k, rng.clone());
     let vk: VerifyingKey<Scalar, KZG> = keygen_vk(&kzg_params, &circuit).unwrap();
-    let pk: ProvingKey<Scalar, KZG> = keygen_pk(vk.clone(), &circuit).unwrap();
 
     let instances: &[&[&[Scalar]]] = &[&[&[pks_comm, msg, Base::from(THRESHOLD as u64)]]];
 

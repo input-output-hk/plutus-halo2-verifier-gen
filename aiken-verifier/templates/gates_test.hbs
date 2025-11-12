@@ -1,39 +1,28 @@
-use aiken/builtin.{bls12_381_final_verify, bls12_381_miller_loop}
-use aiken/crypto/bls12_381/g1.{
-add as addG1, generator as generatorG1, scale as scaleG1, sub as subG1,
-}
-use aiken/crypto/bls12_381/g2.{
-add as addG2, generator as generatorG2, scale as scaleG2, sub as subG2,
-}
-use cardano/assets.{PolicyId}
-use cardano/transaction.{Transaction}
-use transcript.{common_scalar, construct_transcript, read_scalar, read_point,squeeze_challenge}
 use aiken/crypto/bls12_381/scalar.{
-Scalar, add, field_prime as bls12_381_field_prime, from_int, mul, neg, to_int, sub
+add, from_int, mul, neg, sub
 }
-use aiken/crypto/bitwise.{State}
 
 
 // inputs, equations and results are extracted from ATMS with lookups that is set up in examples/equations_test.rs
 test gates_equations() {
 
-let evaluation_at_0 = from_int(0)
-let last_evaluation = from_int(0)
-let active_rows = from_int(0)
+let evaluation_at_0 = from_int(0x54ab6e351835f0093a6dabb8b14c7707a6704894ada9b60294e9bbfab856347f)
+let last_evaluation = from_int(0xa2fe3f7fde64d7d605591ce4aea98af72909596cd0c00b804fbfafa1f901ef1)
+let active_rows = from_int(0x5002aa8faa2fe970a3c01b7f33c742f6454e6432142eb50a42a3a21a6a7252b3)
 
-let product_eval_1 = from_int(0)
-let product_next_eval_1 = from_int(0)
+let product_eval_1 = from_int(0x5ce2a684c58aee78a535cc3616fa0696c5cd75a8d8e3361f506df8c272cf3955)
+let product_next_eval_1 = from_int(0x3faba22a7af2bb6e39f2efd1b3ad78eac6e7d2deeebceaedf40dc26fb571f2b)
 
-let permuted_input_eval_1 = from_int(0)
-let permuted_input_inv_eval_1 = from_int(0)
-let permuted_table_eval_1 = from_int(0)
+let permuted_input_eval_1 = from_int(0x24135b01272479a22bad9fee396bbc0435971a55b47e7e12aa34b250be6b525c)
+let permuted_input_inv_eval_1 = from_int(0x44be83a4a8fd060d8a20b0757dd318ffce892f29f6edf7c613f53c35bd435ca5)
+let permuted_table_eval_1 = from_int(0x44894772277e6b8d15c295e88d6d9fc3fd1dcd8a3f020134ece8c8f91425770b)
 
 let scalarZero = from_int(0)
 let scalarOne = from_int(1)
 
 let theta = from_int(0x48a17da0ce7885b53b609909665412512739401571ab20716244304db94b428f)
-let beta = from_int(1)
-let gamma = from_int(1)
+let beta = from_int(0x3573980a05ddddf53bc8432202994eaac57fe8e101052b860569828bf5b9527d)
+let gamma = from_int(0x3e736b995a867a0a273d0333315df294fb4d71e0f0f5dd89fa2205bafe3eccd6)
 
 let advice_eval_1 = from_int(0x02adbf91251b4db148b220a521ac2a208ee75b53ac893ac2fbf369c2df26aeb7)
 let advice_eval_2 = from_int(0x40f4f14c27358575f7811cf8947279ae6d0247774fc4f55f78f3ff95b9b05288)
@@ -76,15 +65,15 @@ let fixed_eval_20 = from_int(0x2bc55e2e54c94a75f50b55b2a5fd273ec970570295edc6317
 
 {{{LOOKUPS}}}
 
-    expect gate_eq1 == from_int(13)
-    expect gate_eq2 == from_int(42)
-    expect gate_eq3 == from_int(42)
-    expect gate_eq4 == from_int(42)
-    expect gate_eq5 == from_int(42)
+    expect gate_eq1 == from_int(0x4c35bcc176743e20512432be2178a2b3ef4b8052350f2811725221130725bc28)
+    expect gate_eq2 == from_int(0x14eba73071f79289169f7f5d9f1ed24a6dc235ec87ebe568d590fae960d9fefb)
+    expect gate_eq3 == from_int(0xd38d3165a25a44d828afdc97c10d1ddbc9567930b12513bf8232de506808106)
+    expect gate_eq4 == from_int(0x486e5c701bf9e33fbc8431883917766d69b17fa553b1697a21e41d759e5826db)
+    expect gate_eq5 == from_int(0x4e4b38be5d61568b29b763058cfbe630918d6a452f9f56695328d8f68d23ad14)
 
-    expect lookup_expression_1_1 == from_int(42)
-    expect lookup_expression_2_1 == from_int(42)
-    expect lookup_expression_3_1 == from_int(42)
-    expect lookup_expression_4_1 == from_int(42)
-    expect lookup_expression_5_1 == from_int(42)
+    expect lookup_expression_1_1 == from_int(0x605f23fd2eb4045ecb4d7d9e8756c95355f7d4a363479da36b1deab35fbde438)
+    expect lookup_expression_2_1 == from_int(0x5e47da02e6eac22ba0702a27c4da66bcf39eb8743ef92b379aab7f1939c8f34e)
+    expect lookup_expression_3_1 == from_int(0x674bc1b389d79b1a25e568a3e02ec1ba44e18140a1f3569baabe57e9d0ab5ea9)
+    expect lookup_expression_4_1 == from_int(0x39189a234c42e8c59a991ee0b1d76eefc410a78c8e706d9dbb07b00c24b3114f)
+    expect lookup_expression_5_1 == from_int(0x70ac19b0d1da260513f6670a049b58dc4ea52770dc0e0ee9e03eff5ae9d3a800)
 }
