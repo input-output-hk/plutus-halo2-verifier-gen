@@ -42,7 +42,7 @@ where
     }
 }
 
-fn convert_to_plutus_polynomial<W: std::io::Write>(
+fn convert_to_plinth_polynomial<W: std::io::Write>(
     ex: &Expression<Scalar>,
     writer: &mut W,
 ) -> std::io::Result<()> {
@@ -71,25 +71,25 @@ fn convert_to_plutus_polynomial<W: std::io::Write>(
         }
         Expression::Negated(a) => {
             writer.write_all(b"( negate ")?;
-            convert_to_plutus_polynomial(a, writer)?;
+            convert_to_plinth_polynomial(a, writer)?;
             writer.write_all(b" )")
         }
         Expression::Sum(a, b) => {
             writer.write_all(b"(")?;
-            convert_to_plutus_polynomial(a, writer)?;
+            convert_to_plinth_polynomial(a, writer)?;
             writer.write_all(b" + ")?;
-            convert_to_plutus_polynomial(b, writer)?;
+            convert_to_plinth_polynomial(b, writer)?;
             writer.write_all(b")")
         }
         Expression::Product(a, b) => {
             writer.write_all(b"(")?;
-            convert_to_plutus_polynomial(a, writer)?;
+            convert_to_plinth_polynomial(a, writer)?;
             writer.write_all(b" * ")?;
-            convert_to_plutus_polynomial(b, writer)?;
+            convert_to_plinth_polynomial(b, writer)?;
             writer.write_all(b")")
         }
         Expression::Scaled(a, f) => {
-            convert_to_plutus_polynomial(a, writer)?;
+            convert_to_plinth_polynomial(a, writer)?;
             write!(writer, " * {:?}", f)
         }
     }
@@ -150,19 +150,19 @@ fn convert_to_aiken_polynomial<W: std::io::Write>(
 // folding : ACC = (acc * theta + eval)
 // where eval is subsequent expressions
 // separate for input and for table expression
-pub fn collapse_plutus_expressions(lookup_expressions: Vec<Expression<Scalar>>) -> String {
+pub fn collapse_plinth_expressions(lookup_expressions: Vec<Expression<Scalar>>) -> String {
     let compiled: Vec<_> = lookup_expressions
         .iter()
-        .map(compile_plutus_expressions)
+        .map(compile_plinth_expressions)
         .collect();
     compiled.iter().fold("scalarZero".to_string(), |acc, eval| {
         format!("({} * theta + {})", acc, eval)
     })
 }
 
-pub fn compile_plutus_expressions(expression: &Expression<Scalar>) -> String {
+pub fn compile_plinth_expressions(expression: &Expression<Scalar>) -> String {
     let mut buf = BufWriter::new(Vec::new());
-    let _ = convert_to_plutus_polynomial(expression, &mut buf);
+    let _ = convert_to_plinth_polynomial(expression, &mut buf);
     let bytes = buf.into_inner().unwrap();
     String::from_utf8(bytes).unwrap()
 }
