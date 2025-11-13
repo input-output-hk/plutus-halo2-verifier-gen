@@ -20,50 +20,50 @@ pub fn emit_verifier_code(
         .map(|(section_type, section)| match section_type {
             ProofExtractionSteps::AdviceCommitments => section
                 .enumerate()
-                .map(|(number, _advice)| format!("let (a{}, transcript) = read_point(transcript)\n", number + 1))
+                .map(|(number, _advice)| format!("    let (a{}, transcript) = read_point(transcript)\n", number + 1))
                 .join(""),
-            ProofExtractionSteps::Theta => "let (theta, transcript) = squeeze_challenge(transcript)\n".to_string(),
-            ProofExtractionSteps::Beta => "let (beta, transcript) = squeeze_challenge(transcript)\n".to_string(),
-            ProofExtractionSteps::Gamma => "let (gamma, transcript) = squeeze_challenge(transcript)\n".to_string(),
+            ProofExtractionSteps::Theta => "    let (theta, transcript) = squeeze_challenge(transcript)\n".to_string(),
+            ProofExtractionSteps::Beta => "    let (beta, transcript) = squeeze_challenge(transcript)\n".to_string(),
+            ProofExtractionSteps::Gamma => "    let (gamma, transcript) = squeeze_challenge(transcript)\n".to_string(),
             ProofExtractionSteps::PermutationsCommited => section
                 .zip(letters.clone())
                 .map(|(_permutation, letter)| {
-                    format!("let (permutations_committed_{}, transcript) = read_point(transcript)\n", letter)
+                    format!("    let (permutations_committed_{}, transcript) = read_point(transcript)\n", letter)
                 })
                 .join(""),
-            ProofExtractionSteps::VanishingRand => "let (vanishing_rand, transcript) = read_point(transcript)\n".to_string(),
-            ProofExtractionSteps::YCoordinate => "let (y, transcript) = squeeze_challenge(transcript)\n".to_string(),
+            ProofExtractionSteps::VanishingRand => "    let (vanishing_rand, transcript) = read_point(transcript)\n".to_string(),
+            ProofExtractionSteps::YCoordinate => "    let (y, transcript) = squeeze_challenge(transcript)\n".to_string(),
             ProofExtractionSteps::VanishingSplit => section
                 .enumerate()
                 .map(|(number, _vanishing_split)| {
-                    format!("let (vanishing_split{}, transcript) =  read_point(transcript)\n", number + 1)
+                    format!("    let (vanishing_split_{}, transcript) =  read_point(transcript)\n", number + 1)
                 })
                 .join(""),
-            ProofExtractionSteps::XCoordinate => "let (x, transcript) = squeeze_challenge(transcript)\n".to_string(),
+            ProofExtractionSteps::XCoordinate => "    let (x, transcript) = squeeze_challenge(transcript)\n".to_string(),
             ProofExtractionSteps::AdviceEval => section
                 .enumerate()
                 .map(|(number, _advice_eval)| {
-                    format!("let (advice_eval_{}, transcript) = read_scalar(transcript)\n", number + 1)
+                    format!("    let (advice_eval_{}, transcript) = read_scalar(transcript)\n", number + 1)
                 })
                 .join(""),
             ProofExtractionSteps::FixedEval => section
                 .enumerate()
                 .map(|(number, _fixed_eval)| {
-                    format!("let (fixed_eval_{}, transcript) = read_scalar(transcript)\n", number + 1)
+                    format!("    let (fixed_eval_{}, transcript) = read_scalar(transcript)\n", number + 1)
                 })
                 .join(""),
-            ProofExtractionSteps::RandomEval => "let (random_eval, transcript) = read_scalar(transcript)\n".to_string(),
+            ProofExtractionSteps::RandomEval => "    let (random_eval, transcript) = read_scalar(transcript)\n".to_string(),
             ProofExtractionSteps::PermutationCommon => section
                 .enumerate()
                 .map(|(number, _permutation_common)| {
-                    format!("let (permutation_common{}, transcript) = read_scalar(transcript)\n", number + 1)
+                    format!("    let (permutation_common_{}, transcript) = read_scalar(transcript)\n", number + 1)
                 })
                 .join(""),
             ProofExtractionSteps::PermutationEval(letter) => section
                 .enumerate()
                 .map(|(n, _)| {
                     format!(
-                        "let (permutations_evaluated_{}_{}, transcript) = read_scalar(transcript)\n",
+                        "    let (permutations_evaluated_{}_{}, transcript) = read_scalar(transcript)\n",
                         letter,
                         n + 1
                     )
@@ -73,46 +73,46 @@ pub fn emit_verifier_code(
             ProofExtractionSteps::LookupPermuted => section
                 .enumerate()
                 .map(|(number, _lookup_permuted)| {
-                    format!("let (permuted_input{}, transcript) =  read_point(transcript)\n", number + 1)
-                        + &format!("let (permuted_table{}, transcript) =  read_point(transcript)\n", number + 1)
+                    format!("    let (permuted_input{}, transcript) =  read_point(transcript)\n", number + 1)
+                        + &format!("    let (permuted_table{}, transcript) =  read_point(transcript)\n", number + 1)
                 })
                 .join(""),
             ProofExtractionSteps::LookupCommitment => section
                 .enumerate()
                 .map(|(number, _lookup_commitment)| {
-                    format!("let (lookup_commitment{}, transcript) =  read_point(transcript)\n", number + 1)
+                    format!("    let (lookup_commitment{}, transcript) =  read_point(transcript)\n", number + 1)
                 })
                 .join(""),
             ProofExtractionSteps::LookupEval => section
                 .enumerate()
                 .map(|(number, _permutation_common)| {
-                    format!("let (product_eval_{}, transcript) = read_scalar(transcript)\n", number + 1)
-                        + &format!("let (product_next_eval_{}, transcript) = read_scalar(transcript)\n", number + 1)
-                        + &format!("let (permuted_input_eval_{}, transcript) = read_scalar(transcript)\n", number + 1)
+                    format!("    let (product_eval_{}, transcript) = read_scalar(transcript)\n", number + 1)
+                        + &format!("    let (product_next_eval_{}, transcript) = read_scalar(transcript)\n", number + 1)
+                        + &format!("    let (permuted_input_eval_{}, transcript) = read_scalar(transcript)\n", number + 1)
                         + &format!(
-                            "let (permuted_input_inv_eval_{}, transcript) = read_scalar(transcript)\n",
+                            "    let (permuted_input_inv_eval_{}, transcript) = read_scalar(transcript)\n",
                             number + 1
                         )
-                        + &format!("let (permuted_table_eval_{}, transcript) = read_scalar(transcript)\n", number + 1)
+                        + &format!("    let (permuted_table_eval_{}, transcript) = read_scalar(transcript)\n", number + 1)
                 })
                 .join(""),
             // section for halo2 multi open version of KZG
-            ProofExtractionSteps::X1 => "let (x1, transcript) = squeeze_challenge(transcript)\n".to_string(),
-            ProofExtractionSteps::X2 => "let (x2, transcript) = squeeze_challenge(transcript)\n".to_string(),
-            ProofExtractionSteps::X3 => "let (x3, transcript) = squeeze_challenge(transcript)\n".to_string(),
-            ProofExtractionSteps::X4 => "let (x4, transcript) = squeeze_challenge(transcript)\n".to_string(),
-            ProofExtractionSteps::FCommitment => "let (f_commitment, transcript) =  read_point(transcript)\n".to_string(),
-            ProofExtractionSteps::PI => "let (pi_term, transcript) =  read_point(transcript)\n".to_string(),
+            ProofExtractionSteps::X1 => "    let (x1, transcript) = squeeze_challenge(transcript)\n".to_string(),
+            ProofExtractionSteps::X2 => "    let (x2, transcript) = squeeze_challenge(transcript)\n".to_string(),
+            ProofExtractionSteps::X3 => "    let (x3, transcript) = squeeze_challenge(transcript)\n".to_string(),
+            ProofExtractionSteps::X4 => "    let (x4, transcript) = squeeze_challenge(transcript)\n".to_string(),
+            ProofExtractionSteps::FCommitment => "    let (f_commitment, transcript) =  read_point(transcript)\n".to_string(),
+            ProofExtractionSteps::PI => "    let (pi_term, transcript) =  read_point(transcript)\n".to_string(),
             ProofExtractionSteps::QEvals => section
                 .enumerate()
                 .map(|(number, _permutation_common)| {
-                    format!("let (q_eval_on_x3_{}, transcript) = read_scalar(transcript)\n", number + 1)
+                    format!("    let (q_eval_on_x3_{}, transcript) = read_scalar(transcript)\n", number + 1)
                 })
                 .join(""),
 
             // section for GWC19 version of KZG
-            ProofExtractionSteps::V => "let (v, transcript) = squeeze_challenge(transcript)\n".to_string(),
-            ProofExtractionSteps::U => "let (u, transcript) = squeeze_challenge(transcript)\n".to_string(),
+            ProofExtractionSteps::V => "    let (v, transcript) = squeeze_challenge(transcript)\n".to_string(),
+            ProofExtractionSteps::U => "    let (u, transcript) = squeeze_challenge(transcript)\n".to_string(),
             ProofExtractionSteps::Witnesses => section
                 .enumerate()
                 .map(|(number, _permutation_common)| format!("let (w{}, transcript)) =  read_point(transcript)\n", number + 1))
@@ -128,7 +128,7 @@ pub fn emit_verifier_code(
     );
 
     let public_inputs = (1..=circuit.instantiation_data.public_inputs_count)
-        .map(|n| format!("let transcript = common_scalar(i_{}, transcript)\n", n))
+        .map(|n| format!("    let transcript = common_scalar(i_{}, transcript)\n", n))
         .join("");
 
     data.insert("PUBLIC_INPUTS".to_string(), public_inputs);
@@ -153,7 +153,7 @@ pub fn emit_verifier_code(
         .enumerate()
         .map(|(id, gate)| {
             format!(
-                "let gate_eq{:?} = {}\n",
+                "    let gate_eq{:?} = {}\n",
                 id + 1,
                 compile_aiken_expressions(gate)
             )
@@ -168,7 +168,7 @@ pub fn emit_verifier_code(
         .enumerate()
         .map(|(id, gate)| {
             format!(
-                "let lookup_table_eq{:?} = {}\n",
+                "    let lookup_table_eq{:?} = {}\n",
                 id + 1,
                 combine_aiken_expressions(gate.clone())
             )
@@ -183,7 +183,7 @@ pub fn emit_verifier_code(
         .enumerate()
         .map(|(id, gate)| {
             format!(
-                "let lookup_input_eq{:?} = {}\n",
+                "    let lookup_input_eq{:?} = {}\n",
                 id + 1,
                 combine_aiken_expressions(gate.clone())
             )
@@ -213,13 +213,13 @@ pub fn emit_verifier_code(
             let l4 = format!("mul(evaluation_at_0, sub(permuted_input_eval_{}, permuted_table_eval_{}))", id, id);
             let l5 = format!("mul(mul(sub(permuted_input_eval_{}, permuted_table_eval_{}), sub(permuted_input_eval_{}, permuted_input_inv_eval_{})), active_rows)", id, id, id, id);
 
-            format!("let lookup_expression_1_{} = {}\n", id, l1) +
-                format!("let lookup_expression_2_{} = {}\n", id, l2).as_str() +
-                format!("let lookup_left_{} = {}\n", id, left).as_str() +
-                format!("let lookup_right_{} = {}\n", id, right).as_str() +
-                format!("let lookup_expression_3_{} = {}\n", id, l3).as_str() +
-                format!("let lookup_expression_4_{} = {}\n", id, l4).as_str() +
-                format!("let lookup_expression_5_{} = {}\n\n\n", id, l5).as_str()
+            format!("    let lookup_expression_1_{} = {}\n", id, l1) +
+                format!("    let lookup_expression_2_{} = {}\n", id, l2).as_str() +
+                format!("    let lookup_left_{} = {}\n", id, left).as_str() +
+                format!("    let lookup_right_{} = {}\n", id, right).as_str() +
+                format!("    let lookup_expression_3_{} = {}\n", id, l3).as_str() +
+                format!("    let lookup_expression_4_{} = {}\n", id, l4).as_str() +
+                format!("    let lookup_expression_5_{} = {}\n\n\n", id, l5).as_str()
         })
         .join("");
 
