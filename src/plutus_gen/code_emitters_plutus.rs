@@ -2,7 +2,7 @@ use crate::plutus_gen::extraction::compile_plinth_expressions;
 use crate::plutus_gen::extraction::data::{
     CircuitRepresentation, ProofExtractionSteps, RotationDescription,
 };
-use crate::plutus_gen::extraction::{collapse_plinth_expressions, precompute_intermediate_sets};
+use crate::plutus_gen::extraction::{combine_plinth_expressions, precompute_intermediate_sets};
 use blstrs::G2Affine;
 use halo2_proofs::halo2curves::group::prime::PrimeCurveAffine;
 use handlebars::{Handlebars, RenderError};
@@ -164,7 +164,7 @@ pub fn emit_verifier_code(
             format!(
                 "      !lookup_table_eq{:?} = {}\n",
                 id + 1,
-                collapse_plinth_expressions(gate.clone())
+                combine_plinth_expressions(gate.clone())
             )
         })
         .join("");
@@ -179,7 +179,7 @@ pub fn emit_verifier_code(
             format!(
                 "      !lookup_input_eq{:?} = {}\n",
                 id + 1,
-                collapse_plinth_expressions(gate.clone())
+                combine_plinth_expressions(gate.clone())
             )
         })
         .join("");

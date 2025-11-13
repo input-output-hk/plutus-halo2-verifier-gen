@@ -1,5 +1,5 @@
 use crate::plutus_gen::extraction::data::{CircuitRepresentation, ProofExtractionSteps};
-use crate::plutus_gen::extraction::{collapse_aiken_expressions, compile_aiken_expressions};
+use crate::plutus_gen::extraction::{combine_aiken_expressions, compile_aiken_expressions};
 use handlebars::{Handlebars, RenderError};
 use itertools::Itertools;
 use std::collections::HashMap;
@@ -170,7 +170,7 @@ pub fn emit_verifier_code(
             format!(
                 "let lookup_table_eq{:?} = {}\n",
                 id + 1,
-                collapse_aiken_expressions(gate.clone())
+                combine_aiken_expressions(gate.clone())
             )
         })
         .join("");
@@ -185,7 +185,7 @@ pub fn emit_verifier_code(
             format!(
                 "let lookup_input_eq{:?} = {}\n",
                 id + 1,
-                collapse_aiken_expressions(gate.clone())
+                combine_aiken_expressions(gate.clone())
             )
         })
         .join("");

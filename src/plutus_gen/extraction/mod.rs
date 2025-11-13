@@ -15,7 +15,7 @@ use itertools::Itertools;
 use log::debug;
 use std::collections::HashMap;
 pub use utils::{
-    collapse_aiken_expressions, collapse_plinth_expressions, compile_aiken_expressions,
+    combine_aiken_expressions, combine_plinth_expressions, compile_aiken_expressions,
     compile_plinth_expressions,
 };
 

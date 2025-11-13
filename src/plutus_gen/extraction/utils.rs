@@ -150,7 +150,7 @@ fn convert_to_aiken_polynomial<W: std::io::Write>(
 // folding : ACC = (acc * theta + eval)
 // where eval is subsequent expressions
 // separate for input and for table expression
-pub fn collapse_plinth_expressions(lookup_expressions: Vec<Expression<Scalar>>) -> String {
+pub fn combine_plinth_expressions(lookup_expressions: Vec<Expression<Scalar>>) -> String {
     let compiled: Vec<_> = lookup_expressions
         .iter()
         .map(compile_plinth_expressions)
@@ -167,7 +167,7 @@ pub fn compile_plinth_expressions(expression: &Expression<Scalar>) -> String {
     String::from_utf8(bytes).unwrap()
 }
 
-pub fn collapse_aiken_expressions(lookup_expressions: Vec<Expression<Scalar>>) -> String {
+pub fn combine_aiken_expressions(lookup_expressions: Vec<Expression<Scalar>>) -> String {
     let compiled: Vec<_> = lookup_expressions
         .iter()
         .map(compile_aiken_expressions)
