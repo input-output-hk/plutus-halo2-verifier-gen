@@ -14,6 +14,7 @@ jobs:
         with:
           version: v1.1.19
       - run: cargo run --example equations_test
+      - run: cargo run --example atms_with_lookups
       - run: cd aiken-verifier/aiken_halo2 && aiken fmt --check
-      - run: cd aiken-verifier/aiken_halo2 && aiken check --debug --watch
+      - run: cd aiken-verifier/aiken_halo2 && aiken check
       - run: cd aiken-verifier/aiken_halo2 && aiken build
