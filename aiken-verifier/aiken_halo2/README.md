@@ -1,65 +1,11 @@
-# halo2_verifier
+## Running tests
 
-Write validators in the `validators` folder, and supporting functions in the `lib` folder using `.ak` as a file extension.
+Some tests are for generated code so before running them you have to generate test code.
+To do that you have to run this command from the roof of the repository
 
-```aiken
-validator my_first_validator {
-  spend(_datum: Option<Data>, _redeemer: Data, _output_reference: Data, _context: Data) {
-    True
-  }
-}
+```bash
+cargo run --example equations_test
+cargo run --example atms_with_lookups
 ```
 
-## Building
-
-```sh
-aiken build
-```
-
-## Configuring
-
-**aiken.toml**
-```toml
-[config.default]
-network_id = 41
-```
-
-Or, alternatively, write conditional environment modules under `env`.
-
-## Testing
-
-You can write tests in any module using the `test` keyword. For example:
-
-```aiken
-use config
-
-test foo() {
-  config.network_id + 1 == 42
-}
-```
-
-To run all tests, simply do:
-
-```sh
-aiken check
-```
-
-To run only tests matching the string `foo`, do:
-
-```sh
-aiken check -m foo
-```
-
-## Documentation
-
-If you're writing a library, you might want to generate an HTML documentation for it.
-
-Use:
-
-```sh
-aiken docs
-```
-
-## Resources
-
-Find more on the [Aiken's user manual](https://aiken-lang.org).
+after this you can just run `aiken check` in the Aiken project directory
