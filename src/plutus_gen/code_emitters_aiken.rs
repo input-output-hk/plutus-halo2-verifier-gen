@@ -236,8 +236,8 @@ pub fn emit_verifier_code(
 }
 
 pub fn emit_vk_code(
-    template_file: &Path, // haskell mustashe template
-    haskell_file: &Path,  // generated haskell file, output
+    template_file: &Path,
+    aiken_file: &Path,
     circuit: &CircuitRepresentation,
     g1_encoder: fn(G1Affine) -> String,
     g2_encoder: fn(G2Affine) -> String,
@@ -308,8 +308,8 @@ pub fn emit_vk_code(
 
     let mut handlebars = Handlebars::new();
     handlebars.set_strict_mode(true);
-    handlebars.register_template_file("haskell_template", template_file)?;
-    let mut output_file = File::create(haskell_file)?;
-    handlebars.render_to_write("haskell_template", &data, &mut output_file)?;
-    handlebars.render("haskell_template", &data)
+    handlebars.register_template_file("aiken_template", template_file)?;
+    let mut output_file = File::create(aiken_file)?;
+    handlebars.render_to_write("aiken_template", &data, &mut output_file)?;
+    handlebars.render("aiken_template", &data)
 }
