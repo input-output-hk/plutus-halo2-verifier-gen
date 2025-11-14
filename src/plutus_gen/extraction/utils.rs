@@ -42,7 +42,7 @@ where
     }
 }
 
-fn convert_polynomial<W: std::io::Write>(
+fn convert_to_plinth_polynomial<W: std::io::Write>(
     ex: &Expression<Scalar>,
     writer: &mut W,
 ) -> std::io::Result<()> {
@@ -71,33 +71,114 @@ fn convert_polynomial<W: std::io::Write>(
         }
         Expression::Negated(a) => {
             writer.write_all(b"( negate ")?;
-            convert_polynomial(a, writer)?;
+            convert_to_plinth_polynomial(a, writer)?;
             writer.write_all(b" )")
         }
         Expression::Sum(a, b) => {
             writer.write_all(b"(")?;
-            convert_polynomial(a, writer)?;
+            convert_to_plinth_polynomial(a, writer)?;
             writer.write_all(b" + ")?;
-            convert_polynomial(b, writer)?;
+            convert_to_plinth_polynomial(b, writer)?;
             writer.write_all(b")")
         }
         Expression::Product(a, b) => {
             writer.write_all(b"(")?;
-            convert_polynomial(a, writer)?;
+            convert_to_plinth_polynomial(a, writer)?;
             writer.write_all(b" * ")?;
-            convert_polynomial(b, writer)?;
+            convert_to_plinth_polynomial(b, writer)?;
             writer.write_all(b")")
         }
         Expression::Scaled(a, f) => {
-            convert_polynomial(a, writer)?;
+            convert_to_plinth_polynomial(a, writer)?;
             write!(writer, " * {:?}", f)
         }
     }
 }
 
-pub fn compile_expressions(e: &Expression<Scalar>) -> String {
+fn convert_to_aiken_polynomial<W: std::io::Write>(
+    ex: &Expression<Scalar>,
+    writer: &mut W,
+) -> std::io::Result<()> {
+    match ex {
+        Expression::Constant(scalar) => {
+            write!(writer, "from_int(0x{})", hex::encode(scalar.to_bytes_be()))
+        }
+        Expression::Selector(_selector) => {
+            panic!("Selector not supported in custom gate")
+        }
+        Expression::Fixed(query) => {
+            write!(writer, "fixed_eval_{}", query.index().unwrap() + 1)
+        }
+        Expression::Advice(query) => {
+            write!(writer, "advice_eval_{}", query.index.unwrap() + 1)
+        }
+        Expression::Instance(_query) => {
+            panic!("Instance not supported")
+        }
+        Expression::Challenge(_challenge) => {
+            panic!("Challenge not supported")
+        }
+        Expression::Negated(a) => {
+            writer.write_all(b" neg(")?;
+            convert_to_aiken_polynomial(a, writer)?;
+            writer.write_all(b") ")
+        }
+        Expression::Sum(a, b) => {
+            writer.write_all(b"add(")?;
+            convert_to_aiken_polynomial(a, writer)?;
+            writer.write_all(b", ")?;
+            convert_to_aiken_polynomial(b, writer)?;
+            writer.write_all(b")")
+        }
+        Expression::Product(a, b) => {
+            writer.write_all(b"mul(")?;
+            convert_to_aiken_polynomial(a, writer)?;
+            writer.write_all(b", ")?;
+            convert_to_aiken_polynomial(b, writer)?;
+            writer.write_all(b")")
+        }
+        Expression::Scaled(a, f) => {
+            writer.write_all(b"mul(")?;
+            convert_to_aiken_polynomial(a, writer)?;
+            write!(writer, ", {:?}", f)
+        }
+    }
+}
+
+// fold expressions for particular lookup
+// initial ACC = ZERO
+// folding : ACC = (acc * theta + eval)
+// where eval is subsequent expressions
+// separate for input and for table expression
+pub fn combine_plinth_expressions(lookup_expressions: Vec<Expression<Scalar>>) -> String {
+    let compiled: Vec<_> = lookup_expressions
+        .iter()
+        .map(compile_plinth_expressions)
+        .collect();
+    compiled.iter().fold("scalarZero".to_string(), |acc, eval| {
+        format!("({} * theta + {})", acc, eval)
+    })
+}
+
+pub fn compile_plinth_expressions(expression: &Expression<Scalar>) -> String {
     let mut buf = BufWriter::new(Vec::new());
-    let _ = convert_polynomial(e, &mut buf);
+    let _ = convert_to_plinth_polynomial(expression, &mut buf);
+    let bytes = buf.into_inner().unwrap();
+    String::from_utf8(bytes).unwrap()
+}
+
+pub fn combine_aiken_expressions(lookup_expressions: Vec<Expression<Scalar>>) -> String {
+    let compiled: Vec<_> = lookup_expressions
+        .iter()
+        .map(compile_aiken_expressions)
+        .collect();
+    compiled.iter().fold("scalarZero".to_string(), |acc, eval| {
+        format!("add(mul({}, theta), {})", acc, eval)
+    })
+}
+pub fn compile_aiken_expressions(expression: &Expression<Scalar>) -> String {
+    let mut buf = BufWriter::new(Vec::new());
+    let _ = convert_to_aiken_polynomial(expression, &mut buf);
     let bytes = buf.into_inner().unwrap();
     String::from_utf8(bytes).unwrap()
 }

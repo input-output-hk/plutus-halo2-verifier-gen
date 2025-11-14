@@ -1,4 +1,5 @@
 use blstrs::{G1Affine, G2Affine, Scalar};
+use halo2_proofs::plonk::Expression;
 use serde::{Deserialize, Serialize};
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub enum ProofExtractionSteps {
@@ -103,14 +104,14 @@ pub struct Query {
     pub point: RotationDescription,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, Default)]
+#[derive(Clone, Debug, Default)]
 pub struct CircuitRepresentation {
     pub instantiation_data: InstantiationSpecificData,
     // public_inputs are scalars
     pub public_inputs: i32,
     pub proof_extraction_steps: Vec<ProofExtractionSteps>,
-    pub compiled_gate_equations: Vec<String>,
-    pub compiled_lookups_equations: (Vec<String>, Vec<String>),
+    pub compiled_gate_equations: Vec<Expression<Scalar>>,
+    pub compiled_lookups_equations: (Vec<Vec<Expression<Scalar>>>, Vec<Vec<Expression<Scalar>>>),
     pub permutations_evaluated_terms: Vec<String>,
     pub permutation_terms_left: Vec<(char, String)>,
     pub permutation_terms_right: Vec<(char, String)>,

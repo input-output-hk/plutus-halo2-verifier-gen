@@ -1,4 +1,7 @@
-use crate::plutus_gen::code_emitters::{emit_verifier_code, emit_vk_code};
+pub use crate::plutus_gen::code_emitters_aiken::emit_verifier_code as emit_verifier_code_aiken;
+use crate::plutus_gen::code_emitters_plutus::{
+    emit_verifier_code as emit_verifier_code_plutus, emit_vk_code,
+};
 use crate::plutus_gen::extraction::{ExtractKZG, KzgType, extract_circuit};
 use blstrs::{Bls12, G1Projective, G2Affine, Scalar};
 use halo2_proofs::plonk::VerifyingKey;
@@ -7,7 +10,8 @@ use halo2_proofs::poly::kzg::params::ParamsKZG;
 use std::path::Path;
 
 pub mod adjusted_types;
-mod code_emitters;
+mod code_emitters_aiken;
+mod code_emitters_plutus;
 pub mod extraction;
 pub mod proof_serialization;
 
@@ -54,9 +58,17 @@ where
 
     // Step 3: Based on the circuit repr generate Plinth verifier and verification key constants
     // using Handlebars templates
-    emit_verifier_code(
+    emit_verifier_code_plutus(
         verifier_template_file,
         verifier_generated_file,
+        &circuit_representation,
+    )
+    .map_err(|e| e.to_string())?;
+    //todo for now I added aiken code gen to plinth code gen so they happen at the same time
+    //todo for final solution there should be separate command for generating aiken verifier
+    emit_verifier_code_aiken(
+        Path::new("aiken-verifier/templates/verification.hbs"),
+        Path::new("aiken-verifier/aiken_halo2/lib/proof_verifier.ak"),
         &circuit_representation,
     )
     .map_err(|e| e.to_string())?;
