@@ -132,6 +132,12 @@ fn compile_simple_mul_circuit<
     )
     .unwrap();
 
-    generate_plinth_verifier(&params, &vk, instances, |a| hex::encode(a.to_bytes()))
-        .expect("Plinth verifier generation failed");
+    generate_plinth_verifier(
+        &params,
+        &vk,
+        instances,
+        |a| hex::encode(a.to_bytes()),
+        |a| hex::encode(a.to_bytes()),
+    )
+    .expect("Plinth verifier generation failed");
 }
