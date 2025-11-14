@@ -114,6 +114,12 @@ pub fn compile_lookup_table_circuit<
     )
     .unwrap();
 
-    generate_plinth_verifier(&kzg_params, &vk, instances, |a| hex::encode(a.to_bytes()))
-        .expect("Plinth verifier generation failed");
+    generate_plinth_verifier(
+        &kzg_params,
+        &vk,
+        instances,
+        |a| hex::encode(a.to_bytes()),
+        |a| hex::encode(a.to_bytes()),
+    )
+    .expect("Plinth verifier generation failed");
 }

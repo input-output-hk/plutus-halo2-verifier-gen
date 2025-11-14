@@ -1,7 +1,9 @@
 use crate::plutus_gen::extraction::data::{CircuitRepresentation, ProofExtractionSteps};
 use crate::plutus_gen::extraction::{combine_aiken_expressions, compile_aiken_expressions};
+use blstrs::{G1Affine, G2Affine};
 use handlebars::{Handlebars, RenderError};
 use itertools::Itertools;
+use log::debug;
 use std::collections::HashMap;
 use std::fs::File;
 use std::path::Path;
@@ -231,4 +233,83 @@ pub fn emit_verifier_code(
     let mut output_file = File::create(aiken_file)?;
     handlebars.render_to_write("aiken_template", &data, &mut output_file)?;
     handlebars.render("aiken_template", &data)
+}
+
+pub fn emit_vk_code(
+    template_file: &Path, // haskell mustashe template
+    haskell_file: &Path,  // generated haskell file, output
+    circuit: &CircuitRepresentation,
+    g1_encoder: fn(G1Affine) -> String,
+    g2_encoder: fn(G2Affine) -> String,
+) -> Result<String, RenderError> {
+    let mut data: HashMap<String, String> = HashMap::new(); // data to bind to mustache template
+
+    let points = circuit
+        .instantiation_data
+        .fixed_commitments
+        .iter()
+        .cloned()
+        .map(g1_encoder);
+
+    let points = points
+        .enumerate()
+        .map(|(idx, g1_encoded)| format!("pub const f{}_commitment: G1Element = bls12_381_g1_uncompress(#\"{}\")", idx, g1_encoded))
+        .join("\n");
+
+    data.insert("FIXED_COMMITMENTS".to_string(), points);
+
+    let points = circuit
+        .instantiation_data
+        .permutation_commitments
+        .iter()
+        .cloned()
+        .map(g1_encoder);
+
+    let points = points
+        .enumerate()
+        .map(|(idx, g1_encoded)| format!("pub const p{}_commitment: G1Element = bls12_381_g1_uncompress(#\"{}\")", idx, g1_encoded))
+        .join("\n");
+
+    data.insert("PERMUTATION_COMMITMENTS".to_string(), points);
+
+    let compressed_sg2 = g2_encoder(circuit.instantiation_data.s_g2);
+
+    debug!("compressed_sg2: {}", compressed_sg2);
+
+    data.insert(
+        "G2_DEFINITIONS".to_string(),
+        format!("\"{}\"", compressed_sg2),
+    );
+    data.insert(
+        "OMEGA".to_string(),
+        hex::encode(circuit.instantiation_data.omega.to_bytes_be()),
+    );
+    data.insert(
+        "OMEGA_INV".to_string(),
+        hex::encode(circuit.instantiation_data.inverted_omega.to_bytes_be()),
+    );
+    data.insert(
+        "BARYCENTRIC_WEIGHT".to_string(),
+        hex::encode(circuit.instantiation_data.barycentric_weight.to_bytes_be()),
+    );
+    data.insert(
+        "TRANSCRIPT_REP".to_string(),
+        hex::encode(
+            circuit
+                .instantiation_data
+                .transcript_representation
+                .to_bytes_be(),
+        ),
+    );
+    data.insert(
+        "BLINDING_FACTORS".to_string(),
+        circuit.instantiation_data.blinding_factors.to_string(),
+    );
+
+    let mut handlebars = Handlebars::new();
+    handlebars.set_strict_mode(true);
+    handlebars.register_template_file("haskell_template", template_file)?;
+    let mut output_file = File::create(haskell_file)?;
+    handlebars.render_to_write("haskell_template", &data, &mut output_file)?;
+    handlebars.render("haskell_template", &data)
 }
