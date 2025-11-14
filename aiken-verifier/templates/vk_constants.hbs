@@ -16,7 +16,7 @@ use aiken/crypto/bls12_381/scalar.{
 {{{FIXED_COMMITMENTS}}}
 
 
-pub const g2: G2Element = bls12_381_g2_uncompress( #{{{G2_DEFINITIONS}}} )
+pub const g2_const: G2Element = bls12_381_g2_uncompress( #{{{G2_DEFINITIONS}}} )
 
 pub const omega: State<Scalar> = from_int( 0x{{{OMEGA}}} )
 pub const omega_inv: State<Scalar> = from_int( 0x{{{OMEGA_INV}}} )
