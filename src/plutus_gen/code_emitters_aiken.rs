@@ -6,6 +6,7 @@ use itertools::Itertools;
 use log::debug;
 use std::collections::HashMap;
 use std::fs::File;
+use std::iter::once;
 use std::path::Path;
 
 pub fn emit_verifier_code(
@@ -312,6 +313,26 @@ pub fn emit_vk_code(
     data.insert(
         "BLINDING_FACTORS".to_string(),
         circuit.instantiation_data.blinding_factors.to_string(),
+    );
+
+    let fixed_commitments= circuit
+        .instantiation_data
+        .fixed_commitments.len();
+
+    let permutation_commitments= circuit
+        .instantiation_data
+        .permutation_commitments.len();
+
+    let fixed = (0..fixed_commitments).map(|idx|format!("    expect f{}_commitment == f{}_commitment",idx,idx));
+    let permutations = (0..permutation_commitments).map(|idx|format!("    expect p{}_commitment == p{}_commitment",idx,idx));
+
+    let budget_check = fixed.chain(permutations).chain(once("    expect g2_const == g2_const".to_string())).join("\n");
+
+
+
+    data.insert(
+        "BUDGET_CHECK".to_string(),
+        budget_check
     );
 
     let mut handlebars = Handlebars::new();
