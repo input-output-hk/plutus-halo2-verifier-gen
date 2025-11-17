@@ -126,7 +126,6 @@ pub fn compile_atms_circuit<
         &vk,
         instances,
         |a| hex::encode(a.to_bytes()),
-        |a| hex::encode(a.to_bytes()),
     )
     .expect("Plinth verifier generation failed");
 }

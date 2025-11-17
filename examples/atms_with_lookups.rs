@@ -26,6 +26,7 @@ use halo2_proofs::{
     transcript::{CircuitTranscript, Transcript},
 };
 use log::info;
+use plutus_halo2_verifier_gen::plutus_gen::generate_aiken_verifier;
 use plutus_halo2_verifier_gen::{
     circuits::{
         atms_circuit::prepare_test_signatures, atms_with_lookups_circuit::AtmsLookupCircuit,
@@ -144,12 +145,15 @@ pub fn compile_atms_lookup_circuit<
     )
     .unwrap();
 
-    generate_plinth_verifier(
+    generate_plinth_verifier(&kzg_params, &vk, instances, |a| hex::encode(a.to_bytes()))
+        .expect("Plinth verifier generation failed");
+
+    generate_aiken_verifier(
         &kzg_params,
         &vk,
         instances,
         |a| hex::encode(a.to_bytes()),
         |a| hex::encode(a.to_bytes()),
     )
-    .expect("Plinth verifier generation failed");
+    .expect("Aiken verifier generation failed");
 }

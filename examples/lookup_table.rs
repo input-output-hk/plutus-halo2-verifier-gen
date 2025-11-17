@@ -119,7 +119,6 @@ pub fn compile_lookup_table_circuit<
         &vk,
         instances,
         |a| hex::encode(a.to_bytes()),
-        |a| hex::encode(a.to_bytes()),
     )
     .expect("Plinth verifier generation failed");
 }

@@ -32,7 +32,6 @@ pub fn generate_plinth_verifier<S>(
     params: &ParamsKZG<Bls12>,
     vk: &VerifyingKey<Scalar, S>,
     instances: &[&[&[Scalar]]],
-    g1_encoder: fn(G1Affine) -> String,
     g2_encoder: fn(G2Affine) -> String,
 ) -> Result<(), String>
 where
@@ -67,8 +66,31 @@ where
         &circuit_representation,
     )
     .map_err(|e| e.to_string())?;
-    //todo for now I added aiken code gen to plinth code gen so they happen at the same time
-    //todo for final solution there should be separate command for generating aiken verifier
+    emit_vk_code(
+        vk_template_file,
+        vk_generated_file,
+        &circuit_representation,
+        g2_encoder,
+    )
+    .map_err(|e| e.to_string())?;
+
+    Ok(())
+}
+
+pub fn generate_aiken_verifier<S>(
+    params: &ParamsKZG<Bls12>,
+    vk: &VerifyingKey<Scalar, S>,
+    instances: &[&[&[Scalar]]],
+    g1_encoder: fn(G1Affine) -> String,
+    g2_encoder: fn(G2Affine) -> String,
+) -> Result<(), String>
+where
+    S: PolynomialCommitmentScheme<Scalar, Commitment = G1Projective> + ExtractKZG,
+{
+    let circuit_representation =
+        extract_circuit(params, vk, instances).map_err(|e| e.to_string())?;
+    let circuit_representation = S::extract_kzg_steps(circuit_representation);
+
     emit_verifier_code_aiken(
         Path::new("aiken-verifier/templates/verification.hbs"),
         Path::new("aiken-verifier/aiken_halo2/lib/proof_verifier.ak"),
@@ -80,13 +102,6 @@ where
         Path::new("aiken-verifier/aiken_halo2/lib/verifier_key.ak"),
         &circuit_representation,
         g1_encoder,
-        g2_encoder,
-    ).map_err(|e| e.to_string())?;
-
-    emit_vk_code(
-        vk_template_file,
-        vk_generated_file,
-        &circuit_representation,
         g2_encoder,
     )
     .map_err(|e| e.to_string())?;
