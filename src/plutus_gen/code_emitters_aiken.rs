@@ -1,6 +1,6 @@
 use crate::plutus_gen::extraction::data::{CircuitRepresentation, ProofExtractionSteps};
 use crate::plutus_gen::extraction::{combine_aiken_expressions, compile_aiken_expressions};
-use blstrs::{G1Affine, G2Affine};
+use halo2_proofs::halo2curves::group::GroupEncoding;
 use handlebars::{Handlebars, RenderError};
 use itertools::Itertools;
 use log::debug;
@@ -239,8 +239,6 @@ pub fn emit_vk_code(
     template_file: &Path,
     aiken_file: &Path,
     circuit: &CircuitRepresentation,
-    g1_encoder: fn(G1Affine) -> String,
-    g2_encoder: fn(G2Affine) -> String,
 ) -> Result<String, RenderError> {
     let mut data: HashMap<String, String> = HashMap::new(); // data to bind to mustache template
 
@@ -249,11 +247,16 @@ pub fn emit_vk_code(
         .fixed_commitments
         .iter()
         .cloned()
-        .map(g1_encoder);
+        .map(|g| hex::encode(g.to_bytes()));
 
     let points = points
         .enumerate()
-        .map(|(idx, g1_encoded)| format!("pub const f{}_commitment: G1Element = bls12_381_g1_uncompress(#\"{}\")", idx, g1_encoded))
+        .map(|(idx, g1_encoded)| {
+            format!(
+                "pub const f{}_commitment: G1Element = bls12_381_g1_uncompress(#\"{}\")",
+                idx, g1_encoded
+            )
+        })
         .join("\n");
 
     data.insert("FIXED_COMMITMENTS".to_string(), points);
@@ -263,16 +266,21 @@ pub fn emit_vk_code(
         .permutation_commitments
         .iter()
         .cloned()
-        .map(g1_encoder);
+        .map(|g| hex::encode(g.to_bytes()));
 
     let points = points
         .enumerate()
-        .map(|(idx, g1_encoded)| format!("pub const p{}_commitment: G1Element = bls12_381_g1_uncompress(#\"{}\")", idx, g1_encoded))
+        .map(|(idx, g1_encoded)| {
+            format!(
+                "pub const p{}_commitment: G1Element = bls12_381_g1_uncompress(#\"{}\")",
+                idx, g1_encoded
+            )
+        })
         .join("\n");
 
     data.insert("PERMUTATION_COMMITMENTS".to_string(), points);
 
-    let compressed_sg2 = g2_encoder(circuit.instantiation_data.s_g2);
+    let compressed_sg2 = hex::encode(circuit.instantiation_data.s_g2.to_bytes());
 
     debug!("compressed_sg2: {}", compressed_sg2);
 

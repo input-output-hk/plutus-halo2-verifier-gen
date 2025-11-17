@@ -1,7 +1,6 @@
 use blstrs::{Base, Bls12, G1Projective, Scalar};
 use ff::Field;
 use halo2_proofs::{
-    halo2curves::group::GroupEncoding,
     plonk::{
         ProvingKey, VerifyingKey, create_proof, k_from_circuit, keygen_pk, keygen_vk, prepare,
     },
@@ -133,15 +132,7 @@ fn compile_simple_mul_circuit<
     )
     .unwrap();
 
-    generate_plinth_verifier(&params, &vk, instances, |a| hex::encode(a.to_bytes()))
-        .expect("Plinth verifier generation failed");
+    generate_plinth_verifier(&params, &vk, instances).expect("Plinth verifier generation failed");
 
-    generate_aiken_verifier(
-        &params,
-        &vk,
-        instances,
-        |a| hex::encode(a.to_bytes()),
-        |a| hex::encode(a.to_bytes()),
-    )
-    .expect("Aiken verifier generation failed");
+    generate_aiken_verifier(&params, &vk, instances).expect("Aiken verifier generation failed");
 }

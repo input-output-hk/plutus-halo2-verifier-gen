@@ -5,7 +5,7 @@ use crate::plutus_gen::code_emitters_plutus::{
     emit_verifier_code as emit_verifier_code_plutus, emit_vk_code,
 };
 use crate::plutus_gen::extraction::{ExtractKZG, KzgType, extract_circuit};
-use blstrs::{Bls12, G1Affine, G1Projective, G2Affine, Scalar};
+use blstrs::{Bls12, G1Projective, Scalar};
 use halo2_proofs::plonk::VerifyingKey;
 use halo2_proofs::poly::commitment::PolynomialCommitmentScheme;
 use halo2_proofs::poly::kzg::params::ParamsKZG;
@@ -32,7 +32,6 @@ pub fn generate_plinth_verifier<S>(
     params: &ParamsKZG<Bls12>,
     vk: &VerifyingKey<Scalar, S>,
     instances: &[&[&[Scalar]]],
-    g2_encoder: fn(G2Affine) -> String,
 ) -> Result<(), String>
 where
     S: PolynomialCommitmentScheme<Scalar, Commitment = G1Projective> + ExtractKZG,
@@ -66,13 +65,8 @@ where
         &circuit_representation,
     )
     .map_err(|e| e.to_string())?;
-    emit_vk_code(
-        vk_template_file,
-        vk_generated_file,
-        &circuit_representation,
-        g2_encoder,
-    )
-    .map_err(|e| e.to_string())?;
+    emit_vk_code(vk_template_file, vk_generated_file, &circuit_representation)
+        .map_err(|e| e.to_string())?;
 
     Ok(())
 }
@@ -81,8 +75,6 @@ pub fn generate_aiken_verifier<S>(
     params: &ParamsKZG<Bls12>,
     vk: &VerifyingKey<Scalar, S>,
     instances: &[&[&[Scalar]]],
-    g1_encoder: fn(G1Affine) -> String,
-    g2_encoder: fn(G2Affine) -> String,
 ) -> Result<(), String>
 where
     S: PolynomialCommitmentScheme<Scalar, Commitment = G1Projective> + ExtractKZG,
@@ -101,8 +93,6 @@ where
         Path::new("aiken-verifier/templates/vk_constants.hbs"),
         Path::new("aiken-verifier/aiken_halo2/lib/verifier_key.ak"),
         &circuit_representation,
-        g1_encoder,
-        g2_encoder,
     )
     .map_err(|e| e.to_string())?;
 

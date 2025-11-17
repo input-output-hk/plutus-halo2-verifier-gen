@@ -3,7 +3,7 @@ use crate::plutus_gen::extraction::data::{
     CircuitRepresentation, ProofExtractionSteps, RotationDescription,
 };
 use crate::plutus_gen::extraction::{combine_plinth_expressions, precompute_intermediate_sets};
-use blstrs::G2Affine;
+use halo2_proofs::halo2curves::group::GroupEncoding;
 use halo2_proofs::halo2curves::group::prime::PrimeCurveAffine;
 use handlebars::{Handlebars, RenderError};
 use itertools::Itertools;
@@ -783,7 +783,6 @@ pub fn emit_vk_code(
     template_file: &Path, // haskell mustashe template
     haskell_file: &Path,  // generated haskell file, output
     circuit: &CircuitRepresentation,
-    g2_encoder: fn(G2Affine) -> String,
 ) -> Result<String, RenderError> {
     let mut data: HashMap<String, String> = HashMap::new(); // data to bind to mustache template
 
@@ -842,7 +841,7 @@ pub fn emit_vk_code(
     data.insert("PERMUTATION_COMMITMENTS".to_string(), points);
     data.insert("PERMUTATION_COMMITMENTS_EXPORTS".to_string(), exports);
     data.insert("PERMUTATION_COMMITMENT_G1".to_string(), assignment);
-    let compressed_sg2 = g2_encoder(circuit.instantiation_data.s_g2);
+    let compressed_sg2 = hex::encode(circuit.instantiation_data.s_g2.to_bytes());
 
     debug!("compressed_sg2: {}", compressed_sg2);
 
