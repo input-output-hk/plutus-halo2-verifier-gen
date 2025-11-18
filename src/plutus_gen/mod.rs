@@ -1,9 +1,11 @@
-pub use crate::plutus_gen::code_emitters_aiken::emit_verifier_code as emit_verifier_code_aiken;
+pub use crate::plutus_gen::code_emitters_aiken::{
+    emit_verifier_code as emit_verifier_code_aiken, emit_vk_code as emit_vk_code_aiken,
+};
 use crate::plutus_gen::code_emitters_plutus::{
     emit_verifier_code as emit_verifier_code_plutus, emit_vk_code,
 };
 use crate::plutus_gen::extraction::{ExtractKZG, KzgType, extract_circuit};
-use blstrs::{Bls12, G1Projective, G2Affine, Scalar};
+use blstrs::{Bls12, G1Projective, Scalar};
 use halo2_proofs::plonk::VerifyingKey;
 use halo2_proofs::poly::commitment::PolynomialCommitmentScheme;
 use halo2_proofs::poly::kzg::params::ParamsKZG;
@@ -30,7 +32,6 @@ pub fn generate_plinth_verifier<S>(
     params: &ParamsKZG<Bls12>,
     vk: &VerifyingKey<Scalar, S>,
     instances: &[&[&[Scalar]]],
-    g2_encoder: fn(G2Affine) -> String,
 ) -> Result<(), String>
 where
     S: PolynomialCommitmentScheme<Scalar, Commitment = G1Projective> + ExtractKZG,
@@ -64,19 +65,34 @@ where
         &circuit_representation,
     )
     .map_err(|e| e.to_string())?;
-    //todo for now I added aiken code gen to plinth code gen so they happen at the same time
-    //todo for final solution there should be separate command for generating aiken verifier
+    emit_vk_code(vk_template_file, vk_generated_file, &circuit_representation)
+        .map_err(|e| e.to_string())?;
+
+    Ok(())
+}
+
+pub fn generate_aiken_verifier<S>(
+    params: &ParamsKZG<Bls12>,
+    vk: &VerifyingKey<Scalar, S>,
+    instances: &[&[&[Scalar]]],
+) -> Result<(), String>
+where
+    S: PolynomialCommitmentScheme<Scalar, Commitment = G1Projective> + ExtractKZG,
+{
+    let circuit_representation =
+        extract_circuit(params, vk, instances).map_err(|e| e.to_string())?;
+    let circuit_representation = S::extract_kzg_steps(circuit_representation);
+
     emit_verifier_code_aiken(
         Path::new("aiken-verifier/templates/verification.hbs"),
         Path::new("aiken-verifier/aiken_halo2/lib/proof_verifier.ak"),
         &circuit_representation,
     )
     .map_err(|e| e.to_string())?;
-    emit_vk_code(
-        vk_template_file,
-        vk_generated_file,
+    emit_vk_code_aiken(
+        Path::new("aiken-verifier/templates/vk_constants.hbs"),
+        Path::new("aiken-verifier/aiken_halo2/lib/verifier_key.ak"),
         &circuit_representation,
-        g2_encoder,
     )
     .map_err(|e| e.to_string())?;
 

@@ -1,0 +1,33 @@
+use aiken/builtin.{
+    blake2b_256, bls12_381_g1_neg, bls12_381_g1_scalar_mul,
+    bls12_381_g1_uncompress, bls12_381_g2_uncompress, bytearray_to_integer,
+    integer_to_bytearray, mod_integer,
+}
+use aiken/crypto/bitwise.{State}
+use aiken/crypto/bls12_381/scalar.{
+    Scalar, add, field_prime as bls12_381_field_prime, from_int, mul, neg, sub,
+    to_int,
+}
+
+
+{{{PERMUTATION_COMMITMENTS}}}
+
+
+{{{FIXED_COMMITMENTS}}}
+
+
+pub const g2_const: G2Element = bls12_381_g2_uncompress( #{{{G2_DEFINITIONS}}} )
+
+pub const omega: State<Scalar> = from_int( 0x{{{OMEGA}}} )
+pub const omega_inv: State<Scalar> = from_int( 0x{{{OMEGA_INV}}} )
+
+pub const barycentric_weight: State<Scalar> = from_int( 0x{{{BARYCENTRIC_WEIGHT}}} )
+
+pub const transcript_rep: State<Scalar> = from_int( 0x{{{TRANSCRIPT_REP}}} )
+
+pub const blinding_factors: Int = {{{BLINDING_FACTORS}}}
+
+// this test is for checking how much budget is used when G1 constants are used in script, assertions are only to force use of the constant
+test cpu_mem_budget_check() {
+{{{BUDGET_CHECK}}}
+}

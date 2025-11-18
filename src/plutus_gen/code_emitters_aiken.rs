@@ -1,9 +1,12 @@
 use crate::plutus_gen::extraction::data::{CircuitRepresentation, ProofExtractionSteps};
 use crate::plutus_gen::extraction::{combine_aiken_expressions, compile_aiken_expressions};
+use halo2_proofs::halo2curves::group::GroupEncoding;
 use handlebars::{Handlebars, RenderError};
 use itertools::Itertools;
+use log::debug;
 use std::collections::HashMap;
 use std::fs::File;
+use std::iter::once;
 use std::path::Path;
 
 pub fn emit_verifier_code(
@@ -224,6 +227,113 @@ pub fn emit_verifier_code(
         .join("");
 
     data.insert("LOOKUPS".to_string(), lookup_equations);
+
+    let mut handlebars = Handlebars::new();
+    handlebars.set_strict_mode(true);
+    handlebars.register_template_file("aiken_template", template_file)?;
+    let mut output_file = File::create(aiken_file)?;
+    handlebars.render_to_write("aiken_template", &data, &mut output_file)?;
+    handlebars.render("aiken_template", &data)
+}
+
+pub fn emit_vk_code(
+    template_file: &Path,
+    aiken_file: &Path,
+    circuit: &CircuitRepresentation,
+) -> Result<String, RenderError> {
+    let mut data: HashMap<String, String> = HashMap::new(); // data to bind to mustache template
+
+    let points = circuit
+        .instantiation_data
+        .fixed_commitments
+        .iter()
+        .cloned()
+        .map(|g| hex::encode(g.to_bytes()));
+
+    let points = points
+        .enumerate()
+        .map(|(idx, g1_encoded)| {
+            format!(
+                "pub const f{}_commitment: G1Element = bls12_381_g1_uncompress(#\"{}\")",
+                idx, g1_encoded
+            )
+        })
+        .join("\n");
+
+    data.insert("FIXED_COMMITMENTS".to_string(), points);
+
+    let points = circuit
+        .instantiation_data
+        .permutation_commitments
+        .iter()
+        .cloned()
+        .map(|g| hex::encode(g.to_bytes()));
+
+    let points = points
+        .enumerate()
+        .map(|(idx, g1_encoded)| {
+            format!(
+                "pub const p{}_commitment: G1Element = bls12_381_g1_uncompress(#\"{}\")",
+                idx, g1_encoded
+            )
+        })
+        .join("\n");
+
+    data.insert("PERMUTATION_COMMITMENTS".to_string(), points);
+
+    let compressed_sg2 = hex::encode(circuit.instantiation_data.s_g2.to_bytes());
+
+    debug!("compressed_sg2: {}", compressed_sg2);
+
+    data.insert(
+        "G2_DEFINITIONS".to_string(),
+        format!("\"{}\"", compressed_sg2),
+    );
+    data.insert(
+        "OMEGA".to_string(),
+        hex::encode(circuit.instantiation_data.omega.to_bytes_be()),
+    );
+    data.insert(
+        "OMEGA_INV".to_string(),
+        hex::encode(circuit.instantiation_data.inverted_omega.to_bytes_be()),
+    );
+    data.insert(
+        "BARYCENTRIC_WEIGHT".to_string(),
+        hex::encode(circuit.instantiation_data.barycentric_weight.to_bytes_be()),
+    );
+    data.insert(
+        "TRANSCRIPT_REP".to_string(),
+        hex::encode(
+            circuit
+                .instantiation_data
+                .transcript_representation
+                .to_bytes_be(),
+        ),
+    );
+    data.insert(
+        "BLINDING_FACTORS".to_string(),
+        circuit.instantiation_data.blinding_factors.to_string(),
+    );
+
+    let fixed_commitments= circuit
+        .instantiation_data
+        .fixed_commitments.len();
+
+    let permutation_commitments= circuit
+        .instantiation_data
+        .permutation_commitments.len();
+
+    let fixed = (0..fixed_commitments).map(|idx|format!("    expect f{}_commitment == f{}_commitment",idx,idx));
+    let permutations = (0..permutation_commitments).map(|idx|format!("    expect p{}_commitment == p{}_commitment",idx,idx));
+
+    let budget_check = fixed.chain(permutations).chain(once("    expect g2_const == g2_const".to_string())).join("\n");
+
+
+
+    data.insert(
+        "BUDGET_CHECK".to_string(),
+        budget_check
+    );
 
     let mut handlebars = Handlebars::new();
     handlebars.set_strict_mode(true);

@@ -1,6 +1,5 @@
 use blstrs::{Base, Bls12, G1Projective, Scalar};
 use halo2_proofs::{
-    halo2curves::group::GroupEncoding,
     plonk::{
         ProvingKey, VerifyingKey, create_proof, k_from_circuit, keygen_pk, keygen_vk, prepare,
     },
@@ -114,6 +113,6 @@ pub fn compile_lookup_table_circuit<
     )
     .unwrap();
 
-    generate_plinth_verifier(&kzg_params, &vk, instances, |a| hex::encode(a.to_bytes()))
+    generate_plinth_verifier(&kzg_params, &vk, instances)
         .expect("Plinth verifier generation failed");
 }
