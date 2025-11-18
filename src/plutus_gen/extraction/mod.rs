@@ -1,5 +1,6 @@
 use crate::plutus_gen::extraction::data::{
-    CircuitRepresentation, CommitmentData, ProofExtractionSteps, Query, RotationDescription,
+    CircuitRepresentation, CommitmentData, ExpressionG1, ProofExtractionSteps, Query,
+    RotationDescription, ScalarExpression,
 };
 use crate::plutus_gen::extraction::utils::get_any_query_index;
 use blstrs::{Bls12, G1Affine, G1Projective, Scalar};
@@ -15,8 +16,8 @@ use itertools::Itertools;
 use log::debug;
 use std::collections::HashMap;
 pub use utils::{
-    combine_aiken_expressions, combine_plinth_expressions, compile_aiken_expressions,
-    compile_plinth_expressions,
+    CompiledAikenExpressions, CompiledPlinthExpressions, combine_aiken_expressions,
+    combine_plinth_expressions, compile_plinth_expressions,
 };
 
 pub mod data;
@@ -407,23 +408,57 @@ where
         .map_err(|_e| Error::Synthesis)?;
     let shifted_sets: Vec<_> = sets.iter().skip(1).zip(sets.iter()).collect();
 
-    let mut terms: Vec<String> = Vec::new();
+    let mut terms: Vec<ScalarExpression<Scalar>> = Vec::new();
+    //evaluation_at_0 * (scalarOne - permutations_evaluated_{}_1)
+    //a * (b - c)
+    let a = ScalarExpression::Variable("evaluation_at_0".to_string());
+    let b = ScalarExpression::Variable("scalarOne".to_string());
+    let c = ScalarExpression::Variable(format!("permutations_evaluated_{}_1", first_set));
 
-    terms.push(format!(
-        "evaluation_at_0 * (scalarOne - permutations_evaluated_{}_1)",
-        first_set
-    ));
-    terms.push(
-        format!("last_evaluation * (permutations_evaluated_{}_1 * permutations_evaluated_{}_1 - permutations_evaluated_{}_1)",
-                last_set,
-                last_set,
-                last_set));
+    let term = ScalarExpression::Product(
+        Box::new(a),
+        Box::new(ScalarExpression::Sum(
+            Box::new(b),
+            Box::new(ScalarExpression::Negated(Box::new(c))),
+        )),
+    );
+
+    terms.push(term);
+
+    //last_evaluation * (permutations_evaluated_{}_1 * permutations_evaluated_{}_1 - permutations_evaluated_{}_1)
+    //a * (b * b - b)
+    let a = ScalarExpression::Variable("last_evaluation".to_string());
+    let b = ScalarExpression::Variable(format!("permutations_evaluated_{}_1", last_set));
+
+    let term = ScalarExpression::Product(
+        Box::new(a),
+        Box::new(ScalarExpression::Sum(
+            Box::new(ScalarExpression::Product(
+                Box::new(b.clone()),
+                Box::new(b.clone()),
+            )),
+            Box::new(ScalarExpression::Negated(Box::new(b))),
+        )),
+    );
+
+    terms.push(term);
 
     for (next, current) in shifted_sets {
-        let term = format!(
-            "(permutations_evaluated_{}_1 - permutations_evaluated_{}_3) * evaluation_at_0",
-            next, current
+        // (permutations_evaluated_{}_1 - permutations_evaluated_{}_3) * evaluation_at_0
+        // (a - b) * c
+
+        let a = ScalarExpression::Variable(format!("permutations_evaluated_{}_1", next));
+        let neg_b = ScalarExpression::Negated(Box::new(ScalarExpression::Variable(format!(
+            "permutations_evaluated_{}_3",
+            current
+        ))));
+        let c = ScalarExpression::Variable("evaluation_at_0".to_string());
+
+        let term = ScalarExpression::Product(
+            Box::new(ScalarExpression::Sum(Box::new(a), Box::new(neg_b))),
+            Box::new(c),
         );
+
         terms.push(term);
     }
 
@@ -446,28 +481,70 @@ where
                 let eval_index = get_any_query_index(vk, column, Rotation::cur()) + 1;
                 match column.column_type() {
                     Any::Advice(_) => {
-                        let term: String = format!(
-                            "(adviceEval{:?} + (beta * permutationCommon{:?}) + gamma)",
-                            eval_index, permutation_index
+                        // (adviceEval{:?} + (beta * permutationCommon{:?}) + gamma)
+                        // a + (b * c) + d
+                        let a = ScalarExpression::Variable(format!("adviceEval{:?}", eval_index));
+                        let b = ScalarExpression::Variable("beta".to_string());
+                        let c = ScalarExpression::Variable(format!(
+                            "permutationCommon{:?}",
+                            permutation_index
+                        ));
+                        let d = ScalarExpression::Variable("gamma".to_string());
+
+                        let term = ScalarExpression::Sum(
+                            Box::new(ScalarExpression::Sum(
+                                Box::new(a),
+                                Box::new(ScalarExpression::Product(Box::new(b), Box::new(c))),
+                            )),
+                            Box::new(d),
                         );
+
                         circuit_description
                             .permutation_terms_left
                             .push((**set, term));
                     }
                     Any::Fixed => {
-                        let term: String = format!(
-                            "(fixedEval{:?} + (beta * permutationCommon{:?}) + gamma)",
-                            eval_index, permutation_index
+                        // (fixedEval{:?} + (beta * permutationCommon{:?}) + gamma)
+                        // a + (b * c) + d
+                        let a = ScalarExpression::Variable(format!("fixedEval{:?}", eval_index));
+                        let b = ScalarExpression::Variable("beta".to_string());
+                        let c = ScalarExpression::Variable(format!(
+                            "permutationCommon{:?}",
+                            permutation_index
+                        ));
+                        let d = ScalarExpression::Variable("gamma".to_string());
+
+                        let term = ScalarExpression::Sum(
+                            Box::new(ScalarExpression::Sum(
+                                Box::new(a),
+                                Box::new(ScalarExpression::Product(Box::new(b), Box::new(c))),
+                            )),
+                            Box::new(d),
                         );
+
                         circuit_description
                             .permutation_terms_left
                             .push((**set, term));
                     }
                     Any::Instance => {
-                        let term: String = format!(
-                            "(instanceEval{:?} + (beta * permutationCommon{:?}) + gamma)",
-                            eval_index, permutation_index
+                        // (instanceEval{:?} + (beta * permutationCommon{:?}) + gamma)
+                        // a + (b * c) + d
+                        let a = ScalarExpression::Variable(format!("instanceEval{:?}", eval_index));
+                        let b = ScalarExpression::Variable("beta".to_string());
+                        let c = ScalarExpression::Variable(format!(
+                            "permutationCommon{:?}",
+                            permutation_index
+                        ));
+                        let d = ScalarExpression::Variable("gamma".to_string());
+
+                        let term = ScalarExpression::Sum(
+                            Box::new(ScalarExpression::Sum(
+                                Box::new(a),
+                                Box::new(ScalarExpression::Product(Box::new(b), Box::new(c))),
+                            )),
+                            Box::new(d),
                         );
+
                         circuit_description
                             .permutation_terms_left
                             .push((**set, term));
@@ -480,28 +557,76 @@ where
                 let eval_index = get_any_query_index(vk, column, Rotation::cur()) + 1;
                 match column.column_type() {
                     Any::Advice(_) => {
-                        let term: String = format!(
-                            "(adviceEval{:?} + (beta * x) * (powMod scalarDelta {:?}) + gamma)",
-                            eval_index, power
+                        // (adviceEval{:?} + (beta * x) * (powMod scalarDelta {:?}) + gamma)
+                        // a + (b * c) * (d + e)
+
+                        let a = ScalarExpression::Variable(format!("adviceEval{:?}", eval_index));
+                        let b = ScalarExpression::Variable("beta".to_string());
+                        let c = ScalarExpression::Variable("x".to_string());
+                        let d = ScalarExpression::PowMod(
+                            Box::new(ScalarExpression::Variable("scalarDelta".to_string())),
+                            power,
                         );
+                        let e = ScalarExpression::Variable("gamma".to_string());
+
+                        let term = ScalarExpression::Sum(
+                            Box::new(a),
+                            Box::new(ScalarExpression::Product(
+                                Box::new(ScalarExpression::Product(Box::new(b), Box::new(c))),
+                                Box::new(ScalarExpression::Sum(Box::new(d), Box::new(e))),
+                            )),
+                        );
+
                         circuit_description
                             .permutation_terms_right
                             .push((**set, term));
                     }
                     Any::Fixed => {
-                        let term: String = format!(
-                            "(fixedEval{:?} + (beta * x) * (powMod scalarDelta {:?}) + gamma)",
-                            eval_index, power
+                        // (fixedEval{:?} + (beta * x) * (powMod scalarDelta {:?}) + gamma)
+                        // a + (b * c) * (d + e)
+
+                        let a = ScalarExpression::Variable(format!("adviceEval{:?}", eval_index));
+                        let b = ScalarExpression::Variable("beta".to_string());
+                        let c = ScalarExpression::Variable("x".to_string());
+                        let d = ScalarExpression::PowMod(
+                            Box::new(ScalarExpression::Variable("scalarDelta".to_string())),
+                            power,
                         );
+                        let e = ScalarExpression::Variable("gamma".to_string());
+
+                        let term = ScalarExpression::Sum(
+                            Box::new(a),
+                            Box::new(ScalarExpression::Product(
+                                Box::new(ScalarExpression::Product(Box::new(b), Box::new(c))),
+                                Box::new(ScalarExpression::Sum(Box::new(d), Box::new(e))),
+                            )),
+                        );
+
                         circuit_description
                             .permutation_terms_right
                             .push((**set, term));
                     }
                     Any::Instance => {
-                        let term: String = format!(
-                            "(instanceEval{:?} + (beta * x) * (powMod scalarDelta {:?}) + gamma)",
-                            eval_index, power
+                        // (instanceEval{:?} + (beta * x) * (powMod scalarDelta {:?}) + gamma)
+                        // a + (b * c) * (d + e)
+
+                        let a = ScalarExpression::Variable(format!("adviceEval{:?}", eval_index));
+                        let b = ScalarExpression::Variable("beta".to_string());
+                        let c = ScalarExpression::Variable("x".to_string());
+                        let d = ScalarExpression::PowMod(
+                            Box::new(ScalarExpression::Variable("scalarDelta".to_string())),
+                            power,
                         );
+                        let e = ScalarExpression::Variable("gamma".to_string());
+
+                        let term = ScalarExpression::Sum(
+                            Box::new(a),
+                            Box::new(ScalarExpression::Product(
+                                Box::new(ScalarExpression::Product(Box::new(b), Box::new(c))),
+                                Box::new(ScalarExpression::Sum(Box::new(d), Box::new(e))),
+                            )),
+                        );
+
                         circuit_description
                             .permutation_terms_right
                             .push((**set, term));
@@ -516,20 +641,50 @@ where
         .filter(|e| matches!(e, ProofExtractionSteps::VanishingSplit))
         .count();
 
-    circuit_description.h_commitments.push(format!("!hCommitment1 = scale xn (bls12_381_G1_uncompress bls12_381_G1_compressed_zero) + vanishingSplit{:?}", vanishing_splits_count));
+    // !hCommitment1 = scale xn G1_zero + vanishingSplit{:?}", vanishing_splits_count
+    // a + b
+    let a = ExpressionG1::Scale(
+        Box::new(ExpressionG1::Zero),
+        ScalarExpression::Variable("xn".to_string()),
+    );
+    let b = ExpressionG1::Variable(format!("vanishingSplit_{:?}", vanishing_splits_count));
+    let term = ExpressionG1::Sum(Box::new(a), Box::new(b));
+
+    circuit_description
+        .h_commitments
+        .push(("hCommitment1".to_string(), term));
     for i in 1..(vanishing_splits_count - 1) {
         // render last on as vanishing_g
-        circuit_description.h_commitments.push(format!(
-            "!hCommitment{:?} = scale xn hCommitment{:?} + vanishingSplit{:?}",
-            i + 1,
-            i,
-            vanishing_splits_count - i
-        ));
+        // !hCommitment{:?} = scale xn hCommitment{:?} + vanishingSplit{:?}
+        // a + b
+        let a = ExpressionG1::Scale(
+            Box::new(ExpressionG1::Variable(format!("hCommitment{:?}", i))),
+            ScalarExpression::Variable("xn".to_string()),
+        );
+        let b = ExpressionG1::Variable(format!("vanishingSplit_{:?}", vanishing_splits_count - i));
+        let term = ExpressionG1::Sum(Box::new(a), Box::new(b));
+
+        circuit_description
+            .h_commitments
+            .push((format!("!hCommitment{:?}", i + 1,), term));
     }
-    circuit_description.h_commitments.push(format!(
-        "!vanishing_g = scale xn hCommitment{} + vanishingSplit1",
-        vanishing_splits_count - 1
-    ));
+
+    // !vanishing_g = scale xn hCommitment{} + vanishingSplit1; vanishing_splits_count - 1
+    // a + b
+
+    let a = ExpressionG1::Scale(
+        Box::new(ExpressionG1::Variable(format!(
+            "hCommitment{:?}",
+            vanishing_splits_count - 1
+        ))),
+        ScalarExpression::Variable("xn".to_string()),
+    );
+    let b = ExpressionG1::Variable("vanishingSplit1".to_string());
+    let term = ExpressionG1::Sum(Box::new(a), Box::new(b));
+
+    circuit_description
+        .h_commitments
+        .push(("vanishing_g".to_string(), term));
 
     /// this function handles only 3 types of rotations,
     /// this is done to reduce number of scalars that have to be on the plutus side

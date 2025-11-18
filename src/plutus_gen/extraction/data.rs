@@ -104,6 +104,27 @@ pub struct Query {
     pub point: RotationDescription,
 }
 
+// simple DSL for verifier side equations that are not part of the prover
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub enum ScalarExpression<F> {
+    Constant(F),
+    Variable(String),
+    Negated(Box<ScalarExpression<F>>),
+    Sum(Box<ScalarExpression<F>>, Box<ScalarExpression<F>>),
+    Product(Box<ScalarExpression<F>>, Box<ScalarExpression<F>>),
+    Scaled(Box<ScalarExpression<F>>, F),
+    PowMod(Box<ScalarExpression<F>>, usize),
+}
+
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub enum ExpressionG1<F> {
+    Generator,
+    Zero,
+    Sum(Box<ExpressionG1<F>>, Box<ExpressionG1<F>>),
+    Scale(Box<ExpressionG1<F>>, ScalarExpression<F>),
+    Variable(String),
+}
+
 #[derive(Clone, Debug, Default)]
 pub struct CircuitRepresentation {
     pub instantiation_data: InstantiationSpecificData,
@@ -112,19 +133,19 @@ pub struct CircuitRepresentation {
     pub proof_extraction_steps: Vec<ProofExtractionSteps>,
     pub compiled_gate_equations: Vec<Expression<Scalar>>,
     pub compiled_lookups_equations: (Vec<Vec<Expression<Scalar>>>, Vec<Vec<Expression<Scalar>>>),
-    pub permutations_evaluated_terms: Vec<String>,
-    pub permutation_terms_left: Vec<(char, String)>,
-    pub permutation_terms_right: Vec<(char, String)>,
-    pub h_commitments: Vec<String>,
+    pub permutations_evaluated_terms: Vec<ScalarExpression<Scalar>>,
+    pub permutation_terms_left: Vec<(char, ScalarExpression<Scalar>)>,
+    pub permutation_terms_right: Vec<(char, ScalarExpression<Scalar>)>,
+    pub h_commitments: Vec<(String, ExpressionG1<Scalar>)>,
     //query + corresponding X rotation
     pub advice_queries: Vec<Query>,
     pub fixed_queries: Vec<Query>,
     pub permutation_queries: Vec<Query>,
     pub common_queries: Vec<Query>,
-    pub commitment_map: Vec<CommitmentData>,
-    pub point_sets: Vec<Vec<RotationDescription>>,
     pub vanishing_queries: Vec<Query>,
     pub lookup_queries: Vec<Query>,
+    pub commitment_map: Vec<CommitmentData>,
+    pub point_sets: Vec<Vec<RotationDescription>>,
 }
 
 impl CircuitRepresentation {

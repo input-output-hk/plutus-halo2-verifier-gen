@@ -1,9 +1,56 @@
+use crate::plutus_gen::extraction::data::{ExpressionG1, ScalarExpression};
 use blstrs::Scalar;
-use halo2_proofs::halo2curves::group::Curve;
-use halo2_proofs::plonk::{Advice, Any, Column, Expression, Fixed, Instance, VerifyingKey};
-use halo2_proofs::poly::Rotation;
-use halo2_proofs::poly::commitment::PolynomialCommitmentScheme;
+use halo2_proofs::{
+    halo2curves::group::Curve,
+    plonk::{Advice, Any, Column, Expression, Fixed, Instance, VerifyingKey},
+    poly::{Rotation, commitment::PolynomialCommitmentScheme},
+};
 use std::io::BufWriter;
+
+pub trait CompiledPlinthExpressions {
+    fn compile_expressions(&self) -> String;
+}
+pub trait CompiledAikenExpressions {
+    fn compile_expressions(&self) -> String;
+}
+
+impl CompiledAikenExpressions for Expression<Scalar> {
+    fn compile_expressions(&self) -> String {
+        let mut buf = BufWriter::new(Vec::new());
+        let _ = convert_to_aiken_polynomial(self, &mut buf);
+        let bytes = buf.into_inner().unwrap();
+        String::from_utf8(bytes).unwrap()
+    }
+}
+
+impl CompiledAikenExpressions for ExpressionG1<Scalar> {
+    fn compile_expressions(&self) -> String {
+        todo!()
+    }
+}
+
+impl CompiledAikenExpressions for ScalarExpression<Scalar> {
+    fn compile_expressions(&self) -> String {
+        todo!()
+    }
+}
+
+impl CompiledPlinthExpressions for Expression<Scalar> {
+    fn compile_expressions(&self) -> String {
+        todo!()
+    }
+}
+impl CompiledPlinthExpressions for ExpressionG1<Scalar> {
+    fn compile_expressions(&self) -> String {
+        todo!()
+    }
+}
+
+impl CompiledPlinthExpressions for ScalarExpression<Scalar> {
+    fn compile_expressions(&self) -> String {
+        todo!()
+    }
+}
 
 pub fn get_any_query_index<S>(
     vk: &VerifyingKey<Scalar, S>,
@@ -170,15 +217,9 @@ pub fn compile_plinth_expressions(expression: &Expression<Scalar>) -> String {
 pub fn combine_aiken_expressions(lookup_expressions: Vec<Expression<Scalar>>) -> String {
     let compiled: Vec<_> = lookup_expressions
         .iter()
-        .map(compile_aiken_expressions)
+        .map(CompiledAikenExpressions::compile_expressions)
         .collect();
     compiled.iter().fold("scalarZero".to_string(), |acc, eval| {
         format!("add(mul({}, theta), {})", acc, eval)
     })
-}
-pub fn compile_aiken_expressions(expression: &Expression<Scalar>) -> String {
-    let mut buf = BufWriter::new(Vec::new());
-    let _ = convert_to_aiken_polynomial(expression, &mut buf);
-    let bytes = buf.into_inner().unwrap();
-    String::from_utf8(bytes).unwrap()
 }

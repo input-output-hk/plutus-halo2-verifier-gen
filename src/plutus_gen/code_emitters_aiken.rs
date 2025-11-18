@@ -1,13 +1,12 @@
-use crate::plutus_gen::extraction::data::{CircuitRepresentation, ProofExtractionSteps};
-use crate::plutus_gen::extraction::{combine_aiken_expressions, compile_aiken_expressions};
+use crate::plutus_gen::extraction::{
+    CompiledAikenExpressions, combine_aiken_expressions,
+    data::{CircuitRepresentation, ProofExtractionSteps},
+};
 use halo2_proofs::halo2curves::group::GroupEncoding;
 use handlebars::{Handlebars, RenderError};
 use itertools::Itertools;
 use log::debug;
-use std::collections::HashMap;
-use std::fs::File;
-use std::iter::once;
-use std::path::Path;
+use std::{collections::HashMap, fs::File, iter::once, path::Path};
 
 pub fn emit_verifier_code(
     template_file: &Path, // aiken mustashe template
@@ -158,7 +157,7 @@ pub fn emit_verifier_code(
             format!(
                 "    let gate_eq{:?} = {}\n",
                 id + 1,
-                compile_aiken_expressions(gate)
+                gate.compile_expressions()
             )
         })
         .join("");
@@ -227,6 +226,17 @@ pub fn emit_verifier_code(
         .join("");
 
     data.insert("LOOKUPS".to_string(), lookup_equations);
+
+    let permutation_evals = circuit
+        .permutations_evaluated_terms
+        .iter()
+        .enumerate()
+        .map(|(id, expression)| {
+            let term = expression.compile_expressions();
+            format!("    let term_{:?} = {}\n", id + 1, term)
+        })
+        .join("");
+    data.insert("PERMUTATIONS_EVALS".to_string(), permutation_evals);
 
     let mut handlebars = Handlebars::new();
     handlebars.set_strict_mode(true);
@@ -315,25 +325,21 @@ pub fn emit_vk_code(
         circuit.instantiation_data.blinding_factors.to_string(),
     );
 
-    let fixed_commitments= circuit
-        .instantiation_data
-        .fixed_commitments.len();
+    let fixed_commitments = circuit.instantiation_data.fixed_commitments.len();
 
-    let permutation_commitments= circuit
-        .instantiation_data
-        .permutation_commitments.len();
+    let permutation_commitments = circuit.instantiation_data.permutation_commitments.len();
 
-    let fixed = (0..fixed_commitments).map(|idx|format!("    expect f{}_commitment == f{}_commitment",idx,idx));
-    let permutations = (0..permutation_commitments).map(|idx|format!("    expect p{}_commitment == p{}_commitment",idx,idx));
+    let fixed = (0..fixed_commitments)
+        .map(|idx| format!("    expect f{}_commitment == f{}_commitment", idx, idx));
+    let permutations = (0..permutation_commitments)
+        .map(|idx| format!("    expect p{}_commitment == p{}_commitment", idx, idx));
 
-    let budget_check = fixed.chain(permutations).chain(once("    expect g2_const == g2_const".to_string())).join("\n");
+    let budget_check = fixed
+        .chain(permutations)
+        .chain(once("    expect g2_const == g2_const".to_string()))
+        .join("\n");
 
-
-
-    data.insert(
-        "BUDGET_CHECK".to_string(),
-        budget_check
-    );
+    data.insert("BUDGET_CHECK".to_string(), budget_check);
 
     let mut handlebars = Handlebars::new();
     handlebars.set_strict_mode(true);
