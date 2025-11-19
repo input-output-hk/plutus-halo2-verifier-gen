@@ -111,7 +111,7 @@ pub fn compile_lookup_table_circuit<
         "./plutus-verifier/plutus-halo2/test/Generic/serialized_proof.json".to_string(),
         proof,
     )
-    .unwrap();
+    .expect("json proof serialization failed");
 
     generate_plinth_verifier(&kzg_params, &vk, instances)
         .expect("Plinth verifier generation failed");

@@ -16,8 +16,8 @@ use itertools::Itertools;
 use log::debug;
 use std::collections::HashMap;
 pub use utils::{
-    CompiledAikenExpressions, CompiledPlinthExpressions, combine_aiken_expressions,
-    combine_plinth_expressions, compile_plinth_expressions,
+    PlinthExpression, AikenExpression, combine_aiken_expressions,
+    combine_plinth_expressions,
 };
 
 pub mod data;
@@ -843,7 +843,12 @@ pub fn precompute_intermediate_sets(
     let mut grouped_points: Vec<Vec<RotationDescription>> = vec![];
 
     for commitment in ordered_unique_commitments.iter() {
-        grouped_points.push(point_sets_map.get(commitment).unwrap().clone());
+        grouped_points.push(
+            point_sets_map
+                .get(commitment)
+                .unwrap_or_else(|| panic!("point set for commitment {} not found", commitment))
+                .clone(),
+        );
     }
 
     let unique_grouped_points: Vec<Vec<_>> = grouped_points.iter().cloned().unique().collect();
@@ -857,10 +862,14 @@ pub fn precompute_intermediate_sets(
     let mut commitment_data: Vec<CommitmentData> = vec![];
 
     for commitment in ordered_unique_commitments.iter() {
-        let query = commitment_map.get(commitment).unwrap();
+        let query = commitment_map
+            .get(commitment)
+            .unwrap_or_else(|| panic!("queries for commitment {} not found", commitment));
         let points: Vec<RotationDescription> = query.iter().map(|q| q.point.clone()).collect();
 
-        let point_set_idx = point_sets_indexes.get(&points).unwrap();
+        let point_set_idx = point_sets_indexes
+            .get(&points)
+            .unwrap_or_else(|| panic!("point set for commitment {} not found", commitment));
 
         commitment_data.push(CommitmentData {
             commitment: (*commitment).clone(),

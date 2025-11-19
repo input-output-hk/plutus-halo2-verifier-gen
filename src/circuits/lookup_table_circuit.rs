@@ -53,8 +53,9 @@ impl<F: PrimeField> Circuit<F> for LookupTest<F> {
         let t_tag = meta.lookup_table_column();
         let t_val = meta.lookup_table_column();
 
-        let val_cols: [Column<Advice>; NB_POW2RANGE_COLS] =
-            columns[..NB_POW2RANGE_COLS].try_into().unwrap();
+        let val_cols: [Column<Advice>; NB_POW2RANGE_COLS] = columns[..NB_POW2RANGE_COLS]
+            .try_into()
+            .expect("wrong number of columns");
 
         for val_col in val_cols {
             meta.lookup("pow2range column check", |meta| {

@@ -132,20 +132,27 @@ impl BlockFrostNodeAPI {
 
             let response = response.json::<serde_json::Value>().await?;
 
-            for utxo in response.as_array().unwrap() {
-                let tx_hash =
-                    TransactionHash::from_bytes(hex::decode(utxo["tx_hash"].as_str().unwrap())?)?;
-                let output_index = utxo["output_index"].as_u64().unwrap() as u32;
-                let amounts = utxo["amount"].as_array().unwrap();
+            for utxo in response.as_array().expect("list of UTXOS was not an array") {
+                let tx_hash = TransactionHash::from_bytes(hex::decode(
+                    utxo["tx_hash"].as_str().expect("tx_hash not found"),
+                )?)?;
+                let output_index = utxo["output_index"]
+                    .as_u64()
+                    .expect("output_index not found") as u32;
+                let amounts = utxo["amount"].as_array().expect("amount array not found");
 
                 // ignore multi assets as they will not work for paying for mint transactions
                 if amounts.len() > 1 {
                     continue;
                 }
 
-                let amount: u64 = amounts.first().unwrap().as_object().unwrap()["quantity"]
+                let amount: u64 = amounts
+                    .first()
+                    .expect("amounts are empty")
+                    .as_object()
+                    .expect("amount is not an JSON object")["quantity"]
                     .as_str()
-                    .unwrap()
+                    .expect("quantity not found")
                     .parse()?;
 
                 utxos.push((

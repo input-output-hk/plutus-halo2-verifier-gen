@@ -1,10 +1,7 @@
 use crate::plutus_gen::extraction::data::{
     CircuitRepresentation, ProofExtractionSteps, RotationDescription,
 };
-use crate::plutus_gen::extraction::{
-    CompiledPlinthExpressions, combine_plinth_expressions, compile_plinth_expressions,
-    precompute_intermediate_sets,
-};
+use crate::plutus_gen::extraction::{PlinthExpression, combine_plinth_expressions, precompute_intermediate_sets};
 use halo2_proofs::halo2curves::group::{GroupEncoding, prime::PrimeCurveAffine};
 use handlebars::{Handlebars, RenderError};
 use itertools::Itertools;
@@ -148,7 +145,7 @@ pub fn emit_verifier_code(
             format!(
                 "      !gate_eq{:?} = {}\n",
                 id + 1,
-                compile_plinth_expressions(gate)
+                gate.compile_expression()
             )
         })
         .join("");
@@ -223,7 +220,7 @@ pub fn emit_verifier_code(
         .iter()
         .enumerate()
         .map(|(id, expression)| {
-            let term = expression.compile_expressions();
+            let term = expression.compile_expression();
             format!("      !term{:?} = {}\n", id + 1, term)
         })
         .join("");
@@ -238,12 +235,14 @@ pub fn emit_verifier_code(
         .enumerate()
         .map(|(id, (set, expression))| {
             if sets_lhs.contains_key(set) {
-                let existing = sets_lhs.get(set).unwrap();
+                let existing = sets_lhs
+                    .get(set)
+                    .unwrap_or_else(|| panic!("set {} not found", set));
                 sets_lhs.insert(*set, format!("{} * left{:?}", existing, id + 1));
             } else {
                 sets_lhs.insert(*set, format!("left{:?}", id + 1));
             };
-            let term = expression.compile_expressions();
+            let term = expression.compile_expression();
             format!("      !left{:?} = {} --part of set {}\n", id + 1, term, set)
         })
         .join("");
@@ -270,12 +269,14 @@ pub fn emit_verifier_code(
         .enumerate()
         .map(|(id, (set, expression))| {
             if sets_rhs.contains_key(set) {
-                let existing = sets_rhs.get(set).unwrap();
+                let existing = sets_rhs
+                    .get(set)
+                    .unwrap_or_else(|| panic!("set {} not found", set));
                 sets_rhs.insert(*set, format!("{} * right{:?}", existing, id + 1));
             } else {
                 sets_rhs.insert(*set, format!("right{:?}", id + 1));
             };
-            let term = expression.compile_expressions();
+            let term = expression.compile_expression();
             format!(
                 "      !right{:?} = {} --part of set {}\n",
                 id + 1,
@@ -388,7 +389,7 @@ pub fn emit_verifier_code(
         .h_commitments
         .iter()
         .map(|(variable_name, expression)| {
-            let term = expression.compile_expressions();
+            let term = expression.compile_expression();
             format!("      !{} = {}\n", variable_name, term)
         })
         .join("");
@@ -634,7 +635,7 @@ pub fn emit_verifier_code(
             Some(s.clone())
         })
         .last()
-        .unwrap();
+        .expect("There should be at least one query");
 
     let rotation_order: Vec<_> = rotation_order.iter().map(decode_rotation).collect();
 

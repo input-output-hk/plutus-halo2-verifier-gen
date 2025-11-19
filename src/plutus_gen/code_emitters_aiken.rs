@@ -1,5 +1,5 @@
 use crate::plutus_gen::extraction::{
-    CompiledAikenExpressions, combine_aiken_expressions,
+    AikenExpression, combine_aiken_expressions,
     data::{CircuitRepresentation, ProofExtractionSteps},
 };
 use halo2_proofs::halo2curves::group::GroupEncoding;
@@ -157,7 +157,7 @@ pub fn emit_verifier_code(
             format!(
                 "    let gate_eq{:?} = {}\n",
                 id + 1,
-                gate.compile_expressions()
+                gate.compile_expression()
             )
         })
         .join("");
@@ -232,7 +232,7 @@ pub fn emit_verifier_code(
         .iter()
         .enumerate()
         .map(|(id, expression)| {
-            let term = expression.compile_expressions();
+            let term = expression.compile_expression();
             format!("    let term_{:?} = {}\n", id + 1, term)
         })
         .join("");

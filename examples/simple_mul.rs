@@ -124,13 +124,13 @@ fn compile_simple_mul_circuit<
         "./plutus-verifier/plutus-halo2/test/Generic/serialized_proof.json".to_string(),
         proof.clone(),
     )
-    .unwrap();
+    .expect("json proof serialization failed");
 
     export_proof(
         "./plutus-verifier/plutus-halo2/test/Generic/serialized_proof.hex".to_string(),
         proof,
     )
-    .unwrap();
+    .expect("hex proof serialization failed");
 
     generate_plinth_verifier(&params, &vk, instances).expect("Plinth verifier generation failed");
 
