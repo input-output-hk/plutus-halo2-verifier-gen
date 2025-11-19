@@ -1,0 +1,23 @@
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+name: Rust Tests
+
+jobs:
+  build:
+    name: Rust Tests
+    strategy:
+      matrix:
+        os: [macos-latest, windows-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v5
+
+      - name: Install stable toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Run cargo test
+        run: cargo test --workspace --all
