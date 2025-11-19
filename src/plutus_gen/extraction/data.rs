@@ -112,7 +112,6 @@ pub enum ScalarExpression<F> {
     Negated(Box<ScalarExpression<F>>),
     Sum(Box<ScalarExpression<F>>, Box<ScalarExpression<F>>),
     Product(Box<ScalarExpression<F>>, Box<ScalarExpression<F>>),
-    Scaled(Box<ScalarExpression<F>>, F),
     PowMod(Box<ScalarExpression<F>>, usize),
 }
 

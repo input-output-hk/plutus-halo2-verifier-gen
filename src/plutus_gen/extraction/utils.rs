@@ -94,7 +94,7 @@ impl AikenTranspiler for Expression<Scalar> {
             Expression::Scaled(a, f) => {
                 writer.write_all(b"mul(")?;
                 a.aiken_polynomial(writer)?;
-                write!(writer, ", {:?}", f)
+                write!(writer, ", {:?})", f)
             }
         }
     }
@@ -103,20 +103,24 @@ impl AikenTranspiler for Expression<Scalar> {
 impl AikenTranspiler for ExpressionG1<Scalar> {
     fn aiken_polynomial<W: Write>(&self, writer: &mut W) -> Result<()> {
         match self {
-            ExpressionG1::Generator => {
-                write!(writer, "let x = {} ", 42)
-            }
-            ExpressionG1::Zero => {
-                write!(writer, "let x = {} ", 42)
-            }
+            ExpressionG1::Generator => writer.write_all(b"generatorG1"),
+            ExpressionG1::Zero => writer.write_all(b"zeroG1"),
             ExpressionG1::Sum(a, b) => {
-                write!(writer, "let x = {} ", 42)
+                writer.write_all(b"bls12_381_g1_add(")?;
+                a.aiken_polynomial(writer)?;
+                writer.write_all(b", ")?;
+                b.aiken_polynomial(writer)?;
+                writer.write_all(b")")
             }
             ExpressionG1::Scale(a, scalar) => {
-                write!(writer, "let x = {} ", 42)
+                writer.write_all(b"bls12_381_g1_scalar_mul(to_int(")?;
+                scalar.aiken_polynomial(writer)?;
+                writer.write_all(b"), ")?;
+                a.aiken_polynomial(writer)?;
+                writer.write_all(b")")
             }
             ExpressionG1::Variable(name) => {
-                write!(writer, "let x = {} ", 42)
+                write!(writer, " {} ", name)
             }
         }
     }
@@ -126,25 +130,35 @@ impl AikenTranspiler for ScalarExpression<Scalar> {
     fn aiken_polynomial<W: Write>(&self, writer: &mut W) -> Result<()> {
         match self {
             ScalarExpression::Constant(value) => {
-                write!(writer, "let x = {} ", 42)
+                write!(writer, "from_int({})", hex::encode(value.to_bytes_be()))
             }
             ScalarExpression::Variable(name) => {
-                write!(writer, "let x = {} ", 42)
+                write!(writer, " {} ", name)
             }
             ScalarExpression::Negated(a) => {
-                write!(writer, "let x = {} ", 42)
+                writer.write_all(b"neg(")?;
+                a.aiken_polynomial(writer)?;
+                writer.write_all(b")")
             }
             ScalarExpression::Sum(a, b) => {
-                write!(writer, "let x = {} ", 42)
+                writer.write_all(b"add(")?;
+                a.aiken_polynomial(writer)?;
+                writer.write_all(b", ")?;
+                b.aiken_polynomial(writer)?;
+                writer.write_all(b")")
             }
             ScalarExpression::Product(a, b) => {
-                write!(writer, "let x = {} ", 42)
+                writer.write_all(b"mul(")?;
+                a.aiken_polynomial(writer)?;
+                writer.write_all(b", ")?;
+                b.aiken_polynomial(writer)?;
+                writer.write_all(b")")
             }
-            ScalarExpression::Scaled(a, scalar) => {
-                write!(writer, "let x = {} ", 42)
-            }
+
             ScalarExpression::PowMod(a, exponent) => {
-                write!(writer, "let x = {} ", 42)
+                writer.write_all(b"pow_nmod(")?;
+                a.aiken_polynomial(writer)?;
+                write!(writer, ", {:?})", exponent)
             }
         }
     }
@@ -247,9 +261,6 @@ impl PlinthTranspiler for ScalarExpression<Scalar> {
                 write!(writer, " {} ", 42)
             }
             ScalarExpression::Product(a, b) => {
-                write!(writer, " {} ", 42)
-            }
-            ScalarExpression::Scaled(a, scalar) => {
                 write!(writer, " {} ", 42)
             }
             ScalarExpression::PowMod(a, exponent) => {
