@@ -1,0 +1,41 @@
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+name: Rust Lints
+
+jobs:
+  check:
+    name: Rust Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v5
+
+      - name: Install stable toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+
+      - name: Run cargo check
+        run: cargo check --workspace --all
+
+  lints:
+    name: Rust Lints
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v5
+
+      - name: Install stable toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+          components: rustfmt, clippy
+
+      - name: Run cargo fmt
+        run: cargo fmt --all -- --check
+
+      - name: Run cargo clippy
+        run: cargo clippy --workspace --all --examples -- -D warnings
