@@ -117,7 +117,6 @@ pub enum ScalarExpression<F> {
 
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum ExpressionG1<F> {
-    Generator,
     Zero,
     Sum(Box<ExpressionG1<F>>, Box<ExpressionG1<F>>),
     Scale(Box<ExpressionG1<F>>, ScalarExpression<F>),

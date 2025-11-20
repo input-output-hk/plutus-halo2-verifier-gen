@@ -103,8 +103,7 @@ impl AikenTranspiler for Expression<Scalar> {
 impl AikenTranspiler for ExpressionG1<Scalar> {
     fn aiken_polynomial<W: Write>(&self, writer: &mut W) -> Result<()> {
         match self {
-            ExpressionG1::Generator => writer.write_all(b"generatorG1"),
-            ExpressionG1::Zero => writer.write_all(b"zeroG1"),
+            ExpressionG1::Zero => writer.write_all(b" (bls12_381_G1_uncompress bls12_381_G1_compressed_zero) "),
             ExpressionG1::Sum(a, b) => {
                 writer.write_all(b"bls12_381_g1_add(")?;
                 a.aiken_polynomial(writer)?;
@@ -154,7 +153,6 @@ impl AikenTranspiler for ScalarExpression<Scalar> {
                 b.aiken_polynomial(writer)?;
                 writer.write_all(b")")
             }
-
             ScalarExpression::PowMod(a, exponent) => {
                 writer.write_all(b"pow_nmod(")?;
                 a.aiken_polynomial(writer)?;
@@ -226,20 +224,25 @@ impl PlinthTranspiler for Expression<Scalar> {
 impl PlinthTranspiler for ExpressionG1<Scalar> {
     fn plinth_polynomial<W: Write>(&self, writer: &mut W) -> Result<()> {
         match self {
-            ExpressionG1::Generator => {
-                write!(writer, " {} ", 42)
-            }
             ExpressionG1::Zero => {
-                write!(writer, " {} ", 42)
+                writer.write_all(b" (bls12_381_G1_uncompress bls12_381_G1_compressed_zero) ")
             }
             ExpressionG1::Sum(a, b) => {
-                write!(writer, " {} ", 42)
+                writer.write_all(b"( ")?;
+                a.plinth_polynomial(writer)?;
+                writer.write_all(b" + ")?;
+                b.plinth_polynomial(writer)?;
+                writer.write_all(b")")
             }
-            ExpressionG1::Scale(a, b) => {
-                write!(writer, " {} ", 42)
+            ExpressionG1::Scale(a, scalar) => {
+                writer.write_all(b"(scale ")?;
+                scalar.aiken_polynomial(writer)?;
+                writer.write_all(b" ")?;
+                a.aiken_polynomial(writer)?;
+                writer.write_all(b")")
             }
             ExpressionG1::Variable(name) => {
-                write!(writer, " {} ", 42)
+                write!(writer, " {} ", name)
             }
         }
     }
@@ -249,22 +252,39 @@ impl PlinthTranspiler for ScalarExpression<Scalar> {
     fn plinth_polynomial<W: Write>(&self, writer: &mut W) -> Result<()> {
         match self {
             ScalarExpression::Constant(value) => {
-                write!(writer, " {} ", 42)
+                write!(
+                    writer,
+                    "(mkScalar (0x{} `modulo` bls12_381_field_prime))",
+                    hex::encode(value.to_bytes_be())
+                )
             }
             ScalarExpression::Variable(name) => {
-                write!(writer, " {} ", 42)
+                write!(writer, " {} ", name)
             }
             ScalarExpression::Negated(a) => {
-                write!(writer, " {} ", 42)
+                writer.write_all(b"( negate ")?;
+                a.plinth_polynomial(writer)?;
+                writer.write_all(b" )")
             }
             ScalarExpression::Sum(a, b) => {
-                write!(writer, " {} ", 42)
+                writer.write_all(b"(")?;
+                a.plinth_polynomial(writer)?;
+                writer.write_all(b" + ")?;
+                b.plinth_polynomial(writer)?;
+                writer.write_all(b")")
             }
             ScalarExpression::Product(a, b) => {
-                write!(writer, " {} ", 42)
+                writer.write_all(b"(")?;
+                a.plinth_polynomial(writer)?;
+                writer.write_all(b" * ")?;
+                b.plinth_polynomial(writer)?;
+                writer.write_all(b")")
             }
             ScalarExpression::PowMod(a, exponent) => {
-                write!(writer, " {} ", 42)
+                writer.write_all(b"( powMod ")?;
+                a.plinth_polynomial(writer)?;
+                write!(writer, " {} ", exponent)?;
+                writer.write_all(b" )")
             }
         }
     }

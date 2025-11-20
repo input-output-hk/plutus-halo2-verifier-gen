@@ -16,8 +16,7 @@ use itertools::Itertools;
 use log::debug;
 use std::collections::HashMap;
 pub use utils::{
-    PlinthExpression, AikenExpression, combine_aiken_expressions,
-    combine_plinth_expressions,
+    AikenExpression, PlinthExpression, combine_aiken_expressions, combine_plinth_expressions,
 };
 
 pub mod data;
@@ -558,7 +557,7 @@ where
                 match column.column_type() {
                     Any::Advice(_) => {
                         // (adviceEval{:?} + (beta * x) * (powMod scalarDelta {:?}) + gamma)
-                        // a + (b * c) * (d + e)
+                        // a + (b * c) * d + e
 
                         let a = ScalarExpression::Variable(format!("adviceEval{:?}", eval_index));
                         let b = ScalarExpression::Variable("beta".to_string());
@@ -570,11 +569,14 @@ where
                         let e = ScalarExpression::Variable("gamma".to_string());
 
                         let term = ScalarExpression::Sum(
-                            Box::new(a),
-                            Box::new(ScalarExpression::Product(
-                                Box::new(ScalarExpression::Product(Box::new(b), Box::new(c))),
-                                Box::new(ScalarExpression::Sum(Box::new(d), Box::new(e))),
+                            Box::new(ScalarExpression::Sum(
+                                Box::new(a),
+                                Box::new(ScalarExpression::Product(
+                                    Box::new(ScalarExpression::Product(Box::new(b), Box::new(c))),
+                                    Box::new(d),
+                                )),
                             )),
+                            Box::new(e),
                         );
 
                         circuit_description
@@ -583,7 +585,7 @@ where
                     }
                     Any::Fixed => {
                         // (fixedEval{:?} + (beta * x) * (powMod scalarDelta {:?}) + gamma)
-                        // a + (b * c) * (d + e)
+                        // a + (b * c) * d + e
 
                         let a = ScalarExpression::Variable(format!("adviceEval{:?}", eval_index));
                         let b = ScalarExpression::Variable("beta".to_string());
@@ -595,11 +597,14 @@ where
                         let e = ScalarExpression::Variable("gamma".to_string());
 
                         let term = ScalarExpression::Sum(
-                            Box::new(a),
-                            Box::new(ScalarExpression::Product(
-                                Box::new(ScalarExpression::Product(Box::new(b), Box::new(c))),
-                                Box::new(ScalarExpression::Sum(Box::new(d), Box::new(e))),
+                            Box::new(ScalarExpression::Sum(
+                                Box::new(a),
+                                Box::new(ScalarExpression::Product(
+                                    Box::new(ScalarExpression::Product(Box::new(b), Box::new(c))),
+                                    Box::new(d),
+                                )),
                             )),
+                            Box::new(e),
                         );
 
                         circuit_description
@@ -608,9 +613,9 @@ where
                     }
                     Any::Instance => {
                         // (instanceEval{:?} + (beta * x) * (powMod scalarDelta {:?}) + gamma)
-                        // a + (b * c) * (d + e)
+                        // a + (b * c) * d + e
 
-                        let a = ScalarExpression::Variable(format!("adviceEval{:?}", eval_index));
+                        let a = ScalarExpression::Variable(format!("instanceEval{:?}", eval_index));
                         let b = ScalarExpression::Variable("beta".to_string());
                         let c = ScalarExpression::Variable("x".to_string());
                         let d = ScalarExpression::PowMod(
@@ -620,11 +625,14 @@ where
                         let e = ScalarExpression::Variable("gamma".to_string());
 
                         let term = ScalarExpression::Sum(
-                            Box::new(a),
-                            Box::new(ScalarExpression::Product(
-                                Box::new(ScalarExpression::Product(Box::new(b), Box::new(c))),
-                                Box::new(ScalarExpression::Sum(Box::new(d), Box::new(e))),
+                            Box::new(ScalarExpression::Sum(
+                                Box::new(a),
+                                Box::new(ScalarExpression::Product(
+                                    Box::new(ScalarExpression::Product(Box::new(b), Box::new(c))),
+                                    Box::new(d),
+                                )),
                             )),
+                            Box::new(e),
                         );
 
                         circuit_description
@@ -666,7 +674,7 @@ where
 
         circuit_description
             .h_commitments
-            .push((format!("!hCommitment{:?}", i + 1,), term));
+            .push((format!("hCommitment{:?}", i + 1,), term));
     }
 
     // !vanishing_g = scale xn hCommitment{} + vanishingSplit1; vanishing_splits_count - 1
@@ -679,7 +687,7 @@ where
         ))),
         ScalarExpression::Variable("xn".to_string()),
     );
-    let b = ExpressionG1::Variable("vanishingSplit1".to_string());
+    let b = ExpressionG1::Variable("vanishingSplit_1".to_string());
     let term = ExpressionG1::Sum(Box::new(a), Box::new(b));
 
     circuit_description

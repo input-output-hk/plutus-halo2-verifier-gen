@@ -1,7 +1,9 @@
 use crate::plutus_gen::extraction::data::{
     CircuitRepresentation, ProofExtractionSteps, RotationDescription,
 };
-use crate::plutus_gen::extraction::{PlinthExpression, combine_plinth_expressions, precompute_intermediate_sets};
+use crate::plutus_gen::extraction::{
+    PlinthExpression, combine_plinth_expressions, precompute_intermediate_sets,
+};
 use halo2_proofs::halo2curves::group::{GroupEncoding, prime::PrimeCurveAffine};
 use handlebars::{Handlebars, RenderError};
 use itertools::Itertools;
@@ -38,7 +40,7 @@ pub fn emit_verifier_code(
             ProofExtractionSteps::VanishingSplit => section
                 .enumerate()
                 .map(|(number, _vanishing_split)| {
-                    format!("  !vanishingSplit{} <- M.readPoint\n", number + 1)
+                    format!("  !vanishingSplit_{} <- M.readPoint\n", number + 1)
                 })
                 .join(""),
             ProofExtractionSteps::XCoordinate => "  !x <- M.squeezeChallange\n".to_string(),
