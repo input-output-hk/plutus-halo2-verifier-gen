@@ -482,12 +482,11 @@ where
                     Any::Advice(_) => {
                         // (adviceEval{:?} + (beta * permutationCommon{:?}) + gamma)
                         // a + (b * c) + d
-                        let a = ScalarExpression::Variable(format!("adviceEval{:?}", eval_index));
+                        let a = ScalarExpression::Advice(eval_index);
                         let b = ScalarExpression::Variable("beta".to_string());
-                        let c = ScalarExpression::Variable(format!(
-                            "permutationCommon{:?}",
+                        let c = ScalarExpression::PermutationCommon(
                             permutation_index
-                        ));
+                        );
                         let d = ScalarExpression::Variable("gamma".to_string());
 
                         let term = ScalarExpression::Sum(
@@ -505,12 +504,9 @@ where
                     Any::Fixed => {
                         // (fixedEval{:?} + (beta * permutationCommon{:?}) + gamma)
                         // a + (b * c) + d
-                        let a = ScalarExpression::Variable(format!("fixedEval{:?}", eval_index));
+                        let a = ScalarExpression::Fixed(eval_index);
                         let b = ScalarExpression::Variable("beta".to_string());
-                        let c = ScalarExpression::Variable(format!(
-                            "permutationCommon{:?}",
-                            permutation_index
-                        ));
+                        let c = ScalarExpression::PermutationCommon(permutation_index);
                         let d = ScalarExpression::Variable("gamma".to_string());
 
                         let term = ScalarExpression::Sum(
@@ -528,12 +524,9 @@ where
                     Any::Instance => {
                         // (instanceEval{:?} + (beta * permutationCommon{:?}) + gamma)
                         // a + (b * c) + d
-                        let a = ScalarExpression::Variable(format!("instanceEval{:?}", eval_index));
+                        let a = ScalarExpression::Instance(eval_index);
                         let b = ScalarExpression::Variable("beta".to_string());
-                        let c = ScalarExpression::Variable(format!(
-                            "permutationCommon{:?}",
-                            permutation_index
-                        ));
+                        let c = ScalarExpression::PermutationCommon(permutation_index);
                         let d = ScalarExpression::Variable("gamma".to_string());
 
                         let term = ScalarExpression::Sum(
@@ -559,7 +552,7 @@ where
                         // (adviceEval{:?} + (beta * x) * (powMod scalarDelta {:?}) + gamma)
                         // a + (b * c) * d + e
 
-                        let a = ScalarExpression::Variable(format!("adviceEval{:?}", eval_index));
+                        let a = ScalarExpression::Advice(eval_index);
                         let b = ScalarExpression::Variable("beta".to_string());
                         let c = ScalarExpression::Variable("x".to_string());
                         let d = ScalarExpression::PowMod(
@@ -587,7 +580,7 @@ where
                         // (fixedEval{:?} + (beta * x) * (powMod scalarDelta {:?}) + gamma)
                         // a + (b * c) * d + e
 
-                        let a = ScalarExpression::Variable(format!("adviceEval{:?}", eval_index));
+                        let a = ScalarExpression::Advice(eval_index);
                         let b = ScalarExpression::Variable("beta".to_string());
                         let c = ScalarExpression::Variable("x".to_string());
                         let d = ScalarExpression::PowMod(
@@ -615,7 +608,7 @@ where
                         // (instanceEval{:?} + (beta * x) * (powMod scalarDelta {:?}) + gamma)
                         // a + (b * c) * d + e
 
-                        let a = ScalarExpression::Variable(format!("instanceEval{:?}", eval_index));
+                        let a = ScalarExpression::Instance(eval_index);
                         let b = ScalarExpression::Variable("beta".to_string());
                         let c = ScalarExpression::Variable("x".to_string());
                         let d = ScalarExpression::PowMod(

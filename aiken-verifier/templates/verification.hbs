@@ -8,6 +8,7 @@ use transcript.{
   squeeze_challenge,
 }
 use verifier_key.{barycentric_weight, blinding_factors, omega, omega_inv}
+use inner_product.{inner_product}
 
 pub fn verifier(proof: Data, transcript_rep: State<Scalar>, {{{PUBLIC_INPUTS_NAMES}}}) -> Bool {
 
@@ -16,6 +17,7 @@ pub fn verifier(proof: Data, transcript_rep: State<Scalar>, {{{PUBLIC_INPUTS_NAM
 
     let scalarZero = from_int(0)
     let scalarOne = from_int(1)
+    let scalarDelta = from_int(0x08634d0aa021aaf843cab354fabb0062f6502437c6a09c006c083479590189d7)
 
     let x_exponent = {{{X_EXPONENT}}}
 
@@ -57,6 +59,9 @@ pub fn verifier(proof: Data, transcript_rep: State<Scalar>, {{{PUBLIC_INPUTS_NAM
         sub(scalarOne, add(last_evaluation, sum_of_evaluation_for_blinding_factors))
     // -----------------------------------------------------------------------------------------------
 
+    let rotations_for_instances = rotate_omegas(omega, omega_inv, 0, {{{PUBLIC_INPUTS_COUNT}}})
+    let lagrange_polynomial_instances = lagrange_polynomial_basis( x, xn, barycentric_weight, rotations_for_instances)
+    let instance_eval_1 = inner_product(lagrange_polynomial_instances, [{{{PUBLIC_INPUTS_LAGRANGE}}}])
 
 {{{GATES}}}
 
@@ -68,6 +73,20 @@ pub fn verifier(proof: Data, transcript_rep: State<Scalar>, {{{PUBLIC_INPUTS_NAM
 
 {{{PERMUTATIONS_EVALS}}}
 
+{{{PERMUTATIONS_LHS}}}
+
+{{{LHS_SETS}}}
+
+{{{PERMUTATIONS_RHS}}}
+
+{{{RHS_SETS}}}
+
+{{{PERMUTATIONS_COMBINED}}}
+
+//      expressions for vanishing polynomial
+{{{VANISHING_EXPRESSIONS}}}
+
+{{{VANISHING_EVALUATION}}}
 
     True
 }

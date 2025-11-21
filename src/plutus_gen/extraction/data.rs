@@ -109,6 +109,10 @@ pub struct Query {
 pub enum ScalarExpression<F> {
     Constant(F),
     Variable(String),
+    Advice(usize),
+    Fixed(usize),
+    Instance(usize),
+    PermutationCommon(usize),
     Negated(Box<ScalarExpression<F>>),
     Sum(Box<ScalarExpression<F>>, Box<ScalarExpression<F>>),
     Product(Box<ScalarExpression<F>>, Box<ScalarExpression<F>>),

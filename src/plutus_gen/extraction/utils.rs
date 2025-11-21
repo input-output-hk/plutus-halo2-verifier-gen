@@ -103,7 +103,9 @@ impl AikenTranspiler for Expression<Scalar> {
 impl AikenTranspiler for ExpressionG1<Scalar> {
     fn aiken_polynomial<W: Write>(&self, writer: &mut W) -> Result<()> {
         match self {
-            ExpressionG1::Zero => writer.write_all(b" (bls12_381_G1_uncompress bls12_381_G1_compressed_zero) "),
+            ExpressionG1::Zero => {
+                writer.write_all(b" (bls12_381_G1_uncompress bls12_381_G1_compressed_zero) ")
+            }
             ExpressionG1::Sum(a, b) => {
                 writer.write_all(b"bls12_381_g1_add(")?;
                 a.aiken_polynomial(writer)?;
@@ -157,6 +159,18 @@ impl AikenTranspiler for ScalarExpression<Scalar> {
                 writer.write_all(b"scale(")?;
                 a.aiken_polynomial(writer)?;
                 write!(writer, ", {:?})", exponent)
+            }
+            ScalarExpression::Advice(index) => {
+                write!(writer, "advice_eval_{}", index)
+            }
+            ScalarExpression::Fixed(index) => {
+                write!(writer, "fixed_eval_{}", index)
+            }
+            ScalarExpression::Instance(index) => {
+                write!(writer, "instance_eval_{:?}", index)
+            }
+            ScalarExpression::PermutationCommon(index) => {
+                write!(writer, "permutation_common_{:?}", index)
             }
         }
     }
@@ -285,6 +299,18 @@ impl PlinthTranspiler for ScalarExpression<Scalar> {
                 a.plinth_polynomial(writer)?;
                 write!(writer, " {} ", exponent)?;
                 writer.write_all(b" )")
+            }
+            ScalarExpression::Advice(index) => {
+                write!(writer, "adviceEval{:?}", index)
+            }
+            ScalarExpression::Fixed(index) => {
+                write!(writer, "fixEval{:?}", index)
+            }
+            ScalarExpression::Instance(index) => {
+                write!(writer, "instanceEval{:?}", index)
+            }
+            ScalarExpression::PermutationCommon(index) => {
+                write!(writer, "permutationCommon{:?}", index)
             }
         }
     }
