@@ -1,0 +1,81 @@
+use aiken/collection/list.{map, zip}
+use aiken/crypto/bitwise.{State}
+use aiken/crypto/bls12_381/scalar.{
+  Scalar, field_prime, from_int, mul, recip, sub, sub_int,
+}
+
+pub fn lagrange_polynomial_basis(
+  x: State<Scalar>,
+  xn: State<Scalar>,
+  barycentric_weight: State<Scalar>,
+  rotations: List<State<Scalar>>,
+) -> List<State<Scalar>> {
+  let common = mul(sub_int(xn, 1), barycentric_weight)
+  let inverses =
+    map(
+      rotations,
+      fn(rotated_omega) {
+        expect Some(result) = recip(sub(x, rotated_omega))
+        result
+      },
+    )
+  let zipped = zip(inverses, rotations)
+  map(zipped, fn((inv, rotated_omega)) { mul(mul(inv, common), rotated_omega) })
+}
+
+// values based on atms circuit results
+test calculate_lagrange_basis() {
+  let x =
+    from_int(0x27267acdcdde9716fe9323b98bc0930dd54e5dc1f0b5c59dfcdd83f92eb5f2e4)
+  let xn =
+    from_int(0x704a1af8e8913f64ae2432b58446ec9a9a591f7ddce6fef2461e745176248f64)
+  let barycentric_weight =
+    from_int(0x73ebd79c8c50d6d23e190b20a981b17df3a8550c6ff25c059003ffff00040001)
+  let rotations =
+    [
+      from_int(
+        0xb86cb0cc9981913c405642e1a61b6c2ebb2c035b286d62963161b0e604f2b5c,
+      ),
+      from_int(
+        0x2d81596dda5e65d78aa2fbc9a41187afb2125a3ed8061f1633d09f0c1577c836,
+      ),
+      from_int(
+        0x391b2856c609b4784ae25ffab9dc59865046d17864183203961a252dd8543362,
+      ),
+      from_int(
+        0x1cd54bc8adcd5dab7989ec74ae3f47f4588f2deee2a0d9a40404e47eecd35df7,
+      ),
+      from_int(
+        0x57e6990d4981b177d548fda262008419204f9476cecef2df68946aad325251ed,
+      ),
+      from_int(
+        0x281f74790b85a216fd013df1f683bf99a14c38253fdb838cd7a1f5bc8f529599,
+      ),
+      from_int(1),
+    ]
+  let result = lagrange_polynomial_basis(x, xn, barycentric_weight, rotations)
+  expect
+    [
+      from_int(
+        0xa2fe3f7fde64d7d605591ce4aea98af72909596cd0c00b804fbfafa1f901ef1,
+      ),
+      from_int(
+        0x6cd49ccc922112fb9ee9991410cd221a8ab6250d3de49526ed89bf78a7df7825,
+      ),
+      from_int(
+        0x471ea2d1941c679e4a0b618316edf29a26934fefda54185c7461951a6ca6aee9,
+      ),
+      from_int(
+        0x4857a3cecf94d627e8bddced4b4791bb4f4db40e3e62bed7e1dac2f6d3712f4b,
+      ),
+      from_int(
+        0x249dedd80add27339f6cce5a9e48b024a41888f4ca15882b696bb27cc49c027c,
+      ),
+      from_int(
+        0x549b3d7ffdb0463d57b20cf3968a2ddaf267e442fe0dc5b30b2e98e0c96a358c,
+      ),
+      from_int(
+        0x54ab6e351835f0093a6dabb8b14c7707a6704894ada9b60294e9bbfab856347f,
+      ),
+    ] == result
+}

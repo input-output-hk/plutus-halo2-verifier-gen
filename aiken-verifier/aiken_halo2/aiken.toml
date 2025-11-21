@@ -15,8 +15,10 @@ name = "aiken-lang/stdlib"
 version = "v3.0.0"
 source = "github"
 
-[config]
+[[dependencies]]
+name = "aiken-lang/fuzz"
+version = "v2"
+source = "github"
 
 [config.default]
-#magic number for pre prod
 network_id = 1

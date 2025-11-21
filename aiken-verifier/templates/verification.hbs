@@ -1,19 +1,18 @@
+use aiken/collection/list.{at, drop, foldl, head, take}
 use aiken/crypto/bitwise.{State}
-use aiken/crypto/bls12_381/scalar.{
-Scalar, add, from_int, mul, neg, sub,
-}
+use aiken/crypto/bls12_381/scalar.{Scalar, add, from_int, mul, neg, scale, sub}
+use lagrange.{lagrange_polynomial_basis}
+use omega_rotations.{rotate_omegas}
 use transcript.{
-common_scalar, construct_transcript, read_point, read_scalar,
-squeeze_challenge,
+  common_scalar, construct_transcript, read_point, read_scalar,
+  squeeze_challenge,
 }
+use verifier_key.{barycentric_weight, blinding_factors, omega, omega_inv}
 
 pub fn verifier(proof: Data, transcript_rep: State<Scalar>, {{{PUBLIC_INPUTS_NAMES}}}) -> Bool {
 
-    // todo for now those are set as constants to check if other parts compiles and works as expected
-    let evaluation_at_0 = from_int(1)
-    let last_evaluation = from_int(2)
-    let active_rows = from_int(3)
-    // -----------------------------------------------------------------------------------------------
+    let rotations_for_vanishing =
+        rotate_omegas(omega, omega_inv, -(blinding_factors + 1), 0)
 
     let scalarZero = from_int(0)
     let scalarOne = from_int(1)
@@ -28,6 +27,36 @@ pub fn verifier(proof: Data, transcript_rep: State<Scalar>, {{{PUBLIC_INPUTS_NAM
 {{{PUBLIC_INPUTS}}}
 
 {{{PES}}}
+
+
+    let n = {{X_EXPONENT}}
+    let xn = scale( x, n)
+
+    let n = 16384
+    let xn = scale(x, n)
+
+    let evaluations_of_lagrange_polynomial =
+        lagrange_polynomial_basis(
+        x,
+        xn,
+        barycentric_weight,
+        rotations_for_vanishing,
+        )
+    expect Some(last_evaluation) = head(evaluations_of_lagrange_polynomial)
+    let evaluation_for_blinding_factors =
+        take(drop(evaluations_of_lagrange_polynomial, 1), blinding_factors)
+    let sum_of_evaluation_for_blinding_factors =
+        foldl(
+        evaluation_for_blinding_factors,
+        scalarZero,
+        fn(e, acc) { add(e, acc) },
+        )
+    expect Some(evaluation_at_0) =
+        at(evaluations_of_lagrange_polynomial, 1 + blinding_factors)
+    let active_rows =
+        sub(scalarOne, add(last_evaluation, sum_of_evaluation_for_blinding_factors))
+    // -----------------------------------------------------------------------------------------------
+
 
 {{{GATES}}}
 

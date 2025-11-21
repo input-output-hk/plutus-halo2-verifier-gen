@@ -154,7 +154,7 @@ impl AikenTranspiler for ScalarExpression<Scalar> {
                 writer.write_all(b")")
             }
             ScalarExpression::PowMod(a, exponent) => {
-                writer.write_all(b"pow_nmod(")?;
+                writer.write_all(b"scale(")?;
                 a.aiken_polynomial(writer)?;
                 write!(writer, ", {:?})", exponent)
             }
