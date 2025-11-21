@@ -648,7 +648,7 @@ where
         Box::new(ExpressionG1::Zero),
         ScalarExpression::Variable("xn".to_string()),
     );
-    let b = ExpressionG1::Variable(format!("vanishingSplit_{:?}", vanishing_splits_count));
+    let b = ExpressionG1::VanishingSplit( vanishing_splits_count);
     let term = ExpressionG1::Sum(Box::new(a), Box::new(b));
 
     circuit_description
@@ -662,7 +662,7 @@ where
             Box::new(ExpressionG1::Variable(format!("hCommitment{:?}", i))),
             ScalarExpression::Variable("xn".to_string()),
         );
-        let b = ExpressionG1::Variable(format!("vanishingSplit_{:?}", vanishing_splits_count - i));
+        let b = ExpressionG1::VanishingSplit( vanishing_splits_count - i);
         let term = ExpressionG1::Sum(Box::new(a), Box::new(b));
 
         circuit_description
@@ -680,7 +680,7 @@ where
         ))),
         ScalarExpression::Variable("xn".to_string()),
     );
-    let b = ExpressionG1::Variable("vanishingSplit_1".to_string());
+    let b = ExpressionG1::VanishingSplit(1);
     let term = ExpressionG1::Sum(Box::new(a), Box::new(b));
 
     circuit_description

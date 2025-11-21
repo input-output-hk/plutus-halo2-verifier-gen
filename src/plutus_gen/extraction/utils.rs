@@ -103,25 +103,26 @@ impl AikenTranspiler for Expression<Scalar> {
 impl AikenTranspiler for ExpressionG1<Scalar> {
     fn aiken_polynomial<W: Write>(&self, writer: &mut W) -> Result<()> {
         match self {
-            ExpressionG1::Zero => {
-                writer.write_all(b" (bls12_381_G1_uncompress bls12_381_G1_compressed_zero) ")
-            }
+            ExpressionG1::Zero => writer.write_all(b" zero "),
             ExpressionG1::Sum(a, b) => {
-                writer.write_all(b"bls12_381_g1_add(")?;
+                writer.write_all(b"addG1(")?;
                 a.aiken_polynomial(writer)?;
                 writer.write_all(b", ")?;
                 b.aiken_polynomial(writer)?;
                 writer.write_all(b")")
             }
             ExpressionG1::Scale(a, scalar) => {
-                writer.write_all(b"bls12_381_g1_scalar_mul(to_int(")?;
-                scalar.aiken_polynomial(writer)?;
-                writer.write_all(b"), ")?;
+                writer.write_all(b"scaleG1(")?;
                 a.aiken_polynomial(writer)?;
+                writer.write_all(b", ")?;
+                scalar.aiken_polynomial(writer)?;
                 writer.write_all(b")")
             }
             ExpressionG1::Variable(name) => {
                 write!(writer, " {} ", name)
+            }
+            ExpressionG1::VanishingSplit(index) => {
+                write!(writer, " vanishing_split_{} ", index)
             }
         }
     }
@@ -257,6 +258,9 @@ impl PlinthTranspiler for ExpressionG1<Scalar> {
             }
             ExpressionG1::Variable(name) => {
                 write!(writer, " {} ", name)
+            }
+            ExpressionG1::VanishingSplit(index) => {
+                write!(writer, " vanishingSplit_{} ", index)
             }
         }
     }

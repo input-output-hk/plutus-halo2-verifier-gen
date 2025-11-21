@@ -1,6 +1,10 @@
 use aiken/collection/list.{at, drop, foldl, head, take}
 use aiken/crypto/bitwise.{State}
-use aiken/crypto/bls12_381/scalar.{Scalar, add, from_int, mul, neg, scale, sub}
+use aiken/crypto/bls12_381/g1.{add as addG1, scale as scaleG1, zero}
+use aiken/crypto/bls12_381/scalar.{
+  Scalar, add, from_int, mul, neg, recip, scale, sub,
+}
+use inner_product.{inner_product}
 use lagrange.{lagrange_polynomial_basis}
 use omega_rotations.{rotate_omegas}
 use transcript.{
@@ -8,7 +12,6 @@ use transcript.{
   squeeze_challenge,
 }
 use verifier_key.{barycentric_weight, blinding_factors, omega, omega_inv}
-use inner_product.{inner_product}
 
 pub fn verifier(proof: Data, transcript_rep: State<Scalar>, {{{PUBLIC_INPUTS_NAMES}}}) -> Bool {
 
@@ -87,6 +90,13 @@ pub fn verifier(proof: Data, transcript_rep: State<Scalar>, {{{PUBLIC_INPUTS_NAM
 {{{VANISHING_EXPRESSIONS}}}
 
 {{{VANISHING_EVALUATION}}}
+
+    expect Some(inverted) = recip(sub(xn, scalarOne)) // recip is inverse of the number mod bls12_381_field_prime
+    let vanishing_s = mul(hEval, inverted)
+
+    // vanishing split IS PASSED IN REVERSE ORDER!!!
+    // this is MSM done for h-commitments
+{{{H_COMMITMENTS}}}
 
     True
 }

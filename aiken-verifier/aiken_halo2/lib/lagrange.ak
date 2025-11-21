@@ -1,8 +1,6 @@
 use aiken/collection/list.{map, zip}
 use aiken/crypto/bitwise.{State}
-use aiken/crypto/bls12_381/scalar.{
-  Scalar, field_prime, from_int, mul, recip, sub, sub_int,
-}
+use aiken/crypto/bls12_381/scalar.{Scalar, from_int, mul, recip, sub, sub_int}
 
 pub fn lagrange_polynomial_basis(
   x: State<Scalar>,

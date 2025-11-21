@@ -1,8 +1,6 @@
 use aiken/collection/list.{foldl, zip}
 use aiken/crypto/bitwise.{State}
-use aiken/crypto/bls12_381/scalar.{
-  Scalar, add, field_prime, from_int, mul, mul_int, recip, scale, sub, sub_int,
-}
+use aiken/crypto/bls12_381/scalar.{Scalar, add, from_int, mul}
 
 pub fn inner_product(
   a: List<State<Scalar>>,

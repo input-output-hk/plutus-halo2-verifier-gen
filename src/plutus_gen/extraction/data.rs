@@ -124,6 +124,7 @@ pub enum ExpressionG1<F> {
     Zero,
     Sum(Box<ExpressionG1<F>>, Box<ExpressionG1<F>>),
     Scale(Box<ExpressionG1<F>>, ScalarExpression<F>),
+    VanishingSplit(usize),
     Variable(String),
 }
 

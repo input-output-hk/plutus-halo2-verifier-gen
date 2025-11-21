@@ -407,6 +407,16 @@ pub fn emit_verifier_code(
     let vanishing_evaluation = format!("    let hEval = {}\n", vanishing_evaluation);
     data.insert("VANISHING_EVALUATION".to_string(), vanishing_evaluation);
 
+    let h_commitments = circuit
+        .h_commitments
+        .iter()
+        .map(|(variable_name, expression)| {
+            let term = expression.compile_expression();
+            format!("    let {} = {}\n", variable_name, term)
+        })
+        .join("");
+    data.insert("H_COMMITMENTS".to_string(), h_commitments);
+
     let mut handlebars = Handlebars::new();
     handlebars.set_strict_mode(true);
     handlebars.register_template_file("aiken_template", template_file)?;

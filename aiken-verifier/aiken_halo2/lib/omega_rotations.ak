@@ -1,8 +1,6 @@
 use aiken/collection/list.{map, range}
 use aiken/crypto/bitwise.{State}
-use aiken/crypto/bls12_381/scalar.{
-  Scalar, field_prime, from_int, mul, mul_int, recip, scale, sub, sub_int,
-}
+use aiken/crypto/bls12_381/scalar.{Scalar, from_int, mul_int, scale}
 use aiken/math.{abs}
 
 pub fn rotate_omegas(
