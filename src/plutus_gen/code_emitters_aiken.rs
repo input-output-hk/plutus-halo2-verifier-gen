@@ -1,13 +1,12 @@
-use crate::plutus_gen::extraction::data::{CircuitRepresentation, ProofExtractionSteps};
-use crate::plutus_gen::extraction::{combine_aiken_expressions, compile_aiken_expressions};
+use crate::plutus_gen::extraction::{
+    AikenExpression, combine_aiken_expressions,
+    data::{CircuitRepresentation, ProofExtractionSteps},
+};
 use halo2_proofs::halo2curves::group::GroupEncoding;
 use handlebars::{Handlebars, RenderError};
 use itertools::Itertools;
 use log::debug;
-use std::collections::HashMap;
-use std::fs::File;
-use std::iter::once;
-use std::path::Path;
+use std::{collections::HashMap, fs::File, iter::once, path::Path};
 
 pub fn emit_verifier_code(
     template_file: &Path, // aiken mustashe template
@@ -130,6 +129,11 @@ pub fn emit_verifier_code(
         circuit.public_inputs.to_string(),
     );
 
+    let public_inputs_lagrange = (1..=circuit.instantiation_data.public_inputs_count)
+        .map(|n| format!("i_{}", n))
+        .join(", ");
+    data.insert("PUBLIC_INPUTS_LAGRANGE".to_string(), public_inputs_lagrange);
+
     let public_inputs = (1..=circuit.instantiation_data.public_inputs_count)
         .map(|n| format!("    let transcript = common_scalar(i_{}, transcript)\n", n))
         .join("");
@@ -158,7 +162,7 @@ pub fn emit_verifier_code(
             format!(
                 "    let gate_eq{:?} = {}\n",
                 id + 1,
-                compile_aiken_expressions(gate)
+                gate.compile_expression()
             )
         })
         .join("");
@@ -227,6 +231,191 @@ pub fn emit_verifier_code(
         .join("");
 
     data.insert("LOOKUPS".to_string(), lookup_equations);
+
+    let permutation_evals = circuit
+        .permutations_evaluated_terms
+        .iter()
+        .enumerate()
+        .map(|(id, expression)| {
+            let term = expression.compile_expression();
+            format!("    let term_{:?} = {}\n", id + 1, term)
+        })
+        .join("");
+    data.insert("PERMUTATIONS_EVALS".to_string(), permutation_evals);
+
+    let mut sets_lhs: HashMap<char, String> = HashMap::new();
+    let mut sets_rhs: HashMap<char, String> = HashMap::new();
+
+    let permutation_lhs = circuit
+        .permutation_terms_left
+        .iter()
+        .enumerate()
+        .map(|(id, (set, expression))| {
+            if sets_lhs.contains_key(set) {
+                let existing = sets_lhs
+                    .get(set)
+                    .unwrap_or_else(|| panic!("set {} not found", set));
+                sets_lhs.insert(*set, format!("mul({}, left{:?})", existing, id + 1));
+            } else {
+                sets_lhs.insert(*set, format!("left{:?}", id + 1));
+            };
+            let term = expression.compile_expression();
+            format!(
+                "    let left{:?} = {} //part of set {}\n",
+                id + 1,
+                term,
+                set
+            )
+        })
+        .join("");
+    data.insert("PERMUTATIONS_LHS".to_string(), permutation_lhs);
+
+    let lhf_sets = sets_lhs
+        .iter()
+        .sorted_by_key(|(c, _)| **c)
+        .enumerate()
+        .map(|(set_number, (set_id, terms))| {
+            format!(
+                "    let left_set{:?} = mul(permutations_evaluated_{}_2, {}) \n",
+                set_number + 1,
+                set_id,
+                terms
+            )
+        })
+        .join("");
+    data.insert("LHS_SETS".to_string(), lhf_sets);
+
+    let permutation_rhs = circuit
+        .permutation_terms_right
+        .iter()
+        .enumerate()
+        .map(|(id, (set, expression))| {
+            if sets_rhs.contains_key(set) {
+                let existing = sets_rhs
+                    .get(set)
+                    .unwrap_or_else(|| panic!("set {} not found", set));
+                sets_rhs.insert(*set, format!("mul({}, right{:?})", existing, id + 1));
+            } else {
+                sets_rhs.insert(*set, format!("right{:?}", id + 1));
+            };
+            let term = expression.compile_expression();
+            format!(
+                "    let right{:?} = {} //part of set {}\n",
+                id + 1,
+                term,
+                set
+            )
+        })
+        .join("");
+    data.insert("PERMUTATIONS_RHS".to_string(), permutation_rhs);
+
+    let rhf_sets = sets_rhs
+        .iter()
+        .sorted_by_key(|(c, _)| **c)
+        .enumerate()
+        .map(|(set_number, (set_id, terms))| {
+            format!(
+                "    let right_set{:?} = mul(permutations_evaluated_{}_1, {}) \n",
+                set_number + 1,
+                set_id,
+                terms
+            )
+        })
+        .join("");
+    data.insert("RHS_SETS".to_string(), rhf_sets);
+
+    let permutations_combined = if sets_lhs.len() == sets_rhs.len() {
+        let sets_number = sets_lhs.len();
+        (1..=sets_number).map(|n| {
+            format!("    let permutations{} = mul(sub(left_set{}, right_set{}), sub(scalarOne, add(last_evaluation, sum_of_evaluation_for_blinding_factors)))\n", n, n, n)
+        }).join("")
+    } else {
+        panic!("permutations sets have to be equal length")
+    };
+
+    data.insert("PERMUTATIONS_COMBINED".to_string(), permutations_combined);
+
+    let gates_count = circuit.compiled_gate_equations.len();
+    let permutations_eval_count = circuit.permutations_evaluated_terms.len();
+    let sets_count = sets_lhs.len();
+    let lookups_count = circuit.compiled_lookups_equations.0.len();
+
+    let mut vanishing_expressions = (1..=gates_count)
+        .map(|n| format!("    let expression{} = gate_eq{}\n", n, n))
+        .collect::<Vec<_>>();
+
+    let expressions = (1..=permutations_eval_count)
+        .map(|n| format!("    let expression{} = term_{}\n", n + gates_count, n))
+        .collect::<Vec<_>>();
+    vanishing_expressions.extend(expressions);
+
+    let expressions = (1..=sets_count)
+        .map(|n| {
+            format!(
+                "    let expression{} = permutations{}\n",
+                n + gates_count + permutations_eval_count,
+                n
+            )
+        })
+        .collect::<Vec<_>>();
+    vanishing_expressions.extend(expressions);
+
+    let expressions = (1..=lookups_count)
+        .flat_map(|n| {
+            [
+                format!(
+                    "    let expression{} = lookup_expression_1_{}\n",
+                    ((n - 1) * 5) + 1 + gates_count + permutations_eval_count + sets_count,
+                    n
+                ),
+                format!(
+                    "    let expression{} = lookup_expression_2_{}\n",
+                    ((n - 1) * 5) + 2 + gates_count + permutations_eval_count + sets_count,
+                    n
+                ),
+                format!(
+                    "    let expression{} = lookup_expression_3_{}\n",
+                    ((n - 1) * 5) + 3 + gates_count + permutations_eval_count + sets_count,
+                    n
+                ),
+                format!(
+                    "    let expression{} = lookup_expression_4_{}\n",
+                    ((n - 1) * 5) + 4 + gates_count + permutations_eval_count + sets_count,
+                    n
+                ),
+                format!(
+                    "    let expression{} = lookup_expression_5_{}\n",
+                    ((n - 1) * 5) + 5 + gates_count + permutations_eval_count + sets_count,
+                    n
+                ),
+            ]
+        })
+        .collect::<Vec<_>>();
+    vanishing_expressions.extend(expressions);
+
+    let _expressions_count = vanishing_expressions.len();
+
+    data.insert(
+        "VANISHING_EXPRESSIONS".to_string(),
+        vanishing_expressions.join(""),
+    );
+
+    let mut vanishing_evaluation = "add(mul(scalarZero, y), expression1)".to_string();
+    for n in 2..=(gates_count + permutations_eval_count + sets_count + lookups_count * 5) {
+        vanishing_evaluation = format!("add(mul({}, y), expression{})", vanishing_evaluation, n)
+    }
+    let vanishing_evaluation = format!("    let hEval = {}\n", vanishing_evaluation);
+    data.insert("VANISHING_EVALUATION".to_string(), vanishing_evaluation);
+
+    let h_commitments = circuit
+        .h_commitments
+        .iter()
+        .map(|(variable_name, expression)| {
+            let term = expression.compile_expression();
+            format!("    let {} = {}\n", variable_name, term)
+        })
+        .join("");
+    data.insert("H_COMMITMENTS".to_string(), h_commitments);
 
     let mut handlebars = Handlebars::new();
     handlebars.set_strict_mode(true);
@@ -315,25 +504,21 @@ pub fn emit_vk_code(
         circuit.instantiation_data.blinding_factors.to_string(),
     );
 
-    let fixed_commitments= circuit
-        .instantiation_data
-        .fixed_commitments.len();
+    let fixed_commitments = circuit.instantiation_data.fixed_commitments.len();
 
-    let permutation_commitments= circuit
-        .instantiation_data
-        .permutation_commitments.len();
+    let permutation_commitments = circuit.instantiation_data.permutation_commitments.len();
 
-    let fixed = (0..fixed_commitments).map(|idx|format!("    expect f{}_commitment == f{}_commitment",idx,idx));
-    let permutations = (0..permutation_commitments).map(|idx|format!("    expect p{}_commitment == p{}_commitment",idx,idx));
+    let fixed = (0..fixed_commitments)
+        .map(|idx| format!("    expect f{}_commitment == f{}_commitment", idx, idx));
+    let permutations = (0..permutation_commitments)
+        .map(|idx| format!("    expect p{}_commitment == p{}_commitment", idx, idx));
 
-    let budget_check = fixed.chain(permutations).chain(once("    expect g2_const == g2_const".to_string())).join("\n");
+    let budget_check = fixed
+        .chain(permutations)
+        .chain(once("    expect g2_const == g2_const".to_string()))
+        .join("\n");
 
-
-
-    data.insert(
-        "BUDGET_CHECK".to_string(),
-        budget_check
-    );
+    data.insert("BUDGET_CHECK".to_string(), budget_check);
 
     let mut handlebars = Handlebars::new();
     handlebars.set_strict_mode(true);

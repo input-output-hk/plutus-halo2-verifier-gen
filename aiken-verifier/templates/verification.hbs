@@ -1,22 +1,26 @@
+use aiken/collection/list.{at, drop, foldl, head, take}
 use aiken/crypto/bitwise.{State}
+use aiken/crypto/bls12_381/g1.{add as addG1, scale as scaleG1, zero}
 use aiken/crypto/bls12_381/scalar.{
-Scalar, add, from_int, mul, neg, sub,
+  Scalar, add, from_int, mul, neg, recip, scale, sub,
 }
+use inner_product.{inner_product}
+use lagrange.{lagrange_polynomial_basis}
+use omega_rotations.{rotate_omegas}
 use transcript.{
-common_scalar, construct_transcript, read_point, read_scalar,
-squeeze_challenge,
+  common_scalar, construct_transcript, read_point, read_scalar,
+  squeeze_challenge,
 }
+use verifier_key.{barycentric_weight, blinding_factors, omega, omega_inv}
 
 pub fn verifier(proof: Data, transcript_rep: State<Scalar>, {{{PUBLIC_INPUTS_NAMES}}}) -> Bool {
 
-    // todo for now those are set as constants to check if other parts compiles and works as expected
-    let evaluation_at_0 = from_int(1)
-    let last_evaluation = from_int(2)
-    let active_rows = from_int(3)
-    // -----------------------------------------------------------------------------------------------
+    let rotations_for_vanishing =
+        rotate_omegas(omega, omega_inv, -(blinding_factors + 1), 0)
 
     let scalarZero = from_int(0)
     let scalarOne = from_int(1)
+    let scalarDelta = from_int(0x08634d0aa021aaf843cab354fabb0062f6502437c6a09c006c083479590189d7)
 
     let x_exponent = {{{X_EXPONENT}}}
 
@@ -29,6 +33,39 @@ pub fn verifier(proof: Data, transcript_rep: State<Scalar>, {{{PUBLIC_INPUTS_NAM
 
 {{{PES}}}
 
+
+    let n = {{X_EXPONENT}}
+    let xn = scale( x, n)
+
+    let n = 16384
+    let xn = scale(x, n)
+
+    let evaluations_of_lagrange_polynomial =
+        lagrange_polynomial_basis(
+        x,
+        xn,
+        barycentric_weight,
+        rotations_for_vanishing,
+        )
+    expect Some(last_evaluation) = head(evaluations_of_lagrange_polynomial)
+    let evaluation_for_blinding_factors =
+        take(drop(evaluations_of_lagrange_polynomial, 1), blinding_factors)
+    let sum_of_evaluation_for_blinding_factors =
+        foldl(
+        evaluation_for_blinding_factors,
+        scalarZero,
+        fn(e, acc) { add(e, acc) },
+        )
+    expect Some(evaluation_at_0) =
+        at(evaluations_of_lagrange_polynomial, 1 + blinding_factors)
+    let active_rows =
+        sub(scalarOne, add(last_evaluation, sum_of_evaluation_for_blinding_factors))
+    // -----------------------------------------------------------------------------------------------
+
+    let rotations_for_instances = rotate_omegas(omega, omega_inv, 0, {{{PUBLIC_INPUTS_COUNT}}})
+    let lagrange_polynomial_instances = lagrange_polynomial_basis( x, xn, barycentric_weight, rotations_for_instances)
+    let instance_eval_1 = inner_product(lagrange_polynomial_instances, [{{{PUBLIC_INPUTS_LAGRANGE}}}])
+
 {{{GATES}}}
 
 {{{LOOKUP_TABLES_EXPRESSIONS}}}
@@ -36,6 +73,30 @@ pub fn verifier(proof: Data, transcript_rep: State<Scalar>, {{{PUBLIC_INPUTS_NAM
 {{{LOOKUP_INPUTS_EXPRESSIONS}}}
 
 {{{LOOKUPS}}}
+
+{{{PERMUTATIONS_EVALS}}}
+
+{{{PERMUTATIONS_LHS}}}
+
+{{{LHS_SETS}}}
+
+{{{PERMUTATIONS_RHS}}}
+
+{{{RHS_SETS}}}
+
+{{{PERMUTATIONS_COMBINED}}}
+
+//      expressions for vanishing polynomial
+{{{VANISHING_EXPRESSIONS}}}
+
+{{{VANISHING_EVALUATION}}}
+
+    expect Some(inverted) = recip(sub(xn, scalarOne)) // recip is inverse of the number mod bls12_381_field_prime
+    let vanishing_s = mul(hEval, inverted)
+
+    // vanishing split IS PASSED IN REVERSE ORDER!!!
+    // this is MSM done for h-commitments
+{{{H_COMMITMENTS}}}
 
     True
 }

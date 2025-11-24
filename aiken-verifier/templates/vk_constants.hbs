@@ -1,13 +1,6 @@
-use aiken/builtin.{
-    blake2b_256, bls12_381_g1_neg, bls12_381_g1_scalar_mul,
-    bls12_381_g1_uncompress, bls12_381_g2_uncompress, bytearray_to_integer,
-    integer_to_bytearray, mod_integer,
-}
+use aiken/builtin.{bls12_381_g1_uncompress, bls12_381_g2_uncompress}
 use aiken/crypto/bitwise.{State}
-use aiken/crypto/bls12_381/scalar.{
-    Scalar, add, field_prime as bls12_381_field_prime, from_int, mul, neg, sub,
-    to_int,
-}
+use aiken/crypto/bls12_381/scalar.{Scalar, from_int}
 
 
 {{{PERMUTATION_COMMITMENTS}}}
