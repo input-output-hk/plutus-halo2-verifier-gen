@@ -104,76 +104,60 @@ impl PlinthTranslator for ProofDescription {
     fn translate_commitment(&self) -> String {
         match self {
             Advice(index) => {
-                todo!()
+                format!("a{:?}", index)
             }
             ProofDescription::Fixed(index) => {
-                todo!()
+                format!("f{:?}_commitment", index)
             }
-            ProofDescription::Permutation(set, index) => {
-                todo!()
+            ProofDescription::Permutation(set, _) => {
+                format!("permutations_committed_{}", set)
             }
             ProofDescription::Lookup(index) => {
-                todo!()
+                format!("lookupCommitment{:?}", index)
             }
             ProofDescription::PermutedInput(index) => {
-                todo!()
+                format!("permutedInput{:?}", index)
             }
             ProofDescription::PermutedTable(index) => {
-                todo!()
+                format!("permutedTable{:?}", index)
             }
             ProofDescription::PermutationsCommon(index) => {
-                todo!()
+                format!("p{:?}_commitment", index)
             }
-            ProofDescription::VanishingG => {
-                todo!()
-            }
-            ProofDescription::VanishingS => {
-                todo!()
-            }
-            ProofDescription::VanishingRand => {
-                todo!()
-            }
-            ProofDescription::VanishingEval => {
-                todo!()
-            }
+            ProofDescription::VanishingG => "vanishing_g".to_string(),
+            ProofDescription::VanishingS => panic!("VanishingS is not a commitment"),
+            ProofDescription::VanishingRand => "vanishingRand".to_string(),
+            ProofDescription::VanishingEval => panic!("VanishingEval is not a commitment"),
         }
     }
 
     fn translate_evaluation(&self) -> String {
         match self {
             Advice(index) => {
-                todo!()
+                format!("adviceEval{:?}", index)
             }
             ProofDescription::Fixed(index) => {
-                todo!()
+                format!("fixedEval{:?}", index)
             }
             ProofDescription::Permutation(set, index) => {
-                todo!()
+                format!("permutations_evaluated_{}_{}", set, index)
             }
             ProofDescription::Lookup(index) => {
-                todo!()
+                format!("product_eval_{:?}", index)
             }
             ProofDescription::PermutedInput(index) => {
-                todo!()
+                format!("permuted_input_inv_eval_{:?}", index)
             }
             ProofDescription::PermutedTable(index) => {
-                todo!()
+                format!("permuted_table_eval_{:?}", index)
             }
             ProofDescription::PermutationsCommon(index) => {
-                todo!()
+                format!("permutationCommon{:?}", index)
             }
-            ProofDescription::VanishingG => {
-                todo!()
-            }
-            ProofDescription::VanishingS => {
-                todo!()
-            }
-            ProofDescription::VanishingRand => {
-                todo!()
-            }
-            ProofDescription::VanishingEval => {
-                todo!()
-            }
+            ProofDescription::VanishingG => panic!("VanishingG is not an evaluation"),
+            ProofDescription::VanishingS => "vanishing_s".to_string(),
+            ProofDescription::VanishingRand => panic!("VanishingRand is not an evaluation"),
+            ProofDescription::VanishingEval => "randomEval".to_string(),
         }
     }
 }
@@ -182,76 +166,60 @@ impl AikenTranslator for ProofDescription {
     fn translate_commitment(&self) -> String {
         match self {
             Advice(index) => {
-                todo!()
+                format!("a{:?}", index)
             }
             ProofDescription::Fixed(index) => {
-                todo!()
+                format!("f{:?}_commitment", index)
             }
-            ProofDescription::Permutation(set, index) => {
-                todo!()
+            ProofDescription::Permutation(set, _) => {
+                format!("permutations_committed_{}", set)
             }
             ProofDescription::Lookup(index) => {
-                todo!()
+                format!("lookup_commitment_{:?}", index)
             }
             ProofDescription::PermutedInput(index) => {
-                todo!()
+                format!("permuted_input_{:?}", index)
             }
             ProofDescription::PermutedTable(index) => {
-                todo!()
+                format!("permuted_table_{:?}", index)
             }
             ProofDescription::PermutationsCommon(index) => {
-                todo!()
+                format!("p{:?}_commitment", index)
             }
-            ProofDescription::VanishingG => {
-                todo!()
-            }
-            ProofDescription::VanishingS => {
-                todo!()
-            }
-            ProofDescription::VanishingRand => {
-                todo!()
-            }
-            ProofDescription::VanishingEval => {
-                todo!()
-            }
+            ProofDescription::VanishingG => "vanishing_g".to_string(),
+            ProofDescription::VanishingS => panic!("VanishingS is not a commitment"),
+            ProofDescription::VanishingRand => "vanishing_rand".to_string(),
+            ProofDescription::VanishingEval => panic!("VanishingEval is not a commitment"),
         }
     }
 
     fn translate_evaluation(&self) -> String {
         match self {
             Advice(index) => {
-                todo!()
+                format!("advice_eval_{:?}", index)
             }
             ProofDescription::Fixed(index) => {
-                todo!()
+                format!("fixed_eval_{:?}", index)
             }
             ProofDescription::Permutation(set, index) => {
-                todo!()
+                format!("permutations_evaluated_{}_{}", set, index)
             }
             ProofDescription::Lookup(index) => {
-                todo!()
+                format!("product_eval_{:?}", index)
             }
             ProofDescription::PermutedInput(index) => {
-                todo!()
+                format!("permuted_input_inv_eval_{:?}", index)
             }
             ProofDescription::PermutedTable(index) => {
-                todo!()
+                format!("permuted_table_eval_{:?}", index)
             }
             ProofDescription::PermutationsCommon(index) => {
-                todo!()
+                format!("permutation_common_{:?}", index)
             }
-            ProofDescription::VanishingG => {
-                todo!()
-            }
-            ProofDescription::VanishingS => {
-                todo!()
-            }
-            ProofDescription::VanishingRand => {
-                todo!()
-            }
-            ProofDescription::VanishingEval => {
-                todo!()
-            }
+            ProofDescription::VanishingG => panic!("VanishingG is not an evaluation"),
+            ProofDescription::VanishingS => "vanishing_s".to_string(),
+            ProofDescription::VanishingRand => panic!("VanishingRand is not an evaluation"),
+            ProofDescription::VanishingEval => "random_eval".to_string(),
         }
     }
 }

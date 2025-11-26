@@ -1,5 +1,5 @@
 use crate::plutus_gen::decode_rotation;
-use crate::plutus_gen::extraction::data::{AikenTranslator};
+use crate::plutus_gen::extraction::data::AikenTranslator;
 use crate::plutus_gen::extraction::{
     AikenExpression, combine_aiken_expressions,
     data::{CircuitRepresentation, ProofExtractionSteps},
@@ -78,14 +78,14 @@ pub fn emit_verifier_code(
             ProofExtractionSteps::LookupPermuted => section
                 .enumerate()
                 .map(|(number, _lookup_permuted)| {
-                    format!("    let (permuted_input{}, transcript) =  read_point(transcript)\n", number + 1)
-                        + &format!("    let (permuted_table{}, transcript) =  read_point(transcript)\n", number + 1)
+                    format!("    let (permuted_input_{}, transcript) =  read_point(transcript)\n", number + 1)
+                        + &format!("    let (permuted_table_{}, transcript) =  read_point(transcript)\n", number + 1)
                 })
                 .join(""),
             ProofExtractionSteps::LookupCommitment => section
                 .enumerate()
                 .map(|(number, _lookup_commitment)| {
-                    format!("    let (lookup_commitment{}, transcript) =  read_point(transcript)\n", number + 1)
+                    format!("    let (lookup_commitment_{}, transcript) =  read_point(transcript)\n", number + 1)
                 })
                 .join(""),
             ProofExtractionSteps::LookupEval => section
@@ -107,7 +107,7 @@ pub fn emit_verifier_code(
             ProofExtractionSteps::X3 => "    let (x3, transcript) = squeeze_challenge(transcript)\n".to_string(),
             ProofExtractionSteps::X4 => "    let (x4, transcript) = squeeze_challenge(transcript)\n".to_string(),
             ProofExtractionSteps::FCommitment => "    let (f_commitment, transcript) =  read_point(transcript)\n".to_string(),
-            ProofExtractionSteps::PI => "    let (pi_term, transcript) =  read_point(transcript)\n".to_string(),
+            ProofExtractionSteps::PI => "    let (pi_term, _) =  read_point(transcript)\n".to_string(),
             ProofExtractionSteps::QEvals => section
                 .enumerate()
                 .map(|(number, _permutation_common)| {
@@ -476,6 +476,17 @@ pub fn emit_verifier_code(
     let point_sets = format!("     let point_sets = [[{}]]", point_sets);
     data.insert("POINT_SETS".to_string(), point_sets);
 
+    let fixed_commitments_imports = (1..=circuit.instantiation_data.fixed_commitments.len())
+        .map(|id| format!("f{}_commitment", id))
+        .join(", ");
+    let permutation_commitments_imports =
+        (1..=circuit.instantiation_data.permutation_commitments.len())
+            .map(|id| format!("p{}_commitment", id))
+            .join(", ");
+
+    data.insert("F_IMPORTS".to_string(), fixed_commitments_imports);
+    data.insert("P_IMPORTS".to_string(), permutation_commitments_imports);
+
     let mut handlebars = Handlebars::new();
     handlebars.set_strict_mode(true);
     handlebars.register_template_file("aiken_template", template_file)?;
@@ -503,7 +514,8 @@ pub fn emit_vk_code(
         .map(|(idx, g1_encoded)| {
             format!(
                 "pub const f{}_commitment: G1Element = bls12_381_g1_uncompress(#\"{}\")",
-                idx, g1_encoded
+                idx + 1,
+                g1_encoded
             )
         })
         .join("\n");
@@ -522,7 +534,8 @@ pub fn emit_vk_code(
         .map(|(idx, g1_encoded)| {
             format!(
                 "pub const p{}_commitment: G1Element = bls12_381_g1_uncompress(#\"{}\")",
-                idx, g1_encoded
+                idx + 1,
+                g1_encoded
             )
         })
         .join("\n");
@@ -567,9 +580,9 @@ pub fn emit_vk_code(
 
     let permutation_commitments = circuit.instantiation_data.permutation_commitments.len();
 
-    let fixed = (0..fixed_commitments)
+    let fixed = (1..=fixed_commitments)
         .map(|idx| format!("    expect f{}_commitment == f{}_commitment", idx, idx));
-    let permutations = (0..permutation_commitments)
+    let permutations = (1..=permutation_commitments)
         .map(|idx| format!("    expect p{}_commitment == p{}_commitment", idx, idx));
 
     let budget_check = fixed

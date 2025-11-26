@@ -3,7 +3,7 @@ use aiken/collection/list.{
   concat, filter, foldl, is_empty, length, map, push, range, unzip, zip,
 }
 use aiken/crypto/bitwise.{State}
-use aiken/crypto/bls12_381/g1.{generator}
+use aiken/crypto/bls12_381/g1.{add as add_g1, generator, scale, zero}
 use aiken/crypto/bls12_381/scalar.{Scalar, add, from_int, mul}
 use lagrange.{evaluate_lagrange_polynomial}
 
@@ -130,4 +130,12 @@ fn scale_msm(s: State<Scalar>, msm: MSM) -> MSM {
       fn(e) { MSMElement { ..e, scalar: mul(s, e.scalar) } },
     ),
   }
+}
+
+pub fn eval(msm: MSM) -> G1Element {
+  foldl(
+    msm.elements,
+    zero,
+    fn(element, acc) { add_g1(acc, scale(element.g1, element.scalar)) },
+  )
 }

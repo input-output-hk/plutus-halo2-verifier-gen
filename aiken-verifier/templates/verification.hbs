@@ -7,13 +7,14 @@ use aiken/crypto/bls12_381/scalar.{
 }
 use inner_product.{inner_product}
 use lagrange.{lagrange_polynomial_basis}
-use omega_rotations.{rotate_omegas}
+use omega_rotations.{rotate_omegas, rotate_omega, powers}
 use transcript.{
   common_scalar, construct_transcript, read_point, read_scalar,
   squeeze_challenge,
 }
-use verifier_key.{barycentric_weight, blinding_factors, omega, omega_inv}
-use halo2_kzg.{build_msm}
+use verifier_key.{barycentric_weight, blinding_factors, omega, omega_inv, g2_const, {{{F_IMPORTS}}}, {{{P_IMPORTS}}} }
+use halo2_kzg.{build_msm, eval}
+use aiken/crypto/bls12_381/pairing.{miller_loop, final_exponentiation}
 
 pub fn verifier(proof: Data, transcript_rep: State<Scalar>, {{{PUBLIC_INPUTS_NAMES}}}) -> Bool {
 
@@ -23,8 +24,6 @@ pub fn verifier(proof: Data, transcript_rep: State<Scalar>, {{{PUBLIC_INPUTS_NAM
     let scalarZero = from_int(0)
     let scalarOne = from_int(1)
     let scalarDelta = from_int(0x08634d0aa021aaf843cab354fabb0062f6502437c6a09c006c083479590189d7)
-
-    let x_exponent = {{{X_EXPONENT}}}
 
     let inputs_count = from_int({{{PUBLIC_INPUTS_COUNT}}})
 
@@ -39,8 +38,10 @@ pub fn verifier(proof: Data, transcript_rep: State<Scalar>, {{{PUBLIC_INPUTS_NAM
     let n = {{X_EXPONENT}}
     let xn = scale( x, n)
 
-    let n = 16384
-    let xn = scale(x, n)
+    let x_prev = rotate_omega(omega, omega_inv, x, (-1))
+    let x_current = rotate_omega(omega, omega_inv, x, 0)
+    let x_next = rotate_omega(omega, omega_inv, x, 1)
+    let x_last = rotate_omega(omega, omega_inv, x, (-(blinding_factors + 1)))
 
     let evaluations_of_lagrange_polynomial =
         lagrange_polynomial_basis(
@@ -109,8 +110,8 @@ pub fn verifier(proof: Data, transcript_rep: State<Scalar>, {{{PUBLIC_INPUTS_NAM
       // g2 is not negated as bls12_381_finalVerify is doing negation
       let g2 = generatorG2
 
-      let x1Powers = powers {{{X1_POWERS_COUNT}}} x1
-      let x4Powers = powers {{{X4_POWERS_COUNT}}} x4
+      let x1Powers = powers({{{X1_POWERS_COUNT}}}, x1)
+      let x4Powers = powers({{{X4_POWERS_COUNT}}}, x4)
 
       let alt_right =
           build_msm(
@@ -125,5 +126,11 @@ pub fn verifier(proof: Data, transcript_rep: State<Scalar>, {{{PUBLIC_INPUTS_NAM
               point_sets)
 
 
-    True
+      let el = pi_term
+      let er = eval(alt_right)
+
+      let ml_l = miller_loop(el, g2_const)
+      let ml_r = miller_loop(er, g2)
+
+      final_exponentiation(ml_l, ml_r)
 }
