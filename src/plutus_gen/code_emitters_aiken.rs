@@ -1,6 +1,9 @@
+use crate::plutus_gen::decode_rotation;
+use crate::plutus_gen::extraction::data::{AikenTranslator};
 use crate::plutus_gen::extraction::{
     AikenExpression, combine_aiken_expressions,
     data::{CircuitRepresentation, ProofExtractionSteps},
+    precompute_intermediate_sets,
 };
 use halo2_proofs::halo2curves::group::GroupEncoding;
 use handlebars::{Handlebars, RenderError};
@@ -416,6 +419,62 @@ pub fn emit_verifier_code(
         })
         .join("");
     data.insert("H_COMMITMENTS".to_string(), h_commitments);
+
+    let (unique_grouped_points, commitment_data) = precompute_intermediate_sets(circuit);
+
+    let point_sets_indexes: Vec<usize> = (0..unique_grouped_points.len()).collect();
+    let max_commitments_per_points_set = point_sets_indexes
+        .iter()
+        .map(|&idx| {
+            commitment_data
+                .iter()
+                .filter(|cd| cd.point_set_index == idx)
+                .count()
+        })
+        .max()
+        .unwrap_or(0);
+    data.insert(
+        "X1_POWERS_COUNT".to_string(),
+        max_commitments_per_points_set.to_string(),
+    );
+
+    data.insert(
+        "X4_POWERS_COUNT".to_string(),
+        (point_sets_indexes.len() + 1).to_string(),
+    );
+
+    let q_evaluations = (1..=circuit.instantiation_data.q_evaluations_count)
+        .map(|n| format!("q_eval_on_x3_{}", n))
+        .join(", ");
+    data.insert("Q_EVALS_FROM_PROOF".to_string(), q_evaluations);
+
+    let commitment_data = commitment_data
+        .iter()
+        .map(|commitment_data| {
+            format!(
+                "{}, {}, [{}], [{}]",
+                commitment_data.commitment.translate_commitment(),
+                commitment_data.point_set_index,
+                commitment_data.points.iter().map(decode_rotation).join(","),
+                commitment_data
+                    .evaluations
+                    .iter()
+                    .map(AikenTranslator::translate_evaluation)
+                    .join(",")
+            )
+        })
+        .join("),(");
+
+    let commitment_map = format!("    let commitment_data = [({})]", commitment_data);
+    data.insert("COMMITMENT_MAP".to_string(), commitment_map);
+
+    let point_sets = unique_grouped_points
+        .iter()
+        .map(|set| set.iter().map(decode_rotation).join(","))
+        .join("],[");
+
+    let point_sets = format!("     let point_sets = [[{}]]", point_sets);
+    data.insert("POINT_SETS".to_string(), point_sets);
 
     let mut handlebars = Handlebars::new();
     handlebars.set_strict_mode(true);

@@ -1,6 +1,5 @@
-use crate::plutus_gen::extraction::data::{
-    CircuitRepresentation, ProofExtractionSteps, RotationDescription,
-};
+use crate::plutus_gen::decode_rotation;
+use crate::plutus_gen::extraction::data::{CircuitRepresentation, PlinthTranslator, ProofExtractionSteps};
 use crate::plutus_gen::extraction::{
     PlinthExpression, combine_plinth_expressions, precompute_intermediate_sets,
 };
@@ -405,8 +404,8 @@ pub fn emit_verifier_code(
             format!(
                 "      !a{}_query = MinimalVerifierQuery {} {}\n",
                 number + 1,
-                query.commitment,
-                query.evaluation
+                query.commitment.translate_commitment(),
+                query.evaluation.translate_evaluation()
             )
         })
         .join("");
@@ -420,8 +419,8 @@ pub fn emit_verifier_code(
             format!(
                 "      !f{}_query = MinimalVerifierQuery {} {}\n",
                 number + 1,
-                query.commitment,
-                query.evaluation
+                query.commitment.translate_commitment(),
+                query.evaluation.translate_evaluation()
             )
         })
         .join("");
@@ -435,8 +434,8 @@ pub fn emit_verifier_code(
             format!(
                 "      !permutations_query{} = MinimalVerifierQuery {} {}\n",
                 number + 1,
-                query.commitment,
-                query.evaluation
+                query.commitment.translate_commitment(),
+                query.evaluation.translate_evaluation()
             )
         })
         .join("");
@@ -450,8 +449,8 @@ pub fn emit_verifier_code(
             format!(
                 "      !p{}_query = MinimalVerifierQuery {} {}\n",
                 number + 1,
-                query.commitment,
-                query.evaluation
+                query.commitment.translate_commitment(),
+                query.evaluation.translate_evaluation()
             )
         })
         .join("");
@@ -487,10 +486,10 @@ pub fn emit_verifier_code(
         .map(|commitment_data| {
             format!(
                 "{}, {}, [{}], [{}]",
-                commitment_data.commitment,
+                commitment_data.commitment.translate_commitment(),
                 commitment_data.point_set_index,
                 commitment_data.points.iter().map(decode_rotation).join(","),
-                commitment_data.evaluations.join(",")
+                commitment_data.evaluations.iter().map(PlinthTranslator::translate_evaluation).join(",")
             )
         })
         .join("),(");
@@ -514,21 +513,12 @@ pub fn emit_verifier_code(
             format!(
                 "      !l{}_query = MinimalVerifierQuery {} {}\n",
                 number + 1,
-                query.commitment,
-                query.evaluation
+                query.commitment.translate_commitment(),
+                query.evaluation.translate_evaluation()
             )
         })
         .join("");
     data.insert("LOOKUP_QUERIES".to_string(), common_queries);
-
-    fn decode_rotation(rotation: &RotationDescription) -> String {
-        match rotation {
-            RotationDescription::Last => "x_last".to_string(),
-            RotationDescription::Previous => "x_prev".to_string(),
-            RotationDescription::Current => "x_current".to_string(),
-            RotationDescription::Next => "x_next".to_string(),
-        }
-    }
 
     //  NameAnn 'x_current 'a1_query
     let msm_advice_queries = circuit

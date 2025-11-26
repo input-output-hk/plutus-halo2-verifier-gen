@@ -1,6 +1,67 @@
-use aiken/collection/list.{map, zip}
+use aiken/collection/list.{foldl, map, reverse, zip}
 use aiken/crypto/bitwise.{State}
-use aiken/crypto/bls12_381/scalar.{Scalar, from_int, mul, recip, sub, sub_int}
+use aiken/crypto/bls12_381/scalar.{
+  Scalar, add, from_int, mul, recip, sub, sub_int,
+}
+
+pub fn evaluate_lagrange_polynomial(
+  point_sets: List<List<State<Scalar>>>,
+  q_eval_sets: List<List<State<Scalar>>>,
+  x2: State<Scalar>,
+  x3: State<Scalar>,
+  proof_X3_q_evals: List<State<Scalar>>,
+) -> State<Scalar> {
+  foldl(
+    reverse(zip(point_sets, zip(q_eval_sets, proof_X3_q_evals))),
+    from_int(0),
+    fn((points, (evals, proofQEval)), acc_eval) {
+      let r_eval = lagrange_evaluation(zip(points, evals), x3)
+      expect Some(denominator) =
+        recip(
+          foldl(
+            points,
+            from_int(1),
+            fn(point, acc) { mul(acc, sub(x3, point)) },
+          ),
+        )
+      let evaluation = mul(sub(proofQEval, r_eval), denominator)
+
+      add(mul(acc_eval, x2), evaluation)
+    },
+  )
+}
+
+fn lagrange_evaluation(
+  points: List<(State<Scalar>, State<Scalar>)>,
+  x: State<Scalar>,
+) -> State<Scalar> {
+  foldl(
+    points,
+    from_int(0),
+    fn((xi, yi), acc) { add(acc, mul(yi, basis(x, xi, points))) },
+  )
+}
+
+fn basis(
+  x: State<Scalar>,
+  xi: State<Scalar>,
+  points: List<(State<Scalar>, State<Scalar>)>,
+) -> State<Scalar> {
+  let (total_numerator, total_denominator) =
+    foldl(
+      points,
+      (from_int(1), from_int(1)),
+      fn((xj, _), (numerator, denominator)) {
+        if !(xj == xi) {
+          (mul(numerator, sub(x, xj)), mul(denominator, sub(xi, xj)))
+        } else {
+          (numerator, denominator)
+        }
+      },
+    )
+  expect Some(total_denominator) = recip(total_denominator)
+  mul(total_numerator, total_denominator)
+}
 
 pub fn lagrange_polynomial_basis(
   x: State<Scalar>,

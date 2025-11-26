@@ -1,6 +1,8 @@
+use crate::plutus_gen::extraction::data::ProofDescription::Advice;
 use blstrs::{G1Affine, G2Affine, Scalar};
 use halo2_proofs::plonk::Expression;
 use serde::{Deserialize, Serialize};
+
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub enum ProofExtractionSteps {
     AdviceCommitments,
@@ -89,18 +91,204 @@ pub enum RotationDescription {
     Next,
 }
 
+pub trait PlinthTranslator {
+    fn translate_commitment(&self) -> String;
+    fn translate_evaluation(&self) -> String;
+}
+pub trait AikenTranslator {
+    fn translate_commitment(&self) -> String;
+    fn translate_evaluation(&self) -> String;
+}
+
+impl PlinthTranslator for ProofDescription {
+    fn translate_commitment(&self) -> String {
+        match self {
+            Advice(index) => {
+                todo!()
+            }
+            ProofDescription::Fixed(index) => {
+                todo!()
+            }
+            ProofDescription::Permutation(set, index) => {
+                todo!()
+            }
+            ProofDescription::Lookup(index) => {
+                todo!()
+            }
+            ProofDescription::PermutedInput(index) => {
+                todo!()
+            }
+            ProofDescription::PermutedTable(index) => {
+                todo!()
+            }
+            ProofDescription::PermutationsCommon(index) => {
+                todo!()
+            }
+            ProofDescription::VanishingG => {
+                todo!()
+            }
+            ProofDescription::VanishingS => {
+                todo!()
+            }
+            ProofDescription::VanishingRand => {
+                todo!()
+            }
+            ProofDescription::VanishingEval => {
+                todo!()
+            }
+        }
+    }
+
+    fn translate_evaluation(&self) -> String {
+        match self {
+            Advice(index) => {
+                todo!()
+            }
+            ProofDescription::Fixed(index) => {
+                todo!()
+            }
+            ProofDescription::Permutation(set, index) => {
+                todo!()
+            }
+            ProofDescription::Lookup(index) => {
+                todo!()
+            }
+            ProofDescription::PermutedInput(index) => {
+                todo!()
+            }
+            ProofDescription::PermutedTable(index) => {
+                todo!()
+            }
+            ProofDescription::PermutationsCommon(index) => {
+                todo!()
+            }
+            ProofDescription::VanishingG => {
+                todo!()
+            }
+            ProofDescription::VanishingS => {
+                todo!()
+            }
+            ProofDescription::VanishingRand => {
+                todo!()
+            }
+            ProofDescription::VanishingEval => {
+                todo!()
+            }
+        }
+    }
+}
+
+impl AikenTranslator for ProofDescription {
+    fn translate_commitment(&self) -> String {
+        match self {
+            Advice(index) => {
+                todo!()
+            }
+            ProofDescription::Fixed(index) => {
+                todo!()
+            }
+            ProofDescription::Permutation(set, index) => {
+                todo!()
+            }
+            ProofDescription::Lookup(index) => {
+                todo!()
+            }
+            ProofDescription::PermutedInput(index) => {
+                todo!()
+            }
+            ProofDescription::PermutedTable(index) => {
+                todo!()
+            }
+            ProofDescription::PermutationsCommon(index) => {
+                todo!()
+            }
+            ProofDescription::VanishingG => {
+                todo!()
+            }
+            ProofDescription::VanishingS => {
+                todo!()
+            }
+            ProofDescription::VanishingRand => {
+                todo!()
+            }
+            ProofDescription::VanishingEval => {
+                todo!()
+            }
+        }
+    }
+
+    fn translate_evaluation(&self) -> String {
+        match self {
+            Advice(index) => {
+                todo!()
+            }
+            ProofDescription::Fixed(index) => {
+                todo!()
+            }
+            ProofDescription::Permutation(set, index) => {
+                todo!()
+            }
+            ProofDescription::Lookup(index) => {
+                todo!()
+            }
+            ProofDescription::PermutedInput(index) => {
+                todo!()
+            }
+            ProofDescription::PermutedTable(index) => {
+                todo!()
+            }
+            ProofDescription::PermutationsCommon(index) => {
+                todo!()
+            }
+            ProofDescription::VanishingG => {
+                todo!()
+            }
+            ProofDescription::VanishingS => {
+                todo!()
+            }
+            ProofDescription::VanishingRand => {
+                todo!()
+            }
+            ProofDescription::VanishingEval => {
+                todo!()
+            }
+        }
+    }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, Eq, PartialEq, Hash)]
+pub enum ProofDescription {
+    Advice(usize),
+    Fixed(usize),
+    Permutation(char, usize),
+    Lookup(usize),
+    PermutedInput(usize),
+    PermutedTable(usize),
+    PermutationsCommon(usize),
+    VanishingG,
+    VanishingS,
+    VanishingRand,
+    VanishingEval,
+}
+
+impl Default for ProofDescription {
+    fn default() -> Self {
+        Advice(0)
+    }
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize, Default)]
 pub struct CommitmentData {
-    pub commitment: String,
+    pub commitment: ProofDescription,
     pub point_set_index: usize,
-    pub evaluations: Vec<String>,
+    pub evaluations: Vec<ProofDescription>,
     pub points: Vec<RotationDescription>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, Default)]
 pub struct Query {
-    pub commitment: String,
-    pub evaluation: String,
+    pub commitment: ProofDescription,
+    pub evaluation: ProofDescription,
     pub point: RotationDescription,
 }
 

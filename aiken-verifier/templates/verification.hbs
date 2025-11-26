@@ -1,6 +1,7 @@
 use aiken/collection/list.{at, drop, foldl, head, take}
 use aiken/crypto/bitwise.{State}
 use aiken/crypto/bls12_381/g1.{add as addG1, scale as scaleG1, zero}
+use aiken/crypto/bls12_381/g2.{generator as generatorG2}
 use aiken/crypto/bls12_381/scalar.{
   Scalar, add, from_int, mul, neg, recip, scale, sub,
 }
@@ -12,6 +13,7 @@ use transcript.{
   squeeze_challenge,
 }
 use verifier_key.{barycentric_weight, blinding_factors, omega, omega_inv}
+use halo2_kzg.{build_msm}
 
 pub fn verifier(proof: Data, transcript_rep: State<Scalar>, {{{PUBLIC_INPUTS_NAMES}}}) -> Bool {
 
@@ -97,6 +99,31 @@ pub fn verifier(proof: Data, transcript_rep: State<Scalar>, {{{PUBLIC_INPUTS_NAM
     // vanishing split IS PASSED IN REVERSE ORDER!!!
     // this is MSM done for h-commitments
 {{{H_COMMITMENTS}}}
+
+{{{COMMITMENT_MAP}}}
+
+{{{POINT_SETS}}}
+
+      // left and s_g2
+      // right and g2
+      // g2 is not negated as bls12_381_finalVerify is doing negation
+      let g2 = generatorG2
+
+      let x1Powers = powers {{{X1_POWERS_COUNT}}} x1
+      let x4Powers = powers {{{X4_POWERS_COUNT}}} x4
+
+      let alt_right =
+          build_msm(
+              x1Powers,
+              x2,
+              x3,
+              x4Powers,
+              f_commitment,
+              pi_term,
+              [{{{Q_EVALS_FROM_PROOF}}}],
+              commitment_data,
+              point_sets)
+
 
     True
 }
