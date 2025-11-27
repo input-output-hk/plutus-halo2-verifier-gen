@@ -5,6 +5,7 @@ use crate::plutus_gen::extraction::{
     data::{CircuitRepresentation, ProofExtractionSteps},
     precompute_intermediate_sets,
 };
+use blstrs::Scalar;
 use halo2_proofs::halo2curves::group::GroupEncoding;
 use handlebars::{Handlebars, RenderError};
 use itertools::Itertools;
@@ -15,6 +16,7 @@ pub fn emit_verifier_code(
     template_file: &Path, // aiken mustashe template
     aiken_file: &Path,    // generated aiken file, output
     circuit: &CircuitRepresentation,
+    test_data: Option<(Vec<u8>, Scalar, Vec<Scalar>)>,
 ) -> Result<String, RenderError> {
     let letters = 'a'..='z';
     let proof_extraction: Vec<_> = circuit
@@ -486,6 +488,25 @@ pub fn emit_verifier_code(
 
     data.insert("F_IMPORTS".to_string(), fixed_commitments_imports);
     data.insert("P_IMPORTS".to_string(), permutation_commitments_imports);
+
+    match test_data {
+        None => {
+            data.insert("TEST_CALL".to_string(), "True".to_string());
+        }
+        Some((proof, transcript_rep, public_inputs)) => {
+            let test_call = format!(
+                "verifier(#\"{}\", from_int(0x{}), {})",
+                hex::encode(proof),
+                hex::encode(transcript_rep.to_bytes_be()),
+                public_inputs
+                    .iter()
+                    .map(|e| format!("from_int(0x{})", hex::encode(e.to_bytes_be())))
+                    .join(", ")
+            );
+
+            data.insert("TEST_CALL".to_string(), test_call);
+        }
+    }
 
     let mut handlebars = Handlebars::new();
     handlebars.set_strict_mode(true);

@@ -134,3 +134,8 @@ pub fn verifier(proof: Data, transcript_rep: State<Scalar>, {{{PUBLIC_INPUTS_NAM
 
       final_exponentiation(ml_l, ml_r)
 }
+
+// this test generates random input data for verifier
+test integration_test() {
+    expect {{{TEST_CALL}}} == True
+}
