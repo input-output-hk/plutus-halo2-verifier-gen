@@ -115,9 +115,11 @@ impl PlinthTranslator for ProofDescription {
             ProofDescription::Lookup(index) => {
                 format!("lookupCommitment{:?}", index)
             }
+            ProofDescription::LookupNext(_) => panic!("LookupNext is not a commitment"),
             ProofDescription::PermutedInput(index) => {
                 format!("permutedInput{:?}", index)
             }
+            ProofDescription::PermutedInvInput(_) => panic!("PermutedInvInput is not a commitment"),
             ProofDescription::PermutedTable(index) => {
                 format!("permutedTable{:?}", index)
             }
@@ -127,7 +129,7 @@ impl PlinthTranslator for ProofDescription {
             ProofDescription::VanishingG => "vanishing_g".to_string(),
             ProofDescription::VanishingS => panic!("VanishingS is not a commitment"),
             ProofDescription::VanishingRand => "vanishingRand".to_string(),
-            ProofDescription::VanishingEval => panic!("VanishingEval is not a commitment"),
+            ProofDescription::RandomEval => panic!("VanishingEval is not a commitment"),
         }
     }
 
@@ -145,7 +147,13 @@ impl PlinthTranslator for ProofDescription {
             ProofDescription::Lookup(index) => {
                 format!("product_eval_{:?}", index)
             }
+            ProofDescription::LookupNext(index) => {
+                format!("product_next_eval_{:?}", index)
+            }
             ProofDescription::PermutedInput(index) => {
+                format!("permuted_input_eval_{:?}", index)
+            }
+            ProofDescription::PermutedInvInput(index) => {
                 format!("permuted_input_inv_eval_{:?}", index)
             }
             ProofDescription::PermutedTable(index) => {
@@ -157,7 +165,7 @@ impl PlinthTranslator for ProofDescription {
             ProofDescription::VanishingG => panic!("VanishingG is not an evaluation"),
             ProofDescription::VanishingS => "vanishing_s".to_string(),
             ProofDescription::VanishingRand => panic!("VanishingRand is not an evaluation"),
-            ProofDescription::VanishingEval => "randomEval".to_string(),
+            ProofDescription::RandomEval => "randomEval".to_string(),
         }
     }
 }
@@ -177,9 +185,11 @@ impl AikenTranslator for ProofDescription {
             ProofDescription::Lookup(index) => {
                 format!("lookup_commitment_{:?}", index)
             }
+            ProofDescription::LookupNext(_) => panic!("LookupNext is not a commitment"),
             ProofDescription::PermutedInput(index) => {
                 format!("permuted_input_{:?}", index)
             }
+            ProofDescription::PermutedInvInput(_) => panic!("PermutedInvInput is not a commitment"),
             ProofDescription::PermutedTable(index) => {
                 format!("permuted_table_{:?}", index)
             }
@@ -189,7 +199,7 @@ impl AikenTranslator for ProofDescription {
             ProofDescription::VanishingG => "vanishing_g".to_string(),
             ProofDescription::VanishingS => panic!("VanishingS is not a commitment"),
             ProofDescription::VanishingRand => "vanishing_rand".to_string(),
-            ProofDescription::VanishingEval => panic!("VanishingEval is not a commitment"),
+            ProofDescription::RandomEval => panic!("VanishingEval is not a commitment"),
         }
     }
 
@@ -207,7 +217,13 @@ impl AikenTranslator for ProofDescription {
             ProofDescription::Lookup(index) => {
                 format!("product_eval_{:?}", index)
             }
+            ProofDescription::LookupNext(index) => {
+                format!("product_next_eval_{:?}", index)
+            }
             ProofDescription::PermutedInput(index) => {
+                format!("permuted_input_eval_{:?}", index)
+            }
+            ProofDescription::PermutedInvInput(index) => {
                 format!("permuted_input_inv_eval_{:?}", index)
             }
             ProofDescription::PermutedTable(index) => {
@@ -219,7 +235,7 @@ impl AikenTranslator for ProofDescription {
             ProofDescription::VanishingG => panic!("VanishingG is not an evaluation"),
             ProofDescription::VanishingS => "vanishing_s".to_string(),
             ProofDescription::VanishingRand => panic!("VanishingRand is not an evaluation"),
-            ProofDescription::VanishingEval => "random_eval".to_string(),
+            ProofDescription::RandomEval => "random_eval".to_string(),
         }
     }
 }
@@ -230,13 +246,15 @@ pub enum ProofDescription {
     Fixed(usize),
     Permutation(char, usize),
     Lookup(usize),
+    LookupNext(usize),
     PermutedInput(usize),
+    PermutedInvInput(usize),
     PermutedTable(usize),
     PermutationsCommon(usize),
     VanishingG,
     VanishingS,
     VanishingRand,
-    VanishingEval,
+    RandomEval,
 }
 
 impl Default for ProofDescription {

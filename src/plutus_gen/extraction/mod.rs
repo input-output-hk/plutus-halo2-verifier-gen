@@ -1,4 +1,4 @@
-use crate::plutus_gen::extraction::data::ProofDescription::{PermutedInput, PermutedTable};
+use crate::plutus_gen::extraction::data::ProofDescription::{PermutedInvInput, PermutedInput, PermutedTable};
 use crate::plutus_gen::extraction::data::{
     CircuitRepresentation, CommitmentData, ExpressionG1, ProofDescription, ProofExtractionSteps,
     Query, RotationDescription, ScalarExpression,
@@ -766,7 +766,7 @@ where
     });
     circuit_description.vanishing_queries.push(Query {
         commitment: ProofDescription::VanishingRand, //"vanishingRand".to_string(),
-        evaluation: ProofDescription::VanishingEval, //"randomEval".to_string(),
+        evaluation: ProofDescription::RandomEval, //"randomEval".to_string(),
         point: RotationDescription::Current,
     });
 
@@ -795,12 +795,12 @@ where
         });
         circuit_description.lookup_queries.push(Query {
             commitment: PermutedInput(idx + 1), //format!("permutedInput{:?}", idx + 1),
-            evaluation: PermutedInput(idx + 1), //format!("permuted_input_inv_eval_{:?}", idx + 1),
+            evaluation: PermutedInvInput(idx + 1), //format!("permuted_input_inv_eval_{:?}", idx + 1),
             point: RotationDescription::Previous,
         });
         circuit_description.lookup_queries.push(Query {
             commitment: ProofDescription::Lookup(idx + 1), //format!("lookupCommitment{:?}", idx + 1),
-            evaluation: ProofDescription::Lookup(idx + 1), //format!("product_next_eval_{:?}", idx + 1),
+            evaluation: ProofDescription::LookupNext(idx + 1), //format!("product_next_eval_{:?}", idx + 1),
             point: RotationDescription::Next,
         });
     });
@@ -808,16 +808,17 @@ where
     Ok(circuit_description)
 }
 
+// todo here
 pub fn precompute_intermediate_sets(
     circuit_description: &CircuitRepresentation,
 ) -> (Vec<Vec<RotationDescription>>, Vec<CommitmentData>) {
     let queries = circuit_description.all_queries_ordered();
 
-    let ordered_unique_commitments: Vec<ProofDescription> = queries
+    let ordered_unique_commitments= queries
         .iter()
         .flatten()
-        .map(|q| &q.commitment)
-        .cloned()
+        .map(|q| &q.commitment);
+    let ordered_unique_commitments: Vec<ProofDescription>  = ordered_unique_commitments.cloned()
         .unique()
         .collect();
 
