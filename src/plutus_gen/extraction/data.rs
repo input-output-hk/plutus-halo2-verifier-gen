@@ -1,4 +1,4 @@
-use crate::plutus_gen::extraction::data::ProofDescription::Advice;
+use crate::plutus_gen::extraction::{AikenExpression, PlinthExpression};
 use blstrs::{G1Affine, G2Affine, Scalar};
 use halo2_proofs::plonk::Expression;
 use serde::{Deserialize, Serialize};
@@ -91,190 +91,208 @@ pub enum RotationDescription {
     Next,
 }
 
-pub trait PlinthTranslator {
-    fn translate_commitment(&self) -> String;
-    fn translate_evaluation(&self) -> String;
-}
-pub trait AikenTranslator {
-    fn translate_commitment(&self) -> String;
-    fn translate_evaluation(&self) -> String;
-}
-
-impl PlinthTranslator for ProofDescription {
-    fn translate_commitment(&self) -> String {
+impl PlinthExpression for Commitments {
+    fn compile_expression(&self) -> String {
         match self {
-            Advice(index) => {
+            Commitments::Advice(index) => {
                 format!("a{:?}", index)
             }
-            ProofDescription::Fixed(index) => {
+            Commitments::Fixed(index) => {
                 format!("f{:?}_commitment", index)
             }
-            ProofDescription::Permutation(set, _) => {
+            Commitments::Permutation(set) => {
                 format!("permutations_committed_{}", set)
             }
-            ProofDescription::Lookup(index) => {
+            Commitments::Lookup(index) => {
                 format!("lookupCommitment{:?}", index)
             }
-            ProofDescription::LookupNext(_) => panic!("LookupNext is not a commitment"),
-            ProofDescription::PermutedInput(index) => {
+            Commitments::PermutedInput(index) => {
                 format!("permutedInput{:?}", index)
             }
-            ProofDescription::PermutedInvInput(_) => panic!("PermutedInvInput is not a commitment"),
-            ProofDescription::PermutedTable(index) => {
+            Commitments::PermutedTable(index) => {
                 format!("permutedTable{:?}", index)
             }
-            ProofDescription::PermutationsCommon(index) => {
+            Commitments::PermutationsCommon(index) => {
                 format!("p{:?}_commitment", index)
             }
-            ProofDescription::VanishingG => "vanishing_g".to_string(),
-            ProofDescription::VanishingS => panic!("VanishingS is not a commitment"),
-            ProofDescription::VanishingRand => "vanishingRand".to_string(),
-            ProofDescription::RandomEval => panic!("VanishingEval is not a commitment"),
-        }
-    }
-
-    fn translate_evaluation(&self) -> String {
-        match self {
-            Advice(index) => {
-                format!("adviceEval{:?}", index)
-            }
-            ProofDescription::Fixed(index) => {
-                format!("fixedEval{:?}", index)
-            }
-            ProofDescription::Permutation(set, index) => {
-                format!("permutations_evaluated_{}_{}", set, index)
-            }
-            ProofDescription::Lookup(index) => {
-                format!("product_eval_{:?}", index)
-            }
-            ProofDescription::LookupNext(index) => {
-                format!("product_next_eval_{:?}", index)
-            }
-            ProofDescription::PermutedInput(index) => {
-                format!("permuted_input_eval_{:?}", index)
-            }
-            ProofDescription::PermutedInvInput(index) => {
-                format!("permuted_input_inv_eval_{:?}", index)
-            }
-            ProofDescription::PermutedTable(index) => {
-                format!("permuted_table_eval_{:?}", index)
-            }
-            ProofDescription::PermutationsCommon(index) => {
-                format!("permutationCommon{:?}", index)
-            }
-            ProofDescription::VanishingG => panic!("VanishingG is not an evaluation"),
-            ProofDescription::VanishingS => "vanishing_s".to_string(),
-            ProofDescription::VanishingRand => panic!("VanishingRand is not an evaluation"),
-            ProofDescription::RandomEval => "randomEval".to_string(),
+            Commitments::VanishingG => "vanishing_g".to_string(),
+            Commitments::VanishingRand => "vanishingRand".to_string(),
         }
     }
 }
 
-impl AikenTranslator for ProofDescription {
-    fn translate_commitment(&self) -> String {
+impl PlinthExpression for Evaluations {
+    fn compile_expression(&self) -> String {
         match self {
-            Advice(index) => {
-                format!("a{:?}", index)
+            Evaluations::Advice(index) => {
+                format!("adviceEval{:?}", index)
             }
-            ProofDescription::Fixed(index) => {
-                format!("f{:?}_commitment", index)
+            Evaluations::Fixed(index) => {
+                format!("fixedEval{:?}", index)
             }
-            ProofDescription::Permutation(set, _) => {
-                format!("permutations_committed_{}", set)
-            }
-            ProofDescription::Lookup(index) => {
-                format!("lookup_commitment_{:?}", index)
-            }
-            ProofDescription::LookupNext(_) => panic!("LookupNext is not a commitment"),
-            ProofDescription::PermutedInput(index) => {
-                format!("permuted_input_{:?}", index)
-            }
-            ProofDescription::PermutedInvInput(_) => panic!("PermutedInvInput is not a commitment"),
-            ProofDescription::PermutedTable(index) => {
-                format!("permuted_table_{:?}", index)
-            }
-            ProofDescription::PermutationsCommon(index) => {
-                format!("p{:?}_commitment", index)
-            }
-            ProofDescription::VanishingG => "vanishing_g".to_string(),
-            ProofDescription::VanishingS => panic!("VanishingS is not a commitment"),
-            ProofDescription::VanishingRand => "vanishing_rand".to_string(),
-            ProofDescription::RandomEval => panic!("VanishingEval is not a commitment"),
-        }
-    }
-
-    fn translate_evaluation(&self) -> String {
-        match self {
-            Advice(index) => {
-                format!("advice_eval_{:?}", index)
-            }
-            ProofDescription::Fixed(index) => {
-                format!("fixed_eval_{:?}", index)
-            }
-            ProofDescription::Permutation(set, index) => {
+            Evaluations::Permutation(set, index) => {
                 format!("permutations_evaluated_{}_{}", set, index)
             }
-            ProofDescription::Lookup(index) => {
+            Evaluations::Lookup(index) => {
                 format!("product_eval_{:?}", index)
             }
-            ProofDescription::LookupNext(index) => {
+            Evaluations::LookupNext(index) => {
                 format!("product_next_eval_{:?}", index)
             }
-            ProofDescription::PermutedInput(index) => {
+            Evaluations::PermutedInput(index) => {
                 format!("permuted_input_eval_{:?}", index)
             }
-            ProofDescription::PermutedInvInput(index) => {
+            Evaluations::PermutedInputInverse(index) => {
                 format!("permuted_input_inv_eval_{:?}", index)
             }
-            ProofDescription::PermutedTable(index) => {
+            Evaluations::PermutedTable(index) => {
                 format!("permuted_table_eval_{:?}", index)
             }
-            ProofDescription::PermutationsCommon(index) => {
+            Evaluations::PermutationsCommon(index) => {
+                format!("permutationCommon{:?}", index)
+            }
+
+            Evaluations::VanishingS => "vanishing_s".to_string(),
+
+            Evaluations::RandomEval => "randomEval".to_string(),
+        }
+    }
+}
+
+impl AikenExpression for Evaluations {
+    fn compile_expression(&self) -> String {
+        match self {
+            Evaluations::Advice(index) => {
+                format!("advice_eval_{:?}", index)
+            }
+            Evaluations::Fixed(index) => {
+                format!("fixed_eval_{:?}", index)
+            }
+            Evaluations::Permutation(set, index) => {
+                format!("permutations_evaluated_{}_{}", set, index)
+            }
+            Evaluations::Lookup(index) => {
+                format!("product_eval_{:?}", index)
+            }
+            Evaluations::LookupNext(index) => {
+                format!("product_next_eval_{:?}", index)
+            }
+            Evaluations::PermutedInput(index) => {
+                format!("permuted_input_eval_{:?}", index)
+            }
+            Evaluations::PermutedInputInverse(index) => {
+                format!("permuted_input_inv_eval_{:?}", index)
+            }
+            Evaluations::PermutedTable(index) => {
+                format!("permuted_table_eval_{:?}", index)
+            }
+            Evaluations::PermutationsCommon(index) => {
                 format!("permutation_common_{:?}", index)
             }
-            ProofDescription::VanishingG => panic!("VanishingG is not an evaluation"),
-            ProofDescription::VanishingS => "vanishing_s".to_string(),
-            ProofDescription::VanishingRand => panic!("VanishingRand is not an evaluation"),
-            ProofDescription::RandomEval => "random_eval".to_string(),
+            Evaluations::VanishingS => "vanishing_s".to_string(),
+            Evaluations::RandomEval => "random_eval".to_string(),
+        }
+    }
+}
+
+impl AikenExpression for Commitments {
+    fn compile_expression(&self) -> String {
+        match self {
+            Commitments::Advice(index) => {
+                format!("a{:?}", index)
+            }
+            Commitments::Fixed(index) => {
+                format!("f{:?}_commitment", index)
+            }
+            Commitments::Permutation(set) => {
+                format!("permutations_committed_{}", set)
+            }
+            Commitments::Lookup(index) => {
+                format!("lookup_commitment_{:?}", index)
+            }
+            Commitments::PermutedInput(index) => {
+                format!("permuted_input_{:?}", index)
+            }
+            Commitments::PermutedTable(index) => {
+                format!("permuted_table_{:?}", index)
+            }
+            Commitments::PermutationsCommon(index) => {
+                format!("p{:?}_commitment", index)
+            }
+            Commitments::VanishingG => "vanishing_g".to_string(),
+            Commitments::VanishingRand => "vanishing_rand".to_string(),
         }
     }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, Eq, PartialEq, Hash)]
-pub enum ProofDescription {
+pub enum Commitments {
+    Advice(usize),
+    Fixed(usize),
+    Permutation(char),
+    PermutationsCommon(usize),
+    VanishingG,
+    VanishingRand,
+    Lookup(usize),
+    PermutedInput(usize),
+    PermutedTable(usize),
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, Eq, PartialEq, Hash)]
+pub enum Evaluations {
     Advice(usize),
     Fixed(usize),
     Permutation(char, usize),
-    Lookup(usize),
-    LookupNext(usize),
-    PermutedInput(usize),
-    PermutedInvInput(usize),
-    PermutedTable(usize),
     PermutationsCommon(usize),
-    VanishingG,
     VanishingS,
-    VanishingRand,
     RandomEval,
+    Lookup(usize),
+    PermutedInput(usize),
+    PermutedTable(usize),
+    PermutedInputInverse(usize),
+    LookupNext(usize),
 }
 
-impl Default for ProofDescription {
+// pub enum ProofDescription {
+//     Advice(usize),
+//     Fixed(usize),
+//     Permutation(char, usize),
+//     Lookup(usize),
+//     LookupNext(usize),
+//     PermutedInput(usize),
+//     PermutedInvInput(usize),
+//     PermutedTable(usize),
+//     PermutationsCommon(usize),
+//     VanishingG,
+//     VanishingS,
+//     VanishingRand,
+//     RandomEval,
+// }
+
+impl Default for Commitments {
     fn default() -> Self {
-        Advice(0)
+        Commitments::Advice(0)
+    }
+}
+
+impl Default for Evaluations {
+    fn default() -> Self {
+        Evaluations::Advice(0)
     }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, Default)]
 pub struct CommitmentData {
-    pub commitment: ProofDescription,
+    pub commitment: Commitments,
     pub point_set_index: usize,
-    pub evaluations: Vec<ProofDescription>,
+    pub evaluations: Vec<Evaluations>,
     pub points: Vec<RotationDescription>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, Default)]
 pub struct Query {
-    pub commitment: ProofDescription,
-    pub evaluation: ProofDescription,
+    pub commitment: Commitments,
+    pub evaluation: Evaluations,
     pub point: RotationDescription,
 }
 

@@ -1,5 +1,4 @@
 use crate::plutus_gen::decode_rotation;
-use crate::plutus_gen::extraction::data::AikenTranslator;
 use crate::plutus_gen::extraction::{
     AikenExpression, combine_aiken_expressions,
     data::{CircuitRepresentation, ProofExtractionSteps},
@@ -455,13 +454,13 @@ pub fn emit_verifier_code(
         .map(|commitment_data| {
             format!(
                 "{}, {}, [{}], [{}]",
-                commitment_data.commitment.translate_commitment(),
+                commitment_data.commitment.compile_expression(),
                 commitment_data.point_set_index,
                 commitment_data.points.iter().map(decode_rotation).join(","),
                 commitment_data
                     .evaluations
                     .iter()
-                    .map(AikenTranslator::translate_evaluation)
+                    .map(AikenExpression::compile_expression)
                     .join(",")
             )
         })

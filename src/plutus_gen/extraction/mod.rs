@@ -1,7 +1,6 @@
-use crate::plutus_gen::extraction::data::ProofDescription::{PermutedInvInput, PermutedInput, PermutedTable};
 use crate::plutus_gen::extraction::data::{
-    CircuitRepresentation, CommitmentData, ExpressionG1, ProofDescription, ProofExtractionSteps,
-    Query, RotationDescription, ScalarExpression,
+    CircuitRepresentation, CommitmentData, Commitments, Evaluations, ExpressionG1,
+    ProofExtractionSteps, Query, RotationDescription, ScalarExpression,
 };
 use crate::plutus_gen::extraction::utils::get_any_query_index;
 use blstrs::{Bls12, G1Affine, G1Projective, Scalar};
@@ -706,8 +705,8 @@ where
         .enumerate()
         .for_each(|(query_index, &(column, at))| {
             circuit_description.advice_queries.push(Query {
-                commitment: ProofDescription::Advice(column.index() + 1), //format!("a{:?}", column.index() + 1),
-                evaluation: ProofDescription::Advice(query_index + 1), //format!("adviceEval{:?}", query_index + 1),
+                commitment: Commitments::Advice(column.index() + 1), //format!("a{:?}", column.index() + 1),
+                evaluation: Evaluations::Advice(query_index + 1), //format!("adviceEval{:?}", query_index + 1),
                 point: decode(at.0),
             });
         });
@@ -718,29 +717,29 @@ where
         .enumerate()
         .for_each(|(query_index, &(column, at))| {
             circuit_description.fixed_queries.push(Query {
-                commitment: ProofDescription::Fixed(column.index() + 1), //format!("f{:?}_commitment", column.index() + 1),
-                evaluation: ProofDescription::Fixed(query_index + 1), //format!("fixedEval{:?}", query_index + 1),
+                commitment: Commitments::Fixed(column.index() + 1), //format!("f{:?}_commitment", column.index() + 1),
+                evaluation: Evaluations::Fixed(query_index + 1), //format!("fixedEval{:?}", query_index + 1),
                 point: decode(at.0),
             });
         });
 
     for set in sets.iter() {
         circuit_description.permutation_queries.push(Query {
-            commitment: ProofDescription::Permutation(**set, 1), //format!("permutations_committed_{}", set),
-            evaluation: ProofDescription::Permutation(**set, 1), //format!("permutations_evaluated_{}_1", set),
+            commitment: Commitments::Permutation(**set), //format!("permutations_committed_{}", set),
+            evaluation: Evaluations::Permutation(**set, 1), //format!("permutations_evaluated_{}_1", set),
             point: RotationDescription::Current,
         });
         circuit_description.permutation_queries.push(Query {
-            commitment: ProofDescription::Permutation(**set, 2), //format!("permutations_committed_{}", set),
-            evaluation: ProofDescription::Permutation(**set, 2), //format!("permutations_evaluated_{}_2", set),
+            commitment: Commitments::Permutation(**set), //format!("permutations_committed_{}", set),
+            evaluation: Evaluations::Permutation(**set, 2), //format!("permutations_evaluated_{}_2", set),
             point: RotationDescription::Next,
         });
     }
     // for all but last
     for set in sets.iter().rev().skip(1) {
         circuit_description.permutation_queries.push(Query {
-            commitment: ProofDescription::Permutation(**set, 3), //format!("permutations_committed_{}", set),
-            evaluation: ProofDescription::Permutation(**set, 3), //format!("permutations_evaluated_{}_3", set),
+            commitment: Commitments::Permutation(**set), //format!("permutations_committed_{}", set),
+            evaluation: Evaluations::Permutation(**set, 3), //format!("permutations_evaluated_{}_3", set),
             point: RotationDescription::Last,
         });
     }
@@ -753,20 +752,20 @@ where
 
     (0..permutation_common).for_each(|idx| {
         circuit_description.common_queries.push(Query {
-            commitment: ProofDescription::PermutationsCommon(idx + 1), //format!("p{:?}_commitment", idx + 1),
-            evaluation: ProofDescription::PermutationsCommon(idx + 1), //format!("permutationCommon{:?}", idx + 1),
+            commitment: Commitments::PermutationsCommon(idx + 1), //format!("p{:?}_commitment", idx + 1),
+            evaluation: Evaluations::PermutationsCommon(idx + 1), //format!("permutationCommon{:?}", idx + 1),
             point: RotationDescription::Current,
         });
     });
 
     circuit_description.vanishing_queries.push(Query {
-        commitment: ProofDescription::VanishingG, //"vanishing_g".to_string(),
-        evaluation: ProofDescription::VanishingS, //"vanishing_s".to_string(),
+        commitment: Commitments::VanishingG, //"vanishing_g".to_string(),
+        evaluation: Evaluations::VanishingS, //"vanishing_s".to_string(),
         point: RotationDescription::Current,
     });
     circuit_description.vanishing_queries.push(Query {
-        commitment: ProofDescription::VanishingRand, //"vanishingRand".to_string(),
-        evaluation: ProofDescription::RandomEval, //"randomEval".to_string(),
+        commitment: Commitments::VanishingRand, //"vanishingRand".to_string(),
+        evaluation: Evaluations::RandomEval,    //"randomEval".to_string(),
         point: RotationDescription::Current,
     });
 
@@ -779,28 +778,28 @@ where
 
     (0..lookup_commitment_count).for_each(|idx| {
         circuit_description.lookup_queries.push(Query {
-            commitment: ProofDescription::Lookup(idx + 1), //format!("lookupCommitment{:?}", idx + 1),
-            evaluation: ProofDescription::Lookup(idx + 1), //format!("product_eval_{:?}", idx + 1),
+            commitment: Commitments::Lookup(idx + 1), //format!("lookupCommitment{:?}", idx + 1),
+            evaluation: Evaluations::Lookup(idx + 1), //format!("product_eval_{:?}", idx + 1),
             point: RotationDescription::Current,
         });
         circuit_description.lookup_queries.push(Query {
-            commitment: PermutedInput(idx + 1), //format!("permutedInput{:?}", idx + 1),
-            evaluation: PermutedInput(idx + 1), //format!("permuted_input_eval_{:?}", idx + 1),
+            commitment: Commitments::PermutedInput(idx + 1), //format!("permutedInput{:?}", idx + 1),
+            evaluation: Evaluations::PermutedInput(idx + 1), //format!("permuted_input_eval_{:?}", idx + 1),
             point: RotationDescription::Current,
         });
         circuit_description.lookup_queries.push(Query {
-            commitment: PermutedTable(idx + 1), //format!("permutedTable{:?}", idx + 1),
-            evaluation: PermutedTable(idx + 1), //format!("permuted_table_eval_{:?}", idx + 1),
+            commitment: Commitments::PermutedTable(idx + 1), //format!("permutedTable{:?}", idx + 1),
+            evaluation: Evaluations::PermutedTable(idx + 1), //format!("permuted_table_eval_{:?}", idx + 1),
             point: RotationDescription::Current,
         });
         circuit_description.lookup_queries.push(Query {
-            commitment: PermutedInput(idx + 1), //format!("permutedInput{:?}", idx + 1),
-            evaluation: PermutedInvInput(idx + 1), //format!("permuted_input_inv_eval_{:?}", idx + 1),
+            commitment: Commitments::PermutedInput(idx + 1), //format!("permutedInput{:?}", idx + 1),
+            evaluation: Evaluations::PermutedInputInverse(idx + 1), //format!("permuted_input_inv_eval_{:?}", idx + 1),
             point: RotationDescription::Previous,
         });
         circuit_description.lookup_queries.push(Query {
-            commitment: ProofDescription::Lookup(idx + 1), //format!("lookupCommitment{:?}", idx + 1),
-            evaluation: ProofDescription::LookupNext(idx + 1), //format!("product_next_eval_{:?}", idx + 1),
+            commitment: Commitments::Lookup(idx + 1), //format!("lookupCommitment{:?}", idx + 1),
+            evaluation: Evaluations::LookupNext(idx + 1), //format!("product_next_eval_{:?}", idx + 1),
             point: RotationDescription::Next,
         });
     });
@@ -814,20 +813,16 @@ pub fn precompute_intermediate_sets(
 ) -> (Vec<Vec<RotationDescription>>, Vec<CommitmentData>) {
     let queries = circuit_description.all_queries_ordered();
 
-    let ordered_unique_commitments= queries
-        .iter()
-        .flatten()
-        .map(|q| &q.commitment);
-    let ordered_unique_commitments: Vec<ProofDescription>  = ordered_unique_commitments.cloned()
-        .unique()
-        .collect();
+    let ordered_unique_commitments = queries.iter().flatten().map(|q| &q.commitment);
+    let ordered_unique_commitments: Vec<Commitments> =
+        ordered_unique_commitments.cloned().unique().collect();
 
-    let commitment_map: HashMap<ProofDescription, _> = queries
+    let commitment_map: HashMap<Commitments, _> = queries
         .iter()
         .flatten()
         .into_group_map_by(|e| e.commitment.clone());
 
-    let point_sets_map: HashMap<ProofDescription, Vec<RotationDescription>> = commitment_map
+    let point_sets_map: HashMap<Commitments, Vec<RotationDescription>> = commitment_map
         .iter()
         .map(|(k, v)| {
             (
