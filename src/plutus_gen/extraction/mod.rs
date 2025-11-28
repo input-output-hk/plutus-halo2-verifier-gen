@@ -578,7 +578,7 @@ where
                         // (fixedEval{:?} + (beta * x) * (powMod scalarDelta {:?}) + gamma)
                         // a + (b * c) * d + e
 
-                        let a = ScalarExpression::Advice(eval_index);
+                        let a = ScalarExpression::Fixed(eval_index);
                         let b = ScalarExpression::Variable("beta".to_string());
                         let c = ScalarExpression::Variable("x".to_string());
                         let d = ScalarExpression::PowMod(
