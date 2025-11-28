@@ -1,3 +1,4 @@
+use anyhow::{Context as _, Result, bail};
 use cardano_serialization_lib::{
     Address, BigNum, ExUnitPrices, LinearFee, PrivateKey, Transaction, TransactionBuilderConfig,
     TransactionBuilderConfigBuilder, TransactionHash, TransactionInput, UnitInterval,
@@ -8,7 +9,6 @@ use log::trace;
 use reqwest::Client;
 use serde::Deserialize;
 use std::env;
-use std::error::Error;
 use std::time::Duration;
 use tokio::time::sleep;
 
@@ -49,10 +49,7 @@ impl BlockFrostNodeAPI {
     pub fn init(api_key: String) -> Self {
         BlockFrostNodeAPI { api_key }
     }
-    pub async fn submit_transaction(
-        &self,
-        transaction: &Transaction,
-    ) -> Result<String, Box<dyn Error>> {
+    pub async fn submit_transaction(&self, transaction: &Transaction) -> Result<String> {
         let client = Client::new();
         let blockfrost_url = format!("{}/tx/submit", BLOCKFROST_API);
 
@@ -71,15 +68,11 @@ impl BlockFrostNodeAPI {
             Ok(tx_hash.replace("\"", ""))
         } else {
             let error_message = response.text().await?;
-            Err(error_message.into())
+            bail!("{error_message}");
         }
     }
 
-    pub async fn wait_for_tx(
-        &self,
-        address: &Address,
-        tx_hash: &str,
-    ) -> Result<(), Box<dyn Error>> {
+    pub async fn wait_for_tx(&self, address: &Address, tx_hash: &str) -> Result<()> {
         while !check_transaction(tx_hash, self.api_key.as_str()).await?
             || self.get_ada_utxos(address).await?.is_empty()
         {
@@ -89,7 +82,7 @@ impl BlockFrostNodeAPI {
         Ok(())
     }
 
-    pub async fn fetch_protocol_params(&self) -> Result<ProtocolParams, Box<dyn Error>> {
+    pub async fn fetch_protocol_params(&self) -> Result<ProtocolParams> {
         let url = format!("{}/epochs/latest/parameters", BLOCKFROST_API);
 
         let client = Client::new();
@@ -100,7 +93,7 @@ impl BlockFrostNodeAPI {
             .await?;
 
         if !response.status().is_success() {
-            return Err(format!("HTTP fail {}", response.status()).into());
+            bail!("HTTP fail {}", response.status());
         }
         let params: ProtocolParams = response.json().await?;
 
@@ -110,7 +103,7 @@ impl BlockFrostNodeAPI {
     pub async fn get_ada_utxos(
         &self,
         address: &Address,
-    ) -> Result<Vec<(TransactionInput, CardanoValue)>, Box<dyn Error>> {
+    ) -> Result<Vec<(TransactionInput, CardanoValue)>> {
         let pages_to_check = 5;
 
         let client = Client::new();
@@ -168,7 +161,7 @@ impl BlockFrostNodeAPI {
     }
 }
 
-async fn check_transaction(tx_hash: &str, api_key: &str) -> Result<bool, Box<dyn Error>> {
+async fn check_transaction(tx_hash: &str, api_key: &str) -> Result<bool> {
     let client = Client::new();
     let blockfrost_url = format!("{}/txs/{}", BLOCKFROST_API, tx_hash);
 
@@ -186,22 +179,20 @@ async fn check_transaction(tx_hash: &str, api_key: &str) -> Result<bool, Box<dyn
     }
 }
 
-pub fn load_env_vars() -> (String, PrivateKey) {
-    dotenv().expect("Failed to read .env file");
+pub fn load_env_vars() -> Result<(String, PrivateKey)> {
+    dotenv().context("Failed to read .env file")?;
 
-    let block_frost_api_key: String =
-        env::var("BLOCK_FROST_API_KEY").expect("BLOCK_FROST_API_KEY environment variable not set");
+    let block_frost_api_key: String = env::var("BLOCK_FROST_API_KEY")
+        .context("BLOCK_FROST_API_KEY environment variable not set")?;
     let private_key: String =
-        env::var("PRIVATE_KEY").expect("PRIVATE_KEY environment variable not set");
+        env::var("PRIVATE_KEY").context("PRIVATE_KEY environment variable not set")?;
     let private_key: PrivateKey =
-        PrivateKey::from_bech32(private_key.as_str()).expect("private key is not valid");
+        PrivateKey::from_bech32(private_key.as_str()).context("private key is not valid")?;
 
-    (block_frost_api_key, private_key)
+    Ok((block_frost_api_key, private_key))
 }
 
-pub fn to_config(
-    protocol_params: &ProtocolParams,
-) -> Result<TransactionBuilderConfig, Box<dyn Error>> {
+pub fn to_config(protocol_params: &ProtocolParams) -> Result<TransactionBuilderConfig> {
     let config = TransactionBuilderConfigBuilder::new()
         .fee_algo(&LinearFee::new(
             &BigNum::from(protocol_params.min_fee_a),

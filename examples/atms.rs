@@ -1,3 +1,4 @@
+use anyhow::{Context as _, Result, anyhow, bail};
 use blstrs::{Base, Bls12, G1Projective, Scalar};
 use halo2_proofs::{
     plonk::{
@@ -23,23 +24,23 @@ use rand_core::SeedableRng;
 use std::env;
 use std::fs::File;
 
-fn main() {
+fn main() -> Result<()> {
     env_logger::init_from_env(env_logger::Env::default().filter_or("RUST_LOG", "info"));
     let args: Vec<String> = env::args().collect();
 
     match &args[1..] {
-        [] => {
-            compile_atms_circuit::<KZGCommitmentScheme<Bls12>>();
-        }
+        [] => compile_atms_circuit::<KZGCommitmentScheme<Bls12>>(),
         [command] if command == "gwc_kzg" => {
-            compile_atms_circuit::<GwcKZGCommitmentScheme<Bls12>>();
+            compile_atms_circuit::<GwcKZGCommitmentScheme<Bls12>>()
         }
         _ => {
-            println!("Usage:");
-            println!("- to run the example: `cargo run --example example_name`");
-            println!(
+            eprintln!("Usage:");
+            eprintln!("- to run the example: `cargo run --example example_name`");
+            eprintln!(
                 "- to run the example using the GWC19 version of multi-open KZG, run: `cargo run --example example_name gwc_kzg`"
             );
+
+            bail!("Invalid command line arguments")
         }
     }
 }
@@ -51,7 +52,7 @@ pub fn compile_atms_circuit<
             Parameters = ParamsKZG<Bls12>,
             VerifierParameters = ParamsVerifierKZG<Bls12>,
         > + ExtractKZG,
->() {
+>() -> Result<()> {
     let seed = [0u8; 32]; // UNSAFE, constant seed is used for testing purposes
     let mut rng: StdRng = SeedableRng::from_seed(seed);
 
@@ -81,8 +82,8 @@ pub fn compile_atms_circuit<
 
     let instances_file =
         "./plutus-verifier/plutus-halo2/test/Generic/serialized_public_input.hex".to_string();
-    let mut output = File::create(instances_file).expect("failed to create instances file");
-    export_public_inputs(instances, &mut output);
+    let mut output = File::create(instances_file).context("failed to create instances file")?;
+    export_public_inputs(instances, &mut output).context("Failed to export the public inputs")?;
 
     let mut transcript: CircuitTranscript<CardanoFriendlyState> =
         CircuitTranscript::<CardanoFriendlyState>::init();
@@ -95,7 +96,7 @@ pub fn compile_atms_circuit<
         &mut rng,
         &mut transcript,
     )
-    .expect("proof generation should not fail");
+    .context("proof generation should not fail")?;
 
     let proof = transcript.finalize();
     info!("proof size {:?}", proof.len());
@@ -108,18 +109,21 @@ pub fn compile_atms_circuit<
         instances,
         &mut transcript_verifier,
     )
-    .expect("prepare verification failed");
+    .context("prepare verification failed")?;
 
     verifier
         .verify(&kzg_params.verifier_params())
-        .expect("verify failed");
+        .map_err(|e| anyhow!("{e:?}"))
+        .context("verify failed")?;
 
     serialize_proof(
         "./plutus-verifier/plutus-halo2/test/Generic/serialized_proof.json".to_string(),
         proof,
     )
-    .expect("json proof serialization failed");
+    .context("json proof serialization failed")?;
 
     generate_plinth_verifier(&kzg_params, &vk, instances)
-        .expect("Plinth verifier generation failed");
+        .context("Plinth verifier generation failed")?;
+
+    Ok(())
 }
