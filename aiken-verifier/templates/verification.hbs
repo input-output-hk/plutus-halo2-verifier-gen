@@ -113,6 +113,12 @@ pub fn verifier(proof: Data, transcript_rep: State<Scalar>, {{{PUBLIC_INPUTS_NAM
       let x1Powers = powers({{{X1_POWERS_COUNT}}}, x1)
       let x4Powers = powers({{{X4_POWERS_COUNT}}}, x4)
 
+    trace @"vanishing_s": vanishing_s
+    trace @"vanishing_g": vanishing_g
+
+    trace @"vanishing_rand": vanishing_rand
+    trace @"random_eval": random_eval
+
       let alt_right =
           build_msm(
               x1Powers,
