@@ -128,11 +128,11 @@ fn compile_simple_mul_circuit<
 
     export_proof(
         "./plutus-verifier/plutus-halo2/test/Generic/serialized_proof.hex".to_string(),
-        proof,
+        proof.clone(),
     )
     .expect("hex proof serialization failed");
 
     generate_plinth_verifier(&params, &vk, instances).expect("Plinth verifier generation failed");
 
-    generate_aiken_verifier(&params, &vk, instances).expect("Aiken verifier generation failed");
+    generate_aiken_verifier(&params, &vk, instances, Some(proof)).expect("Aiken verifier generation failed");
 }

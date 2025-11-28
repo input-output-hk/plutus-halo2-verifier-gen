@@ -26,6 +26,7 @@ use halo2_proofs::{
 };
 use log::info;
 use plutus_halo2_verifier_gen::plutus_gen::generate_aiken_verifier;
+use plutus_halo2_verifier_gen::plutus_gen::proof_serialization::export_proof;
 use plutus_halo2_verifier_gen::{
     circuits::{
         atms_circuit::prepare_test_signatures, atms_with_lookups_circuit::AtmsLookupCircuit,
@@ -140,12 +141,19 @@ pub fn compile_atms_lookup_circuit<
 
     serialize_proof(
         "./plutus-verifier/plutus-halo2/test/Generic/serialized_proof.json".to_string(),
-        proof,
+        proof.clone(),
     )
     .expect("json proof serialization failed");
+
+    export_proof(
+        "./plutus-verifier/plutus-halo2/test/Generic/serialized_proof.hex".to_string(),
+        proof.clone(),
+    )
+    .expect("hex proof serialization failed");
 
     generate_plinth_verifier(&kzg_params, &vk, instances)
         .expect("Plinth verifier generation failed");
 
-    generate_aiken_verifier(&kzg_params, &vk, instances).expect("Aiken verifier generation failed");
+    generate_aiken_verifier(&kzg_params, &vk, instances, Some(proof))
+        .expect("Aiken verifier generation failed");
 }

@@ -308,7 +308,7 @@ impl PlinthTranspiler for ScalarExpression<Scalar> {
                 write!(writer, "adviceEval{:?}", index)
             }
             ScalarExpression::Fixed(index) => {
-                write!(writer, "fixEval{:?}", index)
+                write!(writer, "fixedEval{:?}", index)
             }
             ScalarExpression::Instance(index) => {
                 write!(writer, "instanceEval{:?}", index)

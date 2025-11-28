@@ -4,6 +4,7 @@ pub use crate::plutus_gen::code_emitters_aiken::{
 use crate::plutus_gen::code_emitters_plutus::{
     emit_verifier_code as emit_verifier_code_plutus, emit_vk_code,
 };
+use crate::plutus_gen::extraction::data::RotationDescription;
 use crate::plutus_gen::extraction::{ExtractKZG, KzgType, extract_circuit};
 use blstrs::{Bls12, G1Projective, Scalar};
 use halo2_proofs::plonk::VerifyingKey;
@@ -75,6 +76,7 @@ pub fn generate_aiken_verifier<S>(
     params: &ParamsKZG<Bls12>,
     vk: &VerifyingKey<Scalar, S>,
     instances: &[&[&[Scalar]]],
+    test_proof: Option<Vec<u8>>,
 ) -> Result<(), String>
 where
     S: PolynomialCommitmentScheme<Scalar, Commitment = G1Projective> + ExtractKZG,
@@ -87,6 +89,7 @@ where
         Path::new("aiken-verifier/templates/verification.hbs"),
         Path::new("aiken-verifier/aiken_halo2/lib/proof_verifier.ak"),
         &circuit_representation,
+        test_proof.map(|p| (p, vk.transcript_repr(), instances[0][0].to_vec())),
     )
     .map_err(|e| e.to_string())?;
     emit_vk_code_aiken(
@@ -97,4 +100,13 @@ where
     .map_err(|e| e.to_string())?;
 
     Ok(())
+}
+
+fn decode_rotation(rotation: &RotationDescription) -> String {
+    match rotation {
+        RotationDescription::Last => "x_last".to_string(),
+        RotationDescription::Previous => "x_prev".to_string(),
+        RotationDescription::Current => "x_current".to_string(),
+        RotationDescription::Next => "x_next".to_string(),
+    }
 }

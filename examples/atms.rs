@@ -22,6 +22,7 @@ use rand::prelude::StdRng;
 use rand_core::SeedableRng;
 use std::env;
 use std::fs::File;
+use plutus_halo2_verifier_gen::plutus_gen::generate_aiken_verifier;
 
 fn main() {
     env_logger::init_from_env(env_logger::Env::default().filter_or("RUST_LOG", "info"));
@@ -116,10 +117,13 @@ pub fn compile_atms_circuit<
 
     serialize_proof(
         "./plutus-verifier/plutus-halo2/test/Generic/serialized_proof.json".to_string(),
-        proof,
+        proof.clone(),
     )
     .expect("json proof serialization failed");
 
     generate_plinth_verifier(&kzg_params, &vk, instances)
         .expect("Plinth verifier generation failed");
+
+    generate_aiken_verifier(&kzg_params, &vk, instances, Some(proof))
+        .expect("Aiken verifier generation failed");
 }
