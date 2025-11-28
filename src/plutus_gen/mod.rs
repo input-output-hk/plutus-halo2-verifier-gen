@@ -5,6 +5,7 @@ use crate::plutus_gen::code_emitters_plutus::{
     emit_verifier_code as emit_verifier_code_plutus, emit_vk_code,
 };
 use crate::plutus_gen::extraction::{ExtractKZG, KzgType, extract_circuit};
+use anyhow::{Context as _, Result};
 use blstrs::{Bls12, G1Projective, Scalar};
 use halo2_proofs::plonk::VerifyingKey;
 use halo2_proofs::poly::commitment::PolynomialCommitmentScheme;
@@ -32,7 +33,7 @@ pub fn generate_plinth_verifier<S>(
     params: &ParamsKZG<Bls12>,
     vk: &VerifyingKey<Scalar, S>,
     instances: &[&[&[Scalar]]],
-) -> Result<(), String>
+) -> Result<()>
 where
     S: PolynomialCommitmentScheme<Scalar, Commitment = G1Projective> + ExtractKZG,
 {
@@ -51,8 +52,8 @@ where
         Path::new("plutus-verifier/plutus-halo2/src/Plutus/Crypto/Halo2/Generic/VKConstants.hs");
 
     // Step 1: extract circuit representation
-    let circuit_representation =
-        extract_circuit(params, vk, instances).map_err(|e| e.to_string())?;
+    let circuit_representation = extract_circuit(params, vk, instances)
+        .context("Failed to extract the circuit representation")?;
 
     // Step 2: extract KZG steps specific to used commitment scheme
     let circuit_representation = S::extract_kzg_steps(circuit_representation);
@@ -64,9 +65,9 @@ where
         verifier_generated_file,
         &circuit_representation,
     )
-    .map_err(|e| e.to_string())?;
+    .context("Failed to emit the verifier code for plutus")?;
     emit_vk_code(vk_template_file, vk_generated_file, &circuit_representation)
-        .map_err(|e| e.to_string())?;
+        .context("Failed to emit the verifier key constants")?;
 
     Ok(())
 }
@@ -75,12 +76,12 @@ pub fn generate_aiken_verifier<S>(
     params: &ParamsKZG<Bls12>,
     vk: &VerifyingKey<Scalar, S>,
     instances: &[&[&[Scalar]]],
-) -> Result<(), String>
+) -> Result<()>
 where
     S: PolynomialCommitmentScheme<Scalar, Commitment = G1Projective> + ExtractKZG,
 {
-    let circuit_representation =
-        extract_circuit(params, vk, instances).map_err(|e| e.to_string())?;
+    let circuit_representation = extract_circuit(params, vk, instances)
+        .context("Failed to extract the circuit representation")?;
     let circuit_representation = S::extract_kzg_steps(circuit_representation);
 
     emit_verifier_code_aiken(
@@ -88,13 +89,13 @@ where
         Path::new("aiken-verifier/aiken_halo2/lib/proof_verifier.ak"),
         &circuit_representation,
     )
-    .map_err(|e| e.to_string())?;
+    .context("Failed to emit the verifier code for aiken")?;
     emit_vk_code_aiken(
         Path::new("aiken-verifier/templates/vk_constants.hbs"),
         Path::new("aiken-verifier/aiken_halo2/lib/verifier_key.ak"),
         &circuit_representation,
     )
-    .map_err(|e| e.to_string())?;
+    .context("Failed to emit the verifier key constants for aiken")?;
 
     Ok(())
 }
