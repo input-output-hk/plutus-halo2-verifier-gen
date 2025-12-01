@@ -105,21 +105,15 @@ pub fn verifier(proof: Data, transcript_rep: State<Scalar>, {{{PUBLIC_INPUTS_NAM
 
 {{{POINT_SETS}}}
 
-      // left and s_g2
-      // right and g2
-      // g2 is not negated as bls12_381_finalVerify is doing negation
-      let g2 = generatorG2
+    // left and s_g2
+    // right and g2
+    // g2 is not negated as bls12_381_finalVerify is doing negation
+    let g2 = generatorG2
 
-      let x1Powers = powers({{{X1_POWERS_COUNT}}}, x1)
-      let x4Powers = powers({{{X4_POWERS_COUNT}}}, x4)
+    let x1Powers = powers({{{X1_POWERS_COUNT}}}, x1)
+    let x4Powers = powers({{{X4_POWERS_COUNT}}}, x4)
 
-    trace @"vanishing_s": vanishing_s
-    trace @"vanishing_g": vanishing_g
-
-    trace @"vanishing_rand": vanishing_rand
-    trace @"random_eval": random_eval
-
-      let alt_right =
+    let alt_right =
           build_msm(
               x1Powers,
               x2,
@@ -132,13 +126,13 @@ pub fn verifier(proof: Data, transcript_rep: State<Scalar>, {{{PUBLIC_INPUTS_NAM
               point_sets)
 
 
-      let el = pi_term
-      let er = eval(alt_right)
+    let el = pi_term
+    let er = eval(alt_right)
 
-      let ml_l = miller_loop(el, g2_const)
-      let ml_r = miller_loop(er, g2)
+    let ml_l = miller_loop(el, g2_const)
+    let ml_r = miller_loop(er, g2)
 
-      final_exponentiation(ml_l, ml_r)
+    final_exponentiation(ml_l, ml_r)
 }
 
 // this test generates random input data for verifier
