@@ -73,12 +73,9 @@ buildMSM x1Powers x2 x3 x4Powers f_comm pi_commitment proofX3QEvals commitmentMa
     pointSetsIndexes :: [Integer]
     pointSetsIndexes = enumFromTo 0 (length pointSets - 1)
 
--- todo
     (q_coms, q_eval_sets) = unzip (buildQ commitmentMap pointSetsIndexes x1Powers)
--- todo
     f_eval :: Scalar
     f_eval = evaluateLagrangePolynomials pointSets q_eval_sets x2 x3 proofX3QEvals
--- todo
     final_com :: MSM
     final_com = finalCommitment q_coms f_comm x4Powers
 

@@ -30,18 +30,12 @@ pub fn build_msm(
   pointSets: List<List<State<Scalar>>>,
 ) -> MSM {
   let point_sets_indexes = range(0, length(pointSets) - 1)
-
-  //todo
   let (q_commitments, q_eval_sets) =
     unzip(build_q(commitmentMap, point_sets_indexes, x1Powers))
-  //todo
   let f_eval =
     evaluate_lagrange_polynomial(pointSets, q_eval_sets, x2, x3, proofX3QEvals)
-  // todo
   let final_com = final_commitment(q_commitments, f_commitment, x4Powers)
-  // todo
   let v = compute_v(f_eval, x4Powers, proofX3QEvals)
-  // todo
   append_term(
     append_term(
       final_com,
@@ -114,19 +108,6 @@ fn final_commitment(
   )
 }
 
-// {-# INLINEABLE finalCommitment #-}
-// -- todo this can be integrated into buildQ?
-// finalCommitment ::
-//     [MSM] ->
-//     BuiltinBLS12_381_G1_Element ->
-//     [Scalar] ->
-//     MSM
-// finalCommitment q_coms f_comm x4Powers =
-//     foldl
-//         (\accMSM (point, msm) -> addMSM accMSM (scaleMSM point msm))
-//         (MSM [])
-//         (zip x4Powers (q_coms ++ [MSM [MSMElem ((one :: Scalar), f_comm)]]))
-
 fn compute_v(
   f_eval: State<Scalar>,
   x4Powers: List<State<Scalar>>,
@@ -138,18 +119,6 @@ fn compute_v(
     fn((point, eval), acc) { add(acc, mul(point, eval)) },
   )
 }
-
-// {-# INLINEABLE computeV #-}
-// computeV ::
-//     Scalar ->
-//     [Scalar] ->
-//     [Scalar] ->
-//     Scalar
-// computeV f_eval x4Powers proofX3QEvals =
-//     foldl
-//         (\acc (point, eval) -> acc + point * eval)
-//         (zero :: Scalar)
-//         (zip x4Powers (proofX3QEvals ++ [f_eval]))
 
 fn append_term(msm: MSM, element: MSMElement) -> MSM {
   MSM { elements: push(msm.elements, element) }

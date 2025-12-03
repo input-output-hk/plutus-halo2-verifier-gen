@@ -253,22 +253,6 @@ pub enum Evaluations {
     LookupNext(usize),
 }
 
-// pub enum ProofDescription {
-//     Advice(usize),
-//     Fixed(usize),
-//     Permutation(char, usize),
-//     Lookup(usize),
-//     LookupNext(usize),
-//     PermutedInput(usize),
-//     PermutedInvInput(usize),
-//     PermutedTable(usize),
-//     PermutationsCommon(usize),
-//     VanishingG,
-//     VanishingS,
-//     VanishingRand,
-//     RandomEval,
-// }
-
 impl Default for Commitments {
     fn default() -> Self {
         Commitments::Advice(0)
