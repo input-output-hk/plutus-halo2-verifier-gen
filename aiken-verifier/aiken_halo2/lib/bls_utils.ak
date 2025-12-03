@@ -1,6 +1,8 @@
-use aiken/collection/list.{foldl, zip}
+use aiken/collection/list.{all, foldl, range, zip}
 use aiken/crypto/bitwise.{State}
-use aiken/crypto/bls12_381/scalar.{Scalar, add, from_int, to_int, mul, field_prime}
+use aiken/crypto/bls12_381/scalar.{Scalar, add, from_int, to_int, mul, recip, field_prime}
+use aiken/fuzz
+use aiken/option.{is_some}
 
 pub fn inner_product(
   a: List<State<Scalar>>,
@@ -32,12 +34,28 @@ fn egcd_go(u: Int, v: Int, x1: Int, x2: Int) -> Int {
   }
 }
 
-// Test that it produces correct results
-test test_recip_eea() {
-  let x = from_int(834884848)
-  let expected = from_int(
-    35891248691642227249400403463796410930702563777316955162085759263735363466421
-  )
+test recip_eea_prop(n via fuzz.int()) {
+  let x = if n != 0 { from_int(n) } else { from_int(1) } // zero would panic
+  let x_inv = recip_eea(x)
+  mul(x, x_inv) == from_int(1)
+}
 
-  recip_eea(x) == expected
+test recip_eea_edge_cases() {
+  expect recip_eea(from_int(1)) == from_int(1)
+  
+  let minus_one = from_int(field_prime - 1)
+  expect recip_eea(minus_one) == minus_one
+}
+
+test recip_eea_panics_on_zero() fail {
+  let zero = from_int(0)
+  recip_eea(zero) == zero  // should panic because 0 has no multiplicative inverse
+}
+
+test recip_eea_benchmark() {
+  range(1, 100) |> all(fn(n) { recip_eea(from_int(n)) != from_int(0) })
+}
+
+test recip_stdlib_benchmark() {
+  range(1, 100) |> all(fn(n) { is_some(recip(from_int(n))) })
 }
