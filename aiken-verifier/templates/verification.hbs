@@ -94,7 +94,7 @@ pub fn verifier(proof: Data, transcript_rep: State<Scalar>, {{{PUBLIC_INPUTS_NAM
 
 {{{VANISHING_EVALUATION}}}
 
-    expect Some(inverted) = recip_eea(sub(xn, scalarOne)) // recip is inverse of the number mod bls12_381_field_prime
+    let inverted = recip_eea(sub(xn, scalarOne)) // recip is inverse of the number mod bls12_381_field_prime
     let vanishing_s = mul(hEval, inverted)
 
     // vanishing split IS PASSED IN REVERSE ORDER!!!

@@ -17,7 +17,7 @@ pub fn evaluate_lagrange_polynomial(
     from_int(0),
     fn((points, (evals, proofQEval)), acc_eval) {
       let r_eval = lagrange_evaluation(zip(points, evals), x3)
-      expect Some(denominator) =
+      let denominator =
         recip_eea(
           foldl(
             points,
@@ -60,7 +60,7 @@ fn basis(
         }
       },
     )
-  expect Some(total_denominator) = recip_eea(total_denominator)
+  let total_denominator = recip_eea(total_denominator)
   mul(total_numerator, total_denominator)
 }
 
@@ -74,10 +74,7 @@ pub fn lagrange_polynomial_basis(
   let inverses =
     map(
       rotations,
-      fn(rotated_omega) {
-        expect Some(result) = recip_eea(sub(x, rotated_omega))
-        result
-      },
+      fn(rotated_omega) { recip_eea(sub(x, rotated_omega)) },
     )
   let zipped = zip(inverses, rotations)
   map(zipped, fn((inv, rotated_omega)) { mul(mul(inv, common), rotated_omega) })

@@ -11,14 +11,10 @@ pub fn inner_product(
 
 /// Fast modular multiplicative inverse using Extended Euclidean Algorithm
 /// This is ~3-4x faster than the Fermat-based approach implemented in the Aiken stdlib
-pub fn recip_eea(self: State<Scalar>) -> Option<State<Scalar>> {
+pub fn recip_eea(self: State<Scalar>) -> State<Scalar> {
   let a = to_int(self)
-  if a == 0 {
-    None
-  } else {
-    let inv = egcd_go(a, field_prime, 1, 0)
-    Some(from_int(inv))
-  }
+  let inv = egcd_go(a, field_prime, 1, 0)
+  from_int(inv)
 }
 
 /// Extended Euclidean Algorithm for modular inverse
@@ -43,10 +39,5 @@ test test_recip_eea() {
     35891248691642227249400403463796410930702563777316955162085759263735363466421
   )
 
-  expect Some(result) = recip_eea(x)
-  result == expected
-}
-
-test test_recip_eea_zero() {
-  recip_eea(from_int(0)) == None
+  recip_eea(x) == expected
 }
