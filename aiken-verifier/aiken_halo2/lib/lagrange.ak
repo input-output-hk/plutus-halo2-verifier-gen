@@ -1,8 +1,9 @@
 use aiken/collection/list.{foldl, map, reverse, zip}
 use aiken/crypto/bitwise.{State}
 use aiken/crypto/bls12_381/scalar.{
-  Scalar, add, from_int, mul, recip, sub, sub_int,
+  Scalar, add, from_int, mul, sub, sub_int,
 }
+use bls_utils.{recip_eea}
 
 pub fn evaluate_lagrange_polynomial(
   point_sets: List<List<State<Scalar>>>,
@@ -17,7 +18,7 @@ pub fn evaluate_lagrange_polynomial(
     fn((points, (evals, proofQEval)), acc_eval) {
       let r_eval = lagrange_evaluation(zip(points, evals), x3)
       expect Some(denominator) =
-        recip(
+        recip_eea(
           foldl(
             points,
             from_int(1),
@@ -59,7 +60,7 @@ fn basis(
         }
       },
     )
-  expect Some(total_denominator) = recip(total_denominator)
+  expect Some(total_denominator) = recip_eea(total_denominator)
   mul(total_numerator, total_denominator)
 }
 
@@ -74,7 +75,7 @@ pub fn lagrange_polynomial_basis(
     map(
       rotations,
       fn(rotated_omega) {
-        expect Some(result) = recip(sub(x, rotated_omega))
+        expect Some(result) = recip_eea(sub(x, rotated_omega))
         result
       },
     )
