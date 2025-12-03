@@ -807,7 +807,6 @@ where
     Ok(circuit_description)
 }
 
-// todo here
 pub fn precompute_intermediate_sets(
     circuit_description: &CircuitRepresentation,
 ) -> (Vec<Vec<RotationDescription>>, Vec<CommitmentData>) {

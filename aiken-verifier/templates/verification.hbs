@@ -107,7 +107,7 @@ pub fn verifier(proof: Data, transcript_rep: State<Scalar>, {{{PUBLIC_INPUTS_NAM
 
     // left and s_g2
     // right and g2
-    // g2 is not negated as bls12_381_finalVerify is doing negation
+    // g2 is not negated as final_exponentiation is doing negation
     let g2 = generatorG2
 
     let x1Powers = powers({{{X1_POWERS_COUNT}}}, x1)
