@@ -136,6 +136,22 @@ pub fn verifier(proof: Data, transcript_rep: State<Scalar>, {{{PUBLIC_INPUTS_NAM
 }
 
 // this test generates random input data for verifier
-test integration_test() {
-    expect {{{TEST_CALL}}} == True
+test check_valid_proof_valid_public_inputs() {
+    expect {{{TEST_VALID_PROOF_VALID_INPUTS}}} == True
+}
+
+test check_proof_invalid_publuc_inputs(){
+    expect {{{TEST_VALID_PROOF_INVALID_INPUTS}}} == False
+}
+
+test check_invalid_proof_invalid_publuc_inputs(){
+    expect {{{TEST_INVALID_PROOF_INVALID_INPUTS}}} == False
+}
+
+test check_valid_proof_tricvial_public_inputs() {
+    expect {{{TEST_VALID_PROOF_TRIVIAL_INPUTS}}} == False
+}
+
+test check_valid_proof_invalid_transcript_rep() {
+    expect {{{TEST_VALID_PROOF_INVALID_TRANSCRIPT_REP}}} == False
 }

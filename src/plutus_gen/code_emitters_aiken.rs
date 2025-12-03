@@ -5,10 +5,12 @@ use crate::plutus_gen::extraction::{
     precompute_intermediate_sets,
 };
 use blstrs::Scalar;
+use ff::Field;
 use halo2_proofs::halo2curves::group::GroupEncoding;
 use handlebars::{Handlebars, RenderError};
 use itertools::Itertools;
 use log::debug;
+use std::ops::Neg;
 use std::{collections::HashMap, fs::File, iter::once, path::Path};
 
 pub fn emit_verifier_code(
@@ -490,12 +492,41 @@ pub fn emit_verifier_code(
 
     match test_data {
         None => {
-            data.insert("TEST_CALL".to_string(), "True".to_string());
+            data.insert(
+                "TEST_VALID_PROOF_VALID_INPUTS".to_string(),
+                "True".to_string(),
+            );
+            data.insert(
+                "TEST_VALID_PROOF_INVALID_INPUTS".to_string(),
+                "False".to_string(),
+            );
+            data.insert(
+                "TEST_INVALID_PROOF_INVALID_INPUTS".to_string(),
+                "False".to_string(),
+            );
+            data.insert(
+                "TEST_VALID_PROOF_TRIVIAL_INPUTS".to_string(),
+                "False".to_string(),
+            );
+            data.insert(
+                "TEST_TRIVIAL_PROOF_TRIVIAL_INPUTS".to_string(),
+                "False".to_string(),
+            );
         }
         Some((proof, transcript_rep, public_inputs)) => {
-            let test_call = format!(
+            let mut invalid_proof = proof.clone();
+
+            // index points to one of last bytes of las scalar that is part of the proof
+            // this should be safe and not result in malformed encoding exception
+            // which is likely for flipping Byte for compressed G1 element
+            let index = invalid_proof.len() - 1 - 48 - 2;
+            let firs_byte = invalid_proof[index];
+            let negated_firs_byte = !firs_byte;
+            invalid_proof[index] = negated_firs_byte;
+
+            let test_valid_proof_valid_inputs = format!(
                 "verifier(#\"{}\", from_int(0x{}), {})",
-                hex::encode(proof),
+                hex::encode(proof.clone()),
                 hex::encode(transcript_rep.to_bytes_be()),
                 public_inputs
                     .iter()
@@ -503,7 +534,74 @@ pub fn emit_verifier_code(
                     .join(", ")
             );
 
-            data.insert("TEST_CALL".to_string(), test_call);
+            data.insert(
+                "TEST_VALID_PROOF_VALID_INPUTS".to_string(),
+                test_valid_proof_valid_inputs,
+            );
+
+            let test_valid_proof_invalid_inputs = format!(
+                "verifier(#\"{}\", from_int(0x{}), {})",
+                hex::encode(proof.clone()),
+                hex::encode(transcript_rep.to_bytes_be()),
+                public_inputs
+                    .iter()
+                    .map(|e| {
+                        let invalid_input = e.neg();
+                        format!("from_int(0x{})", hex::encode(invalid_input.to_bytes_be()))
+                    })
+                    .join(", ")
+            );
+
+            data.insert(
+                "TEST_VALID_PROOF_INVALID_INPUTS".to_string(),
+                test_valid_proof_invalid_inputs,
+            );
+
+            let test_invalid_proof_invalid_inputs = format!(
+                "verifier(#\"{}\", from_int(0x{}), {})",
+                hex::encode(invalid_proof),
+                hex::encode(transcript_rep.to_bytes_be()),
+                public_inputs
+                    .iter()
+                    .map(|e| {
+                        let invalid_input = e.neg();
+                        format!("from_int(0x{})", hex::encode(invalid_input.to_bytes_be()))
+                    })
+                    .join(", ")
+            );
+
+            data.insert(
+                "TEST_INVALID_PROOF_INVALID_INPUTS".to_string(),
+                test_invalid_proof_invalid_inputs,
+            );
+
+            let test_valid_proof_trivial_inputs = format!(
+                "verifier(#\"{}\", from_int(0x{}), {})",
+                hex::encode(proof.clone()),
+                hex::encode(transcript_rep.to_bytes_be()),
+                public_inputs
+                    .iter()
+                    .map(|_e| format!("from_int(0x{})", hex::encode(Scalar::ONE.to_bytes_be())))
+                    .join(", ")
+            );
+            data.insert(
+                "TEST_VALID_PROOF_TRIVIAL_INPUTS".to_string(),
+                test_valid_proof_trivial_inputs,
+            );
+
+            let test_valid_proof_invalid_transcript_rep = format!(
+                "verifier(#\"{}\", from_int(0x{}), {})",
+                hex::encode(proof),
+                hex::encode(transcript_rep.neg().to_bytes_be()),
+                public_inputs
+                    .iter()
+                    .map(|e| format!("from_int(0x{})", hex::encode(e.to_bytes_be())))
+                    .join(", ")
+            );
+            data.insert(
+                "TEST_VALID_PROOF_INVALID_TRANSCRIPT_REP".to_string(),
+                test_valid_proof_invalid_transcript_rep,
+            );
         }
     }
 
