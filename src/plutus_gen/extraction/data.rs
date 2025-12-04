@@ -1,6 +1,8 @@
+use crate::plutus_gen::extraction::{AikenExpression, PlinthExpression};
 use blstrs::{G1Affine, G2Affine, Scalar};
 use halo2_proofs::plonk::Expression;
 use serde::{Deserialize, Serialize};
+
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub enum ProofExtractionSteps {
     AdviceCommitments,
@@ -89,18 +91,192 @@ pub enum RotationDescription {
     Next,
 }
 
+impl PlinthExpression for Commitments {
+    fn compile_expression(&self) -> String {
+        match self {
+            Commitments::Advice(index) => {
+                format!("a{:?}", index)
+            }
+            Commitments::Fixed(index) => {
+                format!("f{:?}_commitment", index)
+            }
+            Commitments::Permutation(set) => {
+                format!("permutations_committed_{}", set)
+            }
+            Commitments::Lookup(index) => {
+                format!("lookupCommitment{:?}", index)
+            }
+            Commitments::PermutedInput(index) => {
+                format!("permutedInput{:?}", index)
+            }
+            Commitments::PermutedTable(index) => {
+                format!("permutedTable{:?}", index)
+            }
+            Commitments::PermutationsCommon(index) => {
+                format!("p{:?}_commitment", index)
+            }
+            Commitments::VanishingG => "vanishing_g".to_string(),
+            Commitments::VanishingRand => "vanishingRand".to_string(),
+        }
+    }
+}
+
+impl PlinthExpression for Evaluations {
+    fn compile_expression(&self) -> String {
+        match self {
+            Evaluations::Advice(index) => {
+                format!("adviceEval{:?}", index)
+            }
+            Evaluations::Fixed(index) => {
+                format!("fixedEval{:?}", index)
+            }
+            Evaluations::Permutation(set, index) => {
+                format!("permutations_evaluated_{}_{}", set, index)
+            }
+            Evaluations::Lookup(index) => {
+                format!("product_eval_{:?}", index)
+            }
+            Evaluations::LookupNext(index) => {
+                format!("product_next_eval_{:?}", index)
+            }
+            Evaluations::PermutedInput(index) => {
+                format!("permuted_input_eval_{:?}", index)
+            }
+            Evaluations::PermutedInputInverse(index) => {
+                format!("permuted_input_inv_eval_{:?}", index)
+            }
+            Evaluations::PermutedTable(index) => {
+                format!("permuted_table_eval_{:?}", index)
+            }
+            Evaluations::PermutationsCommon(index) => {
+                format!("permutationCommon{:?}", index)
+            }
+
+            Evaluations::VanishingS => "vanishing_s".to_string(),
+
+            Evaluations::RandomEval => "randomEval".to_string(),
+        }
+    }
+}
+
+impl AikenExpression for Evaluations {
+    fn compile_expression(&self) -> String {
+        match self {
+            Evaluations::Advice(index) => {
+                format!("advice_eval_{:?}", index)
+            }
+            Evaluations::Fixed(index) => {
+                format!("fixed_eval_{:?}", index)
+            }
+            Evaluations::Permutation(set, index) => {
+                format!("permutations_evaluated_{}_{}", set, index)
+            }
+            Evaluations::Lookup(index) => {
+                format!("product_eval_{:?}", index)
+            }
+            Evaluations::LookupNext(index) => {
+                format!("product_next_eval_{:?}", index)
+            }
+            Evaluations::PermutedInput(index) => {
+                format!("permuted_input_eval_{:?}", index)
+            }
+            Evaluations::PermutedInputInverse(index) => {
+                format!("permuted_input_inv_eval_{:?}", index)
+            }
+            Evaluations::PermutedTable(index) => {
+                format!("permuted_table_eval_{:?}", index)
+            }
+            Evaluations::PermutationsCommon(index) => {
+                format!("permutation_common_{:?}", index)
+            }
+            Evaluations::VanishingS => "vanishing_s".to_string(),
+            Evaluations::RandomEval => "random_eval".to_string(),
+        }
+    }
+}
+
+impl AikenExpression for Commitments {
+    fn compile_expression(&self) -> String {
+        match self {
+            Commitments::Advice(index) => {
+                format!("a{:?}", index)
+            }
+            Commitments::Fixed(index) => {
+                format!("f{:?}_commitment", index)
+            }
+            Commitments::Permutation(set) => {
+                format!("permutations_committed_{}", set)
+            }
+            Commitments::Lookup(index) => {
+                format!("lookup_commitment_{:?}", index)
+            }
+            Commitments::PermutedInput(index) => {
+                format!("permuted_input_{:?}", index)
+            }
+            Commitments::PermutedTable(index) => {
+                format!("permuted_table_{:?}", index)
+            }
+            Commitments::PermutationsCommon(index) => {
+                format!("p{:?}_commitment", index)
+            }
+            Commitments::VanishingG => "vanishing_g".to_string(),
+            Commitments::VanishingRand => "vanishing_rand".to_string(),
+        }
+    }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, Eq, PartialEq, Hash)]
+pub enum Commitments {
+    Advice(usize),
+    Fixed(usize),
+    Permutation(char),
+    PermutationsCommon(usize),
+    VanishingG,
+    VanishingRand,
+    Lookup(usize),
+    PermutedInput(usize),
+    PermutedTable(usize),
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, Eq, PartialEq, Hash)]
+pub enum Evaluations {
+    Advice(usize),
+    Fixed(usize),
+    Permutation(char, usize),
+    PermutationsCommon(usize),
+    VanishingS,
+    RandomEval,
+    Lookup(usize),
+    PermutedInput(usize),
+    PermutedTable(usize),
+    PermutedInputInverse(usize),
+    LookupNext(usize),
+}
+
+impl Default for Commitments {
+    fn default() -> Self {
+        Commitments::Advice(0)
+    }
+}
+
+impl Default for Evaluations {
+    fn default() -> Self {
+        Evaluations::Advice(0)
+    }
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize, Default)]
 pub struct CommitmentData {
-    pub commitment: String,
+    pub commitment: Commitments,
     pub point_set_index: usize,
-    pub evaluations: Vec<String>,
+    pub evaluations: Vec<Evaluations>,
     pub points: Vec<RotationDescription>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, Default)]
 pub struct Query {
-    pub commitment: String,
-    pub evaluation: String,
+    pub commitment: Commitments,
+    pub evaluation: Evaluations,
     pub point: RotationDescription,
 }
 

@@ -1,17 +1,20 @@
 use aiken/collection/list.{at, drop, foldl, head, take}
 use aiken/crypto/bitwise.{State}
 use aiken/crypto/bls12_381/g1.{add as addG1, scale as scaleG1, zero}
+use aiken/crypto/bls12_381/g2.{generator as generatorG2}
 use aiken/crypto/bls12_381/scalar.{
   Scalar, add, from_int, mul, neg, recip, scale, sub,
 }
 use inner_product.{inner_product}
 use lagrange.{lagrange_polynomial_basis}
-use omega_rotations.{rotate_omegas}
+use omega_rotations.{rotate_omegas, rotate_omega, powers}
 use transcript.{
   common_scalar, construct_transcript, read_point, read_scalar,
   squeeze_challenge,
 }
-use verifier_key.{barycentric_weight, blinding_factors, omega, omega_inv}
+use verifier_key.{barycentric_weight, blinding_factors, omega, omega_inv, g2_const, {{{F_IMPORTS}}}, {{{P_IMPORTS}}} }
+use halo2_kzg.{build_msm, eval}
+use aiken/crypto/bls12_381/pairing.{miller_loop, final_exponentiation}
 
 pub fn verifier(proof: Data, transcript_rep: State<Scalar>, {{{PUBLIC_INPUTS_NAMES}}}) -> Bool {
 
@@ -21,8 +24,6 @@ pub fn verifier(proof: Data, transcript_rep: State<Scalar>, {{{PUBLIC_INPUTS_NAM
     let scalarZero = from_int(0)
     let scalarOne = from_int(1)
     let scalarDelta = from_int(0x08634d0aa021aaf843cab354fabb0062f6502437c6a09c006c083479590189d7)
-
-    let x_exponent = {{{X_EXPONENT}}}
 
     let inputs_count = from_int({{{PUBLIC_INPUTS_COUNT}}})
 
@@ -37,8 +38,10 @@ pub fn verifier(proof: Data, transcript_rep: State<Scalar>, {{{PUBLIC_INPUTS_NAM
     let n = {{X_EXPONENT}}
     let xn = scale( x, n)
 
-    let n = 16384
-    let xn = scale(x, n)
+    let x_prev = rotate_omega(omega, omega_inv, x, (-1))
+    let x_current = rotate_omega(omega, omega_inv, x, 0)
+    let x_next = rotate_omega(omega, omega_inv, x, 1)
+    let x_last = rotate_omega(omega, omega_inv, x, (-(blinding_factors + 1)))
 
     let evaluations_of_lagrange_polynomial =
         lagrange_polynomial_basis(
@@ -98,5 +101,57 @@ pub fn verifier(proof: Data, transcript_rep: State<Scalar>, {{{PUBLIC_INPUTS_NAM
     // this is MSM done for h-commitments
 {{{H_COMMITMENTS}}}
 
-    True
+{{{COMMITMENT_MAP}}}
+
+{{{POINT_SETS}}}
+
+    // left and s_g2
+    // right and g2
+    // g2 is not negated as final_exponentiation is doing negation
+    let g2 = generatorG2
+
+    let x1Powers = powers({{{X1_POWERS_COUNT}}}, x1)
+    let x4Powers = powers({{{X4_POWERS_COUNT}}}, x4)
+
+    let alt_right =
+          build_msm(
+              x1Powers,
+              x2,
+              x3,
+              x4Powers,
+              f_commitment,
+              pi_term,
+              [{{{Q_EVALS_FROM_PROOF}}}],
+              commitment_data,
+              point_sets)
+
+
+    let el = pi_term
+    let er = eval(alt_right)
+
+    let ml_l = miller_loop(el, g2_const)
+    let ml_r = miller_loop(er, g2)
+
+    final_exponentiation(ml_l, ml_r)
+}
+
+// this test generates random input data for verifier
+test check_valid_proof_valid_public_inputs() {
+    expect {{{TEST_VALID_PROOF_VALID_INPUTS}}} == True
+}
+
+test check_proof_invalid_publuc_inputs(){
+    expect {{{TEST_VALID_PROOF_INVALID_INPUTS}}} == False
+}
+
+test check_invalid_proof_invalid_publuc_inputs(){
+    expect {{{TEST_INVALID_PROOF_INVALID_INPUTS}}} == False
+}
+
+test check_valid_proof_trivial_public_inputs() {
+    expect {{{TEST_VALID_PROOF_TRIVIAL_INPUTS}}} == False
+}
+
+test check_valid_proof_invalid_transcript_rep() {
+    expect {{{TEST_VALID_PROOF_INVALID_TRANSCRIPT_REP}}} == False
 }

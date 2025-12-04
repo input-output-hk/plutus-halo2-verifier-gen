@@ -23,6 +23,7 @@ import PlutusTx.Prelude (
     MultiplicativeMonoid (one),
     abs,
     bls12_381_G2_compress,
+    bls12_381_G1_compress,
     fmap,
     fromBuiltin,
     otherwise,
@@ -34,6 +35,7 @@ import PlutusTx.Prelude (
 import Text.Hex (encodeHex)
 import Text.Printf (printf)
 import qualified Prelude as Haskell
+import Data.Char (toUpper)
 
 printAsHex :: BuiltinByteString -> Haskell.String
 printAsHex a = (Haskell.show Haskell.. encodeHex Haskell.. fromBuiltin Haskell.$ a)
@@ -86,8 +88,9 @@ instance Haskell.Show Tracing where
             (x, y) = deconstructG1Point t
             x_s = unFp x
             y_s = unFp y
+            compressed_form = bls12_381_G1_compress t
          in
-            printf "( 0x%x , 0x%x )" x_s y_s
+            (printf "affine: ( 0x%x , 0x%x ) compressed: " x_s y_s) Haskell.++ (printf (Haskell.map toUpper (printAsHex compressed_form)))
     show (TracingG2 t) =
         let compressed_form = bls12_381_G2_compress t
          in printf (printAsHex compressed_form)
@@ -104,6 +107,8 @@ instance Haskell.Show Tracing where
                     ( \(MSMElem (scalar, g1)) ->
                         "( "
                             Haskell.++ (printf "0x%x" (unScalar scalar))
+                            Haskell.++ " as dec: "
+                            Haskell.++ (printf "%d" (unScalar scalar))
                             Haskell.++ "; "
                             Haskell.++ (Haskell.show (TracingG1 g1))
                             Haskell.++ ")"

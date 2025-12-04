@@ -1,17 +1,23 @@
+use crate::plutus_gen::decode_rotation;
 use crate::plutus_gen::extraction::{
     AikenExpression, combine_aiken_expressions,
     data::{CircuitRepresentation, ProofExtractionSteps},
+    precompute_intermediate_sets,
 };
+use blstrs::Scalar;
+use ff::Field;
 use halo2_proofs::halo2curves::group::GroupEncoding;
 use handlebars::{Handlebars, RenderError};
 use itertools::Itertools;
 use log::debug;
+use std::ops::Neg;
 use std::{collections::HashMap, fs::File, iter::once, path::Path};
 
 pub fn emit_verifier_code(
     template_file: &Path, // aiken mustashe template
     aiken_file: &Path,    // generated aiken file, output
     circuit: &CircuitRepresentation,
+    test_data: Option<(Vec<u8>, Scalar, Vec<Scalar>)>,
 ) -> Result<String, RenderError> {
     let letters = 'a'..='z';
     let proof_extraction: Vec<_> = circuit
@@ -75,14 +81,14 @@ pub fn emit_verifier_code(
             ProofExtractionSteps::LookupPermuted => section
                 .enumerate()
                 .map(|(number, _lookup_permuted)| {
-                    format!("    let (permuted_input{}, transcript) =  read_point(transcript)\n", number + 1)
-                        + &format!("    let (permuted_table{}, transcript) =  read_point(transcript)\n", number + 1)
+                    format!("    let (permuted_input_{}, transcript) =  read_point(transcript)\n", number + 1)
+                        + &format!("    let (permuted_table_{}, transcript) =  read_point(transcript)\n", number + 1)
                 })
                 .join(""),
             ProofExtractionSteps::LookupCommitment => section
                 .enumerate()
                 .map(|(number, _lookup_commitment)| {
-                    format!("    let (lookup_commitment{}, transcript) =  read_point(transcript)\n", number + 1)
+                    format!("    let (lookup_commitment_{}, transcript) =  read_point(transcript)\n", number + 1)
                 })
                 .join(""),
             ProofExtractionSteps::LookupEval => section
@@ -104,7 +110,7 @@ pub fn emit_verifier_code(
             ProofExtractionSteps::X3 => "    let (x3, transcript) = squeeze_challenge(transcript)\n".to_string(),
             ProofExtractionSteps::X4 => "    let (x4, transcript) = squeeze_challenge(transcript)\n".to_string(),
             ProofExtractionSteps::FCommitment => "    let (f_commitment, transcript) =  read_point(transcript)\n".to_string(),
-            ProofExtractionSteps::PI => "    let (pi_term, transcript) =  read_point(transcript)\n".to_string(),
+            ProofExtractionSteps::PI => "    let (pi_term, _) =  read_point(transcript)\n".to_string(),
             ProofExtractionSteps::QEvals => section
                 .enumerate()
                 .map(|(number, _permutation_common)| {
@@ -417,6 +423,188 @@ pub fn emit_verifier_code(
         .join("");
     data.insert("H_COMMITMENTS".to_string(), h_commitments);
 
+    let (unique_grouped_points, commitment_data) = precompute_intermediate_sets(circuit);
+
+    let point_sets_indexes: Vec<usize> = (0..unique_grouped_points.len()).collect();
+    let max_commitments_per_points_set = point_sets_indexes
+        .iter()
+        .map(|&idx| {
+            commitment_data
+                .iter()
+                .filter(|cd| cd.point_set_index == idx)
+                .count()
+        })
+        .max()
+        .unwrap_or(0);
+    data.insert(
+        "X1_POWERS_COUNT".to_string(),
+        max_commitments_per_points_set.to_string(),
+    );
+
+    data.insert(
+        "X4_POWERS_COUNT".to_string(),
+        (point_sets_indexes.len() + 1).to_string(),
+    );
+
+    let q_evaluations = (1..=circuit.instantiation_data.q_evaluations_count)
+        .map(|n| format!("q_eval_on_x3_{}", n))
+        .join(", ");
+    data.insert("Q_EVALS_FROM_PROOF".to_string(), q_evaluations);
+
+    let commitment_data = commitment_data
+        .iter()
+        .map(|commitment_data| {
+            format!(
+                "{}, {}, [{}], [{}]",
+                commitment_data.commitment.compile_expression(),
+                commitment_data.point_set_index,
+                commitment_data.points.iter().map(decode_rotation).join(","),
+                commitment_data
+                    .evaluations
+                    .iter()
+                    .map(AikenExpression::compile_expression)
+                    .join(",")
+            )
+        })
+        .join("),(");
+
+    let commitment_map = format!("    let commitment_data = [({})]", commitment_data);
+    data.insert("COMMITMENT_MAP".to_string(), commitment_map);
+
+    let point_sets = unique_grouped_points
+        .iter()
+        .map(|set| set.iter().map(decode_rotation).join(","))
+        .join("],[");
+
+    let point_sets = format!("     let point_sets = [[{}]]", point_sets);
+    data.insert("POINT_SETS".to_string(), point_sets);
+
+    let fixed_commitments_imports = (1..=circuit.instantiation_data.fixed_commitments.len())
+        .map(|id| format!("f{}_commitment", id))
+        .join(", ");
+    let permutation_commitments_imports =
+        (1..=circuit.instantiation_data.permutation_commitments.len())
+            .map(|id| format!("p{}_commitment", id))
+            .join(", ");
+
+    data.insert("F_IMPORTS".to_string(), fixed_commitments_imports);
+    data.insert("P_IMPORTS".to_string(), permutation_commitments_imports);
+
+    match test_data {
+        None => {
+            data.insert(
+                "TEST_VALID_PROOF_VALID_INPUTS".to_string(),
+                "True".to_string(),
+            );
+            data.insert(
+                "TEST_VALID_PROOF_INVALID_INPUTS".to_string(),
+                "False".to_string(),
+            );
+            data.insert(
+                "TEST_INVALID_PROOF_INVALID_INPUTS".to_string(),
+                "False".to_string(),
+            );
+            data.insert(
+                "TEST_VALID_PROOF_TRIVIAL_INPUTS".to_string(),
+                "False".to_string(),
+            );
+            data.insert(
+                "TEST_TRIVIAL_PROOF_TRIVIAL_INPUTS".to_string(),
+                "False".to_string(),
+            );
+        }
+        Some((proof, transcript_rep, public_inputs)) => {
+            let mut invalid_proof = proof.clone();
+
+            // index points to one of last bytes of las scalar that is part of the proof
+            // this should be safe and not result in malformed encoding exception
+            // which is likely for flipping Byte for compressed G1 element
+            let index = invalid_proof.len() - 1 - 48 - 2;
+            let firs_byte = invalid_proof[index];
+            let negated_firs_byte = !firs_byte;
+            invalid_proof[index] = negated_firs_byte;
+
+            let test_valid_proof_valid_inputs = format!(
+                "verifier(#\"{}\", from_int(0x{}), {})",
+                hex::encode(proof.clone()),
+                hex::encode(transcript_rep.to_bytes_be()),
+                public_inputs
+                    .iter()
+                    .map(|e| format!("from_int(0x{})", hex::encode(e.to_bytes_be())))
+                    .join(", ")
+            );
+
+            data.insert(
+                "TEST_VALID_PROOF_VALID_INPUTS".to_string(),
+                test_valid_proof_valid_inputs,
+            );
+
+            let test_valid_proof_invalid_inputs = format!(
+                "verifier(#\"{}\", from_int(0x{}), {})",
+                hex::encode(proof.clone()),
+                hex::encode(transcript_rep.to_bytes_be()),
+                public_inputs
+                    .iter()
+                    .map(|e| {
+                        let invalid_input = e.neg();
+                        format!("from_int(0x{})", hex::encode(invalid_input.to_bytes_be()))
+                    })
+                    .join(", ")
+            );
+
+            data.insert(
+                "TEST_VALID_PROOF_INVALID_INPUTS".to_string(),
+                test_valid_proof_invalid_inputs,
+            );
+
+            let test_invalid_proof_invalid_inputs = format!(
+                "verifier(#\"{}\", from_int(0x{}), {})",
+                hex::encode(invalid_proof),
+                hex::encode(transcript_rep.to_bytes_be()),
+                public_inputs
+                    .iter()
+                    .map(|e| {
+                        let invalid_input = e.neg();
+                        format!("from_int(0x{})", hex::encode(invalid_input.to_bytes_be()))
+                    })
+                    .join(", ")
+            );
+
+            data.insert(
+                "TEST_INVALID_PROOF_INVALID_INPUTS".to_string(),
+                test_invalid_proof_invalid_inputs,
+            );
+
+            let test_valid_proof_trivial_inputs = format!(
+                "verifier(#\"{}\", from_int(0x{}), {})",
+                hex::encode(proof.clone()),
+                hex::encode(transcript_rep.to_bytes_be()),
+                public_inputs
+                    .iter()
+                    .map(|_e| format!("from_int(0x{})", hex::encode(Scalar::ONE.to_bytes_be())))
+                    .join(", ")
+            );
+            data.insert(
+                "TEST_VALID_PROOF_TRIVIAL_INPUTS".to_string(),
+                test_valid_proof_trivial_inputs,
+            );
+
+            let test_valid_proof_invalid_transcript_rep = format!(
+                "verifier(#\"{}\", from_int(0x{}), {})",
+                hex::encode(proof),
+                hex::encode(transcript_rep.neg().to_bytes_be()),
+                public_inputs
+                    .iter()
+                    .map(|e| format!("from_int(0x{})", hex::encode(e.to_bytes_be())))
+                    .join(", ")
+            );
+            data.insert(
+                "TEST_VALID_PROOF_INVALID_TRANSCRIPT_REP".to_string(),
+                test_valid_proof_invalid_transcript_rep,
+            );
+        }
+    }
+
     let mut handlebars = Handlebars::new();
     handlebars.set_strict_mode(true);
     handlebars.register_template_file("aiken_template", template_file)?;
@@ -444,7 +632,8 @@ pub fn emit_vk_code(
         .map(|(idx, g1_encoded)| {
             format!(
                 "pub const f{}_commitment: G1Element = bls12_381_g1_uncompress(#\"{}\")",
-                idx, g1_encoded
+                idx + 1,
+                g1_encoded
             )
         })
         .join("\n");
@@ -463,7 +652,8 @@ pub fn emit_vk_code(
         .map(|(idx, g1_encoded)| {
             format!(
                 "pub const p{}_commitment: G1Element = bls12_381_g1_uncompress(#\"{}\")",
-                idx, g1_encoded
+                idx + 1,
+                g1_encoded
             )
         })
         .join("\n");
@@ -508,9 +698,9 @@ pub fn emit_vk_code(
 
     let permutation_commitments = circuit.instantiation_data.permutation_commitments.len();
 
-    let fixed = (0..fixed_commitments)
+    let fixed = (1..=fixed_commitments)
         .map(|idx| format!("    expect f{}_commitment == f{}_commitment", idx, idx));
-    let permutations = (0..permutation_commitments)
+    let permutations = (1..=permutation_commitments)
         .map(|idx| format!("    expect p{}_commitment == p{}_commitment", idx, idx));
 
     let budget_check = fixed

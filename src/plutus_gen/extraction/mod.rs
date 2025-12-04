@@ -1,6 +1,6 @@
 use crate::plutus_gen::extraction::data::{
-    CircuitRepresentation, CommitmentData, ExpressionG1, ProofExtractionSteps, Query,
-    RotationDescription, ScalarExpression,
+    CircuitRepresentation, CommitmentData, Commitments, Evaluations, ExpressionG1,
+    ProofExtractionSteps, Query, RotationDescription, ScalarExpression,
 };
 use crate::plutus_gen::extraction::utils::get_any_query_index;
 use blstrs::{Bls12, G1Affine, G1Projective, Scalar};
@@ -484,9 +484,7 @@ where
                         // a + (b * c) + d
                         let a = ScalarExpression::Advice(eval_index);
                         let b = ScalarExpression::Variable("beta".to_string());
-                        let c = ScalarExpression::PermutationCommon(
-                            permutation_index
-                        );
+                        let c = ScalarExpression::PermutationCommon(permutation_index);
                         let d = ScalarExpression::Variable("gamma".to_string());
 
                         let term = ScalarExpression::Sum(
@@ -580,7 +578,7 @@ where
                         // (fixedEval{:?} + (beta * x) * (powMod scalarDelta {:?}) + gamma)
                         // a + (b * c) * d + e
 
-                        let a = ScalarExpression::Advice(eval_index);
+                        let a = ScalarExpression::Fixed(eval_index);
                         let b = ScalarExpression::Variable("beta".to_string());
                         let c = ScalarExpression::Variable("x".to_string());
                         let d = ScalarExpression::PowMod(
@@ -648,7 +646,7 @@ where
         Box::new(ExpressionG1::Zero),
         ScalarExpression::Variable("xn".to_string()),
     );
-    let b = ExpressionG1::VanishingSplit( vanishing_splits_count);
+    let b = ExpressionG1::VanishingSplit(vanishing_splits_count);
     let term = ExpressionG1::Sum(Box::new(a), Box::new(b));
 
     circuit_description
@@ -662,7 +660,7 @@ where
             Box::new(ExpressionG1::Variable(format!("hCommitment{:?}", i))),
             ScalarExpression::Variable("xn".to_string()),
         );
-        let b = ExpressionG1::VanishingSplit( vanishing_splits_count - i);
+        let b = ExpressionG1::VanishingSplit(vanishing_splits_count - i);
         let term = ExpressionG1::Sum(Box::new(a), Box::new(b));
 
         circuit_description
@@ -707,8 +705,8 @@ where
         .enumerate()
         .for_each(|(query_index, &(column, at))| {
             circuit_description.advice_queries.push(Query {
-                commitment: format!("a{:?}", column.index() + 1),
-                evaluation: format!("adviceEval{:?}", query_index + 1),
+                commitment: Commitments::Advice(column.index() + 1), //format!("a{:?}", column.index() + 1),
+                evaluation: Evaluations::Advice(query_index + 1), //format!("adviceEval{:?}", query_index + 1),
                 point: decode(at.0),
             });
         });
@@ -719,29 +717,29 @@ where
         .enumerate()
         .for_each(|(query_index, &(column, at))| {
             circuit_description.fixed_queries.push(Query {
-                commitment: format!("f{:?}_commitment", column.index() + 1),
-                evaluation: format!("fixedEval{:?}", query_index + 1),
+                commitment: Commitments::Fixed(column.index() + 1), //format!("f{:?}_commitment", column.index() + 1),
+                evaluation: Evaluations::Fixed(query_index + 1), //format!("fixedEval{:?}", query_index + 1),
                 point: decode(at.0),
             });
         });
 
     for set in sets.iter() {
         circuit_description.permutation_queries.push(Query {
-            commitment: format!("permutations_committed_{}", set),
-            evaluation: format!("permutations_evaluated_{}_1", set),
+            commitment: Commitments::Permutation(**set), //format!("permutations_committed_{}", set),
+            evaluation: Evaluations::Permutation(**set, 1), //format!("permutations_evaluated_{}_1", set),
             point: RotationDescription::Current,
         });
         circuit_description.permutation_queries.push(Query {
-            commitment: format!("permutations_committed_{}", set),
-            evaluation: format!("permutations_evaluated_{}_2", set),
+            commitment: Commitments::Permutation(**set), //format!("permutations_committed_{}", set),
+            evaluation: Evaluations::Permutation(**set, 2), //format!("permutations_evaluated_{}_2", set),
             point: RotationDescription::Next,
         });
     }
     // for all but last
     for set in sets.iter().rev().skip(1) {
         circuit_description.permutation_queries.push(Query {
-            commitment: format!("permutations_committed_{}", set),
-            evaluation: format!("permutations_evaluated_{}_3", set),
+            commitment: Commitments::Permutation(**set), //format!("permutations_committed_{}", set),
+            evaluation: Evaluations::Permutation(**set, 3), //format!("permutations_evaluated_{}_3", set),
             point: RotationDescription::Last,
         });
     }
@@ -754,20 +752,20 @@ where
 
     (0..permutation_common).for_each(|idx| {
         circuit_description.common_queries.push(Query {
-            commitment: format!("p{:?}_commitment", idx + 1),
-            evaluation: format!("permutationCommon{:?}", idx + 1),
+            commitment: Commitments::PermutationsCommon(idx + 1), //format!("p{:?}_commitment", idx + 1),
+            evaluation: Evaluations::PermutationsCommon(idx + 1), //format!("permutationCommon{:?}", idx + 1),
             point: RotationDescription::Current,
         });
     });
 
     circuit_description.vanishing_queries.push(Query {
-        commitment: "vanishing_g".to_string(),
-        evaluation: "vanishing_s".to_string(),
+        commitment: Commitments::VanishingG, //"vanishing_g".to_string(),
+        evaluation: Evaluations::VanishingS, //"vanishing_s".to_string(),
         point: RotationDescription::Current,
     });
     circuit_description.vanishing_queries.push(Query {
-        commitment: "vanishingRand".to_string(),
-        evaluation: "randomEval".to_string(),
+        commitment: Commitments::VanishingRand, //"vanishingRand".to_string(),
+        evaluation: Evaluations::RandomEval,    //"randomEval".to_string(),
         point: RotationDescription::Current,
     });
 
@@ -780,28 +778,28 @@ where
 
     (0..lookup_commitment_count).for_each(|idx| {
         circuit_description.lookup_queries.push(Query {
-            commitment: format!("lookupCommitment{:?}", idx + 1),
-            evaluation: format!("product_eval_{:?}", idx + 1),
+            commitment: Commitments::Lookup(idx + 1), //format!("lookupCommitment{:?}", idx + 1),
+            evaluation: Evaluations::Lookup(idx + 1), //format!("product_eval_{:?}", idx + 1),
             point: RotationDescription::Current,
         });
         circuit_description.lookup_queries.push(Query {
-            commitment: format!("permutedInput{:?}", idx + 1),
-            evaluation: format!("permuted_input_eval_{:?}", idx + 1),
+            commitment: Commitments::PermutedInput(idx + 1), //format!("permutedInput{:?}", idx + 1),
+            evaluation: Evaluations::PermutedInput(idx + 1), //format!("permuted_input_eval_{:?}", idx + 1),
             point: RotationDescription::Current,
         });
         circuit_description.lookup_queries.push(Query {
-            commitment: format!("permutedTable{:?}", idx + 1),
-            evaluation: format!("permuted_table_eval_{:?}", idx + 1),
+            commitment: Commitments::PermutedTable(idx + 1), //format!("permutedTable{:?}", idx + 1),
+            evaluation: Evaluations::PermutedTable(idx + 1), //format!("permuted_table_eval_{:?}", idx + 1),
             point: RotationDescription::Current,
         });
         circuit_description.lookup_queries.push(Query {
-            commitment: format!("permutedInput{:?}", idx + 1),
-            evaluation: format!("permuted_input_inv_eval_{:?}", idx + 1),
+            commitment: Commitments::PermutedInput(idx + 1), //format!("permutedInput{:?}", idx + 1),
+            evaluation: Evaluations::PermutedInputInverse(idx + 1), //format!("permuted_input_inv_eval_{:?}", idx + 1),
             point: RotationDescription::Previous,
         });
         circuit_description.lookup_queries.push(Query {
-            commitment: format!("lookupCommitment{:?}", idx + 1),
-            evaluation: format!("product_next_eval_{:?}", idx + 1),
+            commitment: Commitments::Lookup(idx + 1), //format!("lookupCommitment{:?}", idx + 1),
+            evaluation: Evaluations::LookupNext(idx + 1), //format!("product_next_eval_{:?}", idx + 1),
             point: RotationDescription::Next,
         });
     });
@@ -814,20 +812,16 @@ pub fn precompute_intermediate_sets(
 ) -> (Vec<Vec<RotationDescription>>, Vec<CommitmentData>) {
     let queries = circuit_description.all_queries_ordered();
 
-    let ordered_unique_commitments: Vec<String> = queries
-        .iter()
-        .flatten()
-        .map(|q| &q.commitment)
-        .cloned()
-        .unique()
-        .collect();
+    let ordered_unique_commitments = queries.iter().flatten().map(|q| &q.commitment);
+    let ordered_unique_commitments: Vec<Commitments> =
+        ordered_unique_commitments.cloned().unique().collect();
 
-    let commitment_map: HashMap<String, _> = queries
+    let commitment_map: HashMap<Commitments, _> = queries
         .iter()
         .flatten()
         .into_group_map_by(|e| e.commitment.clone());
 
-    let point_sets_map: HashMap<String, Vec<RotationDescription>> = commitment_map
+    let point_sets_map: HashMap<Commitments, Vec<RotationDescription>> = commitment_map
         .iter()
         .map(|(k, v)| {
             (
@@ -847,7 +841,7 @@ pub fn precompute_intermediate_sets(
         grouped_points.push(
             point_sets_map
                 .get(commitment)
-                .unwrap_or_else(|| panic!("point set for commitment {} not found", commitment))
+                .unwrap_or_else(|| panic!("point set for commitment {:?} not found", commitment))
                 .clone(),
         );
     }
@@ -865,12 +859,12 @@ pub fn precompute_intermediate_sets(
     for commitment in ordered_unique_commitments.iter() {
         let query = commitment_map
             .get(commitment)
-            .unwrap_or_else(|| panic!("queries for commitment {} not found", commitment));
+            .unwrap_or_else(|| panic!("queries for commitment {:?} not found", commitment));
         let points: Vec<RotationDescription> = query.iter().map(|q| q.point.clone()).collect();
 
         let point_set_idx = point_sets_indexes
             .get(&points)
-            .unwrap_or_else(|| panic!("point set for commitment {} not found", commitment));
+            .unwrap_or_else(|| panic!("point set for commitment {:?} not found", commitment));
 
         commitment_data.push(CommitmentData {
             commitment: (*commitment).clone(),

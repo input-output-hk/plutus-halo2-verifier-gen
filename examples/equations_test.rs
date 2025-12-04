@@ -49,6 +49,7 @@ fn main() {
         Path::new("aiken-verifier/templates/gates_test.hbs"),
         Path::new("aiken-verifier/aiken_halo2/lib/gates_test.ak"),
         &circuit_representation,
+        None
     )
     .expect("Emitting KZG verification failed");
 }
