@@ -12,7 +12,8 @@ pub fn inner_product(
 }
 
 /// Fast modular multiplicative inverse using Extended Euclidean Algorithm
-/// This is ~3-4x faster than the Fermat-based approach implemented in the Aiken stdlib
+/// This is orders of magnitude cheaper than the Fermat-based approach implemented in the Aiken stdlib
+// TODO: Replace for built-in primitive, once `expModInteger` available in Plutus
 pub fn recip_eea(self: State<Scalar>) -> State<Scalar> {
   let a = to_int(self)
   let inv = egcd_go(a, field_prime, 1, 0)
@@ -37,7 +38,11 @@ fn egcd_go(u: Int, v: Int, x1: Int, x2: Int) -> Int {
 test recip_eea_prop(n via fuzz.int()) {
   let x = if n != 0 { from_int(n) } else { from_int(1) } // zero would panic
   let x_inv = recip_eea(x)
-  mul(x, x_inv) == from_int(1)
+  
+  expect mul(x, x_inv) == from_int(1)
+
+  expect Some(stdlib_inv) = recip(x)
+  expect x_inv == stdlib_inv
 }
 
 test recip_eea_edge_cases() {
