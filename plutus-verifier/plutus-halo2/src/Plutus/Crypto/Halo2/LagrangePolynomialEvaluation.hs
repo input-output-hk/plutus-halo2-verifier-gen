@@ -14,7 +14,7 @@ import Plutus.Crypto.BlsTypes (
     recip,
  )
 import Plutus.Crypto.BlsUtils (rotateOmega)
-import PlutusTx.List (foldl, zip)
+import PlutusTx.List (foldl, zip, head, reverse, tail)
 import PlutusTx.Prelude (
     AdditiveMonoid (..),
     MultiplicativeMonoid (one),
@@ -24,6 +24,7 @@ import PlutusTx.Prelude (
     (+),
     (-),
     (/=),
+    (<>),
  )
 import qualified Prelude
 
@@ -50,10 +51,29 @@ lagrangePolynomialBasis x xn barycentricWeight rotations = result
     !common = (xn - one) * barycentricWeight
 
     inversed :: [Scalar]
-    !inversed = fmap (\rotatedOmega -> recip (x - rotatedOmega)) rotations
+    !inversed = batchInverses $ fmap (\rotatedOmega -> x - rotatedOmega) rotations
+--    !inversed = fmap (\rotatedOmega -> recip (x - rotatedOmega)) rotations --TODO: remove batchInverses when `recip` will use `expModInteger` built-in
 
     result :: [Scalar]
     !result = fmap (\(inv, rotatedOmega) -> inv * common * rotatedOmega) $ zip inversed rotations
+
+batchInverses :: [Scalar] -> [Scalar]
+batchInverses [] = []
+batchInverses l@(a : aCons) = aInv
+  where
+    !bRev =
+        foldl
+            (\accum elem -> elem * head accum : accum)
+            [a]
+            aCons
+    !aRev = reverse l
+    !bInvLast = recip $ head bRev
+    !(aInv', bInv_1) =
+        foldl
+            (\(aInvAccum, bInv_i) (b_i_min_1, a_i) -> (bInv_i * b_i_min_1 : aInvAccum, bInv_i * a_i))
+            ([], bInvLast)
+            (zip (tail bRev) aRev)
+    !aInv = bInv_1 : aInv'
 
 getRotatedOmegas :: Scalar -> Scalar -> Prelude.Integer -> Prelude.Integer -> [Scalar]
 getRotatedOmegas omega omegaInv from to =
