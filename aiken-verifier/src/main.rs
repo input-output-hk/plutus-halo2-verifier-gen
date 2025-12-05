@@ -3,6 +3,7 @@ mod utils;
 
 use crate::api::{BlockFrostNodeAPI, load_env_vars, to_config};
 use crate::utils::to_address;
+use anyhow::{Context as _, Result, anyhow};
 use cardano_serialization_lib::{
     Address, BigInt, CostModel, Costmdls, Credential, EnterpriseAddress, ExUnits, FixedTransaction,
     Int, Language, MintBuilder, MintWitness, PlutusData, PlutusScript, PlutusScriptSource,
@@ -15,7 +16,6 @@ use cardano_serialization_lib::{
 };
 use log::info;
 use serde::Deserialize;
-use std::error::Error;
 use std::fs::File;
 use std::io::BufReader;
 
@@ -32,10 +32,11 @@ struct Validator {
 }
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn Error>> {
+async fn main() -> Result<()> {
     env_logger::init_from_env(env_logger::Env::default().filter_or("RUST_LOG", "trace"));
 
-    let (api_key, private_key) = load_env_vars();
+    let (api_key, private_key) =
+        load_env_vars().context("Failed to load necessary environment variables")?;
 
     let file: File = File::open("aiken_halo2/plutus.json")?;
     let reader: BufReader<File> = BufReader::new(file);
@@ -46,7 +47,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .validators
         .iter()
         .find(|v| v.title == validator_title)
-        .ok_or(format!("Validator '{}' not found", validator_title))?;
+        .ok_or_else(|| anyhow!("Validator '{}' not found", validator_title))?;
 
     info!("Found validator: {}", validator.title);
 
@@ -96,7 +97,7 @@ pub async fn mint(
     receiving_address: &Address,
     input_utxos: &Vec<(TransactionInput, Value)>,
     collateral_utxos: &Vec<(TransactionInput, Value)>,
-) -> Result<Transaction, Box<dyn Error>> {
+) -> Result<Transaction> {
     let public_key = private_key_paying_for_mint.to_public();
     let address: Address = to_address(&public_key);
 

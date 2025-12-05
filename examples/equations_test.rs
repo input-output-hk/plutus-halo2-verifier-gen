@@ -1,3 +1,4 @@
+use anyhow::{Context as _, Result, anyhow};
 use blstrs::{Base, Bls12, Scalar};
 use halo2_proofs::plonk::{VerifyingKey, k_from_circuit, keygen_vk};
 use halo2_proofs::poly::kzg::KZGCommitmentScheme;
@@ -10,7 +11,7 @@ use rand::prelude::StdRng;
 use rand_core::SeedableRng;
 use std::path::Path;
 
-fn main() {
+fn main() -> Result<()> {
     type KZG = KZGCommitmentScheme<Bls12>;
 
     let seed = [0u8; 32];
@@ -39,8 +40,8 @@ fn main() {
     let instances: &[&[&[Scalar]]] = &[&[&[pks_comm, msg, Base::from(THRESHOLD as u64)]]];
 
     let circuit_representation = extract_circuit(&kzg_params, &vk, instances)
-        .map_err(|e| e.to_string())
-        .expect("Circuit extraction failed");
+        .map_err(|e| anyhow!("{e}"))
+        .context("Circuit extraction failed")?;
 
     // Step 2: extract KZG steps specific to used commitment scheme
     let circuit_representation = KZG::extract_kzg_steps(circuit_representation);
@@ -51,5 +52,7 @@ fn main() {
         &circuit_representation,
         None
     )
-    .expect("Emitting KZG verification failed");
+    .context("Emitting KZG verification failed")?;
+
+    Ok(())
 }

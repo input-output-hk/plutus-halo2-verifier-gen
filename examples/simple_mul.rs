@@ -1,3 +1,4 @@
+use anyhow::{Context as _, Result, anyhow, bail};
 use blstrs::{Base, Bls12, G1Projective, Scalar};
 use ff::Field;
 use halo2_proofs::{
@@ -25,17 +26,15 @@ use rand_core::SeedableRng;
 use std::env;
 use std::fs::File;
 
-fn main() {
+fn main() -> Result<()> {
     env_logger::init_from_env(env_logger::Env::default().filter_or("RUST_LOG", "info"));
 
     let args: Vec<String> = env::args().collect();
 
     match &args[1..] {
-        [] => {
-            compile_simple_mul_circuit::<KZGCommitmentScheme<Bls12>>();
-        }
+        [] => compile_simple_mul_circuit::<KZGCommitmentScheme<Bls12>>(),
         [command] if command == "gwc_kzg" => {
-            compile_simple_mul_circuit::<GwcKZGCommitmentScheme<Bls12>>();
+            compile_simple_mul_circuit::<GwcKZGCommitmentScheme<Bls12>>()
         }
         _ => {
             println!("Usage:");
@@ -43,6 +42,8 @@ fn main() {
             println!(
                 "- to run the example using the GWC19 version of multi-open KZG, run: `cargo run --example example_name gwc_kzg`"
             );
+
+            bail!("Invalid command line arguments")
         }
     }
 }
@@ -54,7 +55,7 @@ fn compile_simple_mul_circuit<
             Parameters = ParamsKZG<Bls12>,
             VerifierParameters = ParamsVerifierKZG<Bls12>,
         > + ExtractKZG,
->() {
+>() -> Result<()> {
     // Prepare the private and public inputs to the circuit!
     let constant = Scalar::from(7);
     let a = Scalar::from(2);
@@ -76,8 +77,10 @@ fn compile_simple_mul_circuit<
 
     let k: u32 = k_from_circuit(&circuit);
     let params: ParamsKZG<Bls12> = ParamsKZG::<Bls12>::unsafe_setup(k, rng.clone());
-    let vk: VerifyingKey<_, S> = keygen_vk(&params, &circuit).expect("keygen_vk should not fail");
-    let pk: ProvingKey<_, S> = keygen_pk(vk.clone(), &circuit).expect("keygen_pk should not fail");
+    let vk: VerifyingKey<_, S> =
+        keygen_vk(&params, &circuit).context("keygen_vk should not fail")?;
+    let pk: ProvingKey<_, S> =
+        keygen_pk(vk.clone(), &circuit).context("keygen_pk should not fail")?;
 
     let mut transcript: CircuitTranscript<CardanoFriendlyState> =
         CircuitTranscript::<CardanoFriendlyState>::init();
@@ -90,8 +93,8 @@ fn compile_simple_mul_circuit<
 
     let instances_file =
         "./plutus-verifier/plutus-halo2/test/Generic/serialized_public_input.hex".to_string();
-    let mut output = File::create(instances_file).expect("failed to create instances file");
-    export_public_inputs(instances, &mut output);
+    let mut output = File::create(instances_file).context("failed to create instances file")?;
+    export_public_inputs(instances, &mut output).context("faield to export public inputs")?;
 
     create_proof(
         &params,
@@ -101,7 +104,7 @@ fn compile_simple_mul_circuit<
         &mut rng,
         &mut transcript,
     )
-    .expect("proof generation should not fail");
+    .context("proof generation should not fail")?;
 
     let proof = transcript.finalize();
 
@@ -114,25 +117,30 @@ fn compile_simple_mul_circuit<
         instances,
         &mut transcript_verifier,
     )
-    .expect("prepare verification failed");
+    .context("prepare verification failed")?;
 
     verifier
         .verify(&params.verifier_params())
-        .expect("verify failed");
+        .map_err(|e| anyhow!("{e:?}"))
+        .context("verify failed")?;
 
     serialize_proof(
         "./plutus-verifier/plutus-halo2/test/Generic/serialized_proof.json".to_string(),
         proof.clone(),
     )
-    .expect("json proof serialization failed");
+    .context("json proof serialization failed")?;
 
     export_proof(
         "./plutus-verifier/plutus-halo2/test/Generic/serialized_proof.hex".to_string(),
         proof.clone(),
     )
-    .expect("hex proof serialization failed");
+    .context("hex proof serialization failed")?;
 
-    generate_plinth_verifier(&params, &vk, instances).expect("Plinth verifier generation failed");
+    generate_plinth_verifier(&params, &vk, instances)
+        .context("Plinth verifier generation failed")?;
 
-    generate_aiken_verifier(&params, &vk, instances, Some(proof)).expect("Aiken verifier generation failed");
+    generate_aiken_verifier(&params, &vk, instances, Some(proof))
+        .context("Aiken verifier generation failed")?;
+
+    Ok(())
 }
