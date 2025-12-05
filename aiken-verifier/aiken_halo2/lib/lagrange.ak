@@ -5,33 +5,6 @@ use aiken/crypto/bls12_381/scalar.{
 }
 use bls_utils.{recip_eea}
 
-pub fn evaluate_lagrange_polynomial(
-  point_sets: List<List<State<Scalar>>>,
-  q_eval_sets: List<List<State<Scalar>>>,
-  x2: State<Scalar>,
-  x3: State<Scalar>,
-  proof_X3_q_evals: List<State<Scalar>>,
-) -> State<Scalar> {
-  foldl(
-    reverse(zip(point_sets, zip(q_eval_sets, proof_X3_q_evals))),
-    from_int(0),
-    fn((points, (evals, proofQEval)), acc_eval) {
-      let r_eval = lagrange_evaluation(zip(points, evals), x3)
-      let denominator =
-        recip_eea(
-          foldl(
-            points,
-            from_int(1),
-            fn(point, acc) { mul(acc, sub(x3, point)) },
-          ),
-        )
-      let evaluation = mul(sub(proofQEval, r_eval), denominator)
-
-      add(mul(acc_eval, x2), evaluation)
-    },
-  )
-}
-
 // TODO: Revert to this version of lagrange_evaluation when CIP-109 with built-in inverse is available, because it will be faster than batch_inverses
 // fn lagrange_evaluation(
 //   points: List<(State<Scalar>, State<Scalar>)>,
@@ -66,7 +39,7 @@ pub fn evaluate_lagrange_polynomial(
 // }
 
 // Optimized lagrange_evaluation using batch_inverses
-fn lagrange_evaluation(
+pub fn lagrange_evaluation(
   points: List<(State<Scalar>, State<Scalar>)>,
   x: State<Scalar>,
 ) -> State<Scalar> {
@@ -118,7 +91,7 @@ pub fn lagrange_polynomial_basis(
   map(zipped, fn((inv, rotated_omega)) { mul(mul(inv, common), rotated_omega) })
 }
 
-fn batch_inverses(elements: List<State<Scalar>>) -> List<State<Scalar>> {
+pub fn batch_inverses(elements: List<State<Scalar>>) -> List<State<Scalar>> {
   when elements is {
     [] -> []
     [a, ..a_cons] -> {
