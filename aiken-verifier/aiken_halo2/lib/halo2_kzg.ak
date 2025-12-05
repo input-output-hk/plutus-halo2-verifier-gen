@@ -1,11 +1,11 @@
 use aiken/builtin.{bls12_381_g1_neg}
 use aiken/collection/list.{
-  concat, filter, foldl, is_empty, length, map, push, range, unzip, zip, reverse
+  concat, filter, foldl, is_empty, length, map, push, range, reverse, unzip, zip,
 }
 use aiken/crypto/bitwise.{State}
 use aiken/crypto/bls12_381/g1.{add as add_g1, generator, scale, zero}
-use aiken/crypto/bls12_381/scalar.{Scalar, add, sub, from_int, mul}
-use lagrange.{lagrange_evaluation, batch_inverses}
+use aiken/crypto/bls12_381/scalar.{Scalar, add, from_int, mul, sub}
+use lagrange.{batch_inverses, lagrange_evaluation}
 
 pub type MSMElement {
   scalar: State<Scalar>,
@@ -32,8 +32,7 @@ pub fn build_msm(
   let point_sets_indexes = range(0, length(pointSets) - 1)
   let (q_commitments, q_eval_sets) =
     unzip(build_q(commitmentMap, point_sets_indexes, x1Powers))
-  let f_eval =
-    compute_f_eval(pointSets, q_eval_sets, x2, x3, proofX3QEvals)
+  let f_eval = compute_f_eval(pointSets, q_eval_sets, x2, x3, proofX3QEvals)
   let final_com = final_commitment(q_commitments, f_commitment, x4Powers)
   let v = compute_v(f_eval, x4Powers, proofX3QEvals)
   append_term(
@@ -124,18 +123,20 @@ pub fn compute_f_eval(
   proof_X3_q_evals: List<State<Scalar>>,
 ) -> State<Scalar> {
   // Step 1: Compute r_evals and denominators for all point sets (no inversions yet)
-  let data = map(
-    zip(point_sets, zip(q_eval_sets, proof_X3_q_evals)),
-    fn((points, (evals, proofQEval))) {
-      let r_eval = lagrange_evaluation(zip(points, evals), x3)
-      let denom = foldl(
-        points,
-        from_int(1),
-        fn(point, acc) { mul(acc, sub(x3, point)) }
-      )
-      (r_eval, denom, proofQEval)
-    }
-  )
+  let data =
+    map(
+      zip(point_sets, zip(q_eval_sets, proof_X3_q_evals)),
+      fn((points, (evals, proofQEval))) {
+        let r_eval = lagrange_evaluation(zip(points, evals), x3)
+        let denom =
+          foldl(
+            points,
+            from_int(1),
+            fn(point, acc) { mul(acc, sub(x3, point)) },
+          )
+        (r_eval, denom, proofQEval)
+      },
+    )
 
   // Step 2: Extract denominators and batch invert (1 recip instead of N)
   let denominators = map(data, fn((_, denom, _)) { denom })
@@ -148,7 +149,7 @@ pub fn compute_f_eval(
     fn(((r_eval, _, proofQEval), denom_inv), acc_eval) {
       let evaluation = mul(sub(proofQEval, r_eval), denom_inv)
       add(mul(acc_eval, x2), evaluation)
-    }
+    },
   )
 }
 

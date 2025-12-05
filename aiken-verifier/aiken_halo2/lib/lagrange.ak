@@ -1,8 +1,6 @@
 use aiken/collection/list.{foldl, map, reverse, zip}
 use aiken/crypto/bitwise.{State}
-use aiken/crypto/bls12_381/scalar.{
-  Scalar, add, from_int, mul, sub, sub_int,
-}
+use aiken/crypto/bls12_381/scalar.{Scalar, add, from_int, mul, sub, sub_int}
 use bls_utils.{recip_eea}
 
 // TODO: Revert to this version of lagrange_evaluation when CIP-109 with built-in inverse is available, because it will be faster than batch_inverses
@@ -44,20 +42,25 @@ pub fn lagrange_evaluation(
   x: State<Scalar>,
 ) -> State<Scalar> {
   // Step 1: Compute all (numerator, denominator, yi) tuples
-  let basis_data = map(points, fn((xi, yi)) {
-    let (num, denom) = foldl(
+  let basis_data =
+    map(
       points,
-      (from_int(1), from_int(1)),
-      fn((xj, _), (numerator, denominator)) {
-        if xj == xi {
-          (numerator, denominator)
-        } else {
-          (mul(numerator, sub(x, xj)), mul(denominator, sub(xi, xj)))
-        }
-      }
+      fn((xi, yi)) {
+        let (num, denom) =
+          foldl(
+            points,
+            (from_int(1), from_int(1)),
+            fn((xj, _), (numerator, denominator)) {
+              if xj == xi {
+                (numerator, denominator)
+              } else {
+                (mul(numerator, sub(x, xj)), mul(denominator, sub(xi, xj)))
+              }
+            },
+          )
+        (num, denom, yi)
+      },
     )
-    (num, denom, yi)
-  })
 
   // Step 2: Extract denominators and batch invert (1 recip instead of N!)
   let denominators = map(basis_data, fn((_, denom, _)) { denom })
@@ -69,7 +72,7 @@ pub fn lagrange_evaluation(
     from_int(0),
     fn(((num, _, yi), denom_inv), acc) {
       add(acc, mul(yi, mul(num, denom_inv)))
-    }
+    },
   )
 }
 
@@ -86,7 +89,8 @@ pub fn lagrange_polynomial_basis(
   //     rotations,
   //     fn(rotated_omega) { recip(sub(x, rotated_omega)) },
   //   )
-  let inverses = batch_inverses(map(rotations, fn(rotated_omega) { sub(x, rotated_omega) }))
+  let inverses =
+    batch_inverses(map(rotations, fn(rotated_omega) { sub(x, rotated_omega) }))
   let zipped = zip(inverses, rotations)
   map(zipped, fn((inv, rotated_omega)) { mul(mul(inv, common), rotated_omega) })
 }
