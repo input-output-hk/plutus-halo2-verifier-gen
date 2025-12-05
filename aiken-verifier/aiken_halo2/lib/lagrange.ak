@@ -71,13 +71,49 @@ pub fn lagrange_polynomial_basis(
   rotations: List<State<Scalar>>,
 ) -> List<State<Scalar>> {
   let common = mul(sub_int(xn, 1), barycentric_weight)
-  let inverses =
-    map(
-      rotations,
-      fn(rotated_omega) { recip_eea(sub(x, rotated_omega)) },
-    )
+  // TODO: when CIP-109 is implemented and built-in inversion is available, replace batch_inverses as follows
+  // let inverses =
+  //   map(
+  //     rotations,
+  //     fn(rotated_omega) { recip(sub(x, rotated_omega)) },
+  //   )
+  let inverses = batch_inverses(map(rotations, fn(rotated_omega) { sub(x, rotated_omega) }))
   let zipped = zip(inverses, rotations)
   map(zipped, fn((inv, rotated_omega)) { mul(mul(inv, common), rotated_omega) })
+}
+
+fn batch_inverses(elements: List<State<Scalar>>) -> List<State<Scalar>> {
+  when elements is {
+    [] -> []
+    [a, ..a_cons] -> {
+      // Build reversed cumulative products
+      let b_rev =
+        foldl(
+          a_cons,
+          [a],
+          fn(elem, accum) {
+            expect [head_accum, ..] = accum
+            [mul(elem, head_accum), ..accum]
+          },
+        )
+
+      let a_rev = reverse(elements)
+
+      expect [head_b_rev, ..tail_b_rev] = b_rev
+      let b_inv_last = recip_eea(head_b_rev)
+
+      let (a_inv_acc, b_inv_1) =
+        foldl(
+          zip(tail_b_rev, a_rev),
+          ([], b_inv_last),
+          fn((b_i_min_1, a_i), (a_inv_accum, b_inv_i)) {
+            ([mul(b_inv_i, b_i_min_1), ..a_inv_accum], mul(b_inv_i, a_i))
+          },
+        )
+
+      [b_inv_1, ..a_inv_acc]
+    }
+  }
 }
 
 // values based on atms circuit results
