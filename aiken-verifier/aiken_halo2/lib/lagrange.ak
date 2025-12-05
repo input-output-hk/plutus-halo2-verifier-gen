@@ -32,36 +32,72 @@ pub fn evaluate_lagrange_polynomial(
   )
 }
 
+// TODO: Revert to this version of lagrange_evaluation when CIP-109 with built-in inverse is available, because it will be faster than batch_inverses
+// fn lagrange_evaluation(
+//   points: List<(State<Scalar>, State<Scalar>)>,
+//   x: State<Scalar>,
+// ) -> State<Scalar> {
+//   foldl(
+//     points,
+//     from_int(0),
+//     fn((xi, yi), acc) { add(acc, mul(yi, basis(x, xi, points))) },
+//   )
+// }
+
+// fn basis(
+//   x: State<Scalar>,
+//   xi: State<Scalar>,
+//   points: List<(State<Scalar>, State<Scalar>)>,
+// ) -> State<Scalar> {
+//   let (total_numerator, total_denominator) =
+//     foldl(
+//       points,
+//       (from_int(1), from_int(1)),
+//       fn((xj, _), (numerator, denominator)) {
+//         if !(xj == xi) {
+//           (mul(numerator, sub(x, xj)), mul(denominator, sub(xi, xj)))
+//         } else {
+//           (numerator, denominator)
+//         }
+//       },
+//     )
+//   let total_denominator = recip_eea(total_denominator)
+//   mul(total_numerator, total_denominator)
+// }
+
+// Optimized lagrange_evaluation using batch_inverses
 fn lagrange_evaluation(
   points: List<(State<Scalar>, State<Scalar>)>,
   x: State<Scalar>,
 ) -> State<Scalar> {
-  foldl(
-    points,
-    from_int(0),
-    fn((xi, yi), acc) { add(acc, mul(yi, basis(x, xi, points))) },
-  )
-}
-
-fn basis(
-  x: State<Scalar>,
-  xi: State<Scalar>,
-  points: List<(State<Scalar>, State<Scalar>)>,
-) -> State<Scalar> {
-  let (total_numerator, total_denominator) =
-    foldl(
+  // Step 1: Compute all (numerator, denominator, yi) tuples
+  let basis_data = map(points, fn((xi, yi)) {
+    let (num, denom) = foldl(
       points,
       (from_int(1), from_int(1)),
       fn((xj, _), (numerator, denominator)) {
-        if !(xj == xi) {
-          (mul(numerator, sub(x, xj)), mul(denominator, sub(xi, xj)))
-        } else {
+        if xj == xi {
           (numerator, denominator)
+        } else {
+          (mul(numerator, sub(x, xj)), mul(denominator, sub(xi, xj)))
         }
-      },
+      }
     )
-  let total_denominator = recip_eea(total_denominator)
-  mul(total_numerator, total_denominator)
+    (num, denom, yi)
+  })
+
+  // Step 2: Extract denominators and batch invert (1 recip instead of N!)
+  let denominators = map(basis_data, fn((_, denom, _)) { denom })
+  let inverted_denominators = batch_inverses(denominators)
+
+  // Step 3: Compute final sum
+  foldl(
+    zip(basis_data, inverted_denominators),
+    from_int(0),
+    fn(((num, _, yi), denom_inv), acc) {
+      add(acc, mul(yi, mul(num, denom_inv)))
+    }
+  )
 }
 
 pub fn lagrange_polynomial_basis(
