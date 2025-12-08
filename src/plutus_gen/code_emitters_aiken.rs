@@ -1,4 +1,6 @@
+use crate::plutus_gen::code_emitters_aiken::Scalar_::{Mul, Power};
 use crate::plutus_gen::decode_rotation;
+use crate::plutus_gen::extraction::data::{Commitments, Evaluations, Query, RotationDescription};
 use crate::plutus_gen::extraction::{
     AikenExpression, combine_aiken_expressions,
     data::{CircuitRepresentation, ProofExtractionSteps},
@@ -7,10 +9,11 @@ use crate::plutus_gen::extraction::{
 use blstrs::Scalar;
 use ff::Field;
 use halo2_proofs::halo2curves::group::GroupEncoding;
+use halo2_proofs::poly::kzg::msm::MSMKZG;
 use handlebars::{Handlebars, RenderError};
 use itertools::Itertools;
 use log::debug;
-use std::ops::Neg;
+use std::ops::{Deref, Neg};
 use std::{collections::HashMap, fs::File, iter::once, path::Path};
 
 pub fn emit_verifier_code(
@@ -98,9 +101,9 @@ pub fn emit_verifier_code(
                         + &format!("    let (product_next_eval_{}, transcript) = read_scalar(transcript)\n", number + 1)
                         + &format!("    let (permuted_input_eval_{}, transcript) = read_scalar(transcript)\n", number + 1)
                         + &format!(
-                            "    let (permuted_input_inv_eval_{}, transcript) = read_scalar(transcript)\n",
-                            number + 1
-                        )
+                        "    let (permuted_input_inv_eval_{}, transcript) = read_scalar(transcript)\n",
+                        number + 1
+                    )
                         + &format!("    let (permuted_table_eval_{}, transcript) = read_scalar(transcript)\n", number + 1)
                 })
                 .join(""),
@@ -123,7 +126,7 @@ pub fn emit_verifier_code(
             ProofExtractionSteps::U => "    let (u, transcript) = squeeze_challenge(transcript)\n".to_string(),
             ProofExtractionSteps::Witnesses => section
                 .enumerate()
-                .map(|(number, _permutation_common)| format!("let (w{}, transcript)) =  read_point(transcript)\n", number + 1))
+                .map(|(number, _permutation_common)| format!("    let (w{}, transcript) =  read_point(transcript)\n", number + 1))
                 .join(""),
         })
         .collect();
@@ -479,6 +482,12 @@ pub fn emit_verifier_code(
     let point_sets = format!("     let point_sets = [[{}]]", point_sets);
     data.insert("POINT_SETS".to_string(), point_sets);
 
+    let foo = construct_intermediate_sets(circuit.all_queries_ordered());
+
+    let msm = construct_msm(foo);
+
+    data.insert("MSM".to_string(), msm.compile_expression());
+
     let fixed_commitments_imports = (1..=circuit.instantiation_data.fixed_commitments.len())
         .map(|id| format!("f{}_commitment", id))
         .join(", ");
@@ -716,4 +725,242 @@ pub fn emit_vk_code(
     let mut output_file = File::create(aiken_file)?;
     handlebars.render_to_write("aiken_template", &data, &mut output_file)?;
     handlebars.render("aiken_template", &data)
+}
+
+fn construct_intermediate_sets(queries: [Vec<Query>; 6]) -> Vec<(Vec<Query>, RotationDescription)> {
+    let mut point_query_map: Vec<(RotationDescription, Vec<Query>)> = Vec::new();
+    for query in queries.iter().flatten() {
+        if let Some(pos) = point_query_map
+            .iter()
+            .position(|(point, _)| *point == query.point)
+        {
+            let (_, queries) = &mut point_query_map[pos];
+            queries.push(*query);
+        } else {
+            point_query_map.push((query.point, vec![*query]));
+        }
+    }
+
+    point_query_map
+        .into_iter()
+        .map(|(point, queries)| (queries, point))
+        .collect()
+}
+
+// symbolic representation of powers of specific scalar
+fn powers(name: char) -> impl Iterator<Item = Scalar_> {
+    (0..).map(move |idx| Power(name, idx))
+}
+fn construct_msm(commitment_data: Vec<(Vec<Query>, RotationDescription)>) -> DualMSM {
+    let w_count = commitment_data.len();
+
+    let mut commitment_multi = MSM::Empty;
+    let mut eval_multi = Scalar_::Zero;
+
+    let mut witness = MSM::Empty;
+    let mut witness_with_aux = MSM::Empty;
+
+    for ((commitment_at_a_point, wi), power_of_u) in
+        commitment_data.iter().zip(0..w_count).zip(powers('u'))
+    {
+        let (queries, point) = commitment_at_a_point;
+
+        assert!(!queries.is_empty());
+        let z = point;
+
+        let (mut commitment_batch, eval_batch) = queries
+            .iter()
+            .zip(powers('v'))
+            .map(|(query, power_of_v)| {
+                assert_eq!(query.point, *z);
+
+                let commitment = query.commitment;
+                let mut msm = MSM::Empty;
+                msm = MSM::Append(Box::new(msm), power_of_v.clone(), commitment);
+
+                let eval = Scalar_::Mul(Box::new(power_of_v), query.evaluation);
+
+                (msm, eval)
+            })
+            .reduce(|(mut commitment_acc, eval_acc), (commitment, eval)| {
+                MSM::Add(Box::new(commitment_acc.clone()), Box::new(commitment));
+                (
+                    commitment_acc,
+                    Scalar_::Add(Box::new(eval_acc), Box::new(eval)),
+                )
+            })
+            .unwrap();
+
+        MSM::Scale(Box::new(commitment_batch.clone()), power_of_u.clone());
+        commitment_multi = MSM::Add(Box::new(commitment_multi), Box::new(commitment_batch));
+        eval_multi = Scalar_::Add(
+            Box::new(eval_multi),
+            Box::new(Scalar_::MulS(
+                Box::new(power_of_u.clone()),
+                Box::new(eval_batch),
+            )),
+        );
+
+        witness_with_aux = MSM::AppendW(
+            Box::new(witness_with_aux),
+            Scalar_::MulS(
+                Box::new(power_of_u.clone()),
+                Box::new(Scalar_::Rotation(*z)),
+            ),
+            HelperConstants::W(wi),
+        );
+        witness = MSM::AppendW(Box::new(witness), power_of_u, HelperConstants::W(wi));
+    }
+
+    let left: MSM = witness;
+    let mut right: MSM = MSM::Empty;
+
+    right = MSM::Add(Box::new(right), Box::new(witness_with_aux));
+    right = MSM::Add(Box::new(right), Box::new(commitment_multi));
+    right = MSM::AppendW(Box::new(right), eval_multi, HelperConstants::NegatedG1);
+
+    DualMSM::Standard(left, right)
+}
+
+#[derive(Clone)]
+enum DualMSM {
+    Empty,
+    Standard(MSM, MSM),
+}
+
+#[derive(Clone, Eq, PartialEq)]
+enum Scalar_ {
+    Zero,
+    Mul(Box<Scalar_>, Evaluations),
+    MulS(Box<Scalar_>, Box<Scalar_>),
+    Power(char, i32),
+    Add(Box<Scalar_>, Box<Scalar_>),
+    Rotation(RotationDescription),
+}
+
+#[derive(Clone, Eq, PartialEq)]
+enum HelperConstants {
+    W(usize),
+    NegatedG1,
+}
+
+#[derive(Clone, Eq, PartialEq)]
+enum MSM {
+    Empty,
+    // power *
+    Append(Box<MSM>, Scalar_, Commitments),
+    AppendW(Box<MSM>, Scalar_, HelperConstants),
+    Add(Box<MSM>, Box<MSM>),
+    Scale(Box<MSM>, Scalar_),
+}
+
+impl AikenExpression for MSM {
+    fn compile_expression(&self) -> String {
+        match self {
+            MSM::Empty => "MSM{elements: []}".to_string(),
+
+            MSM::Append(msm, scalar, commitment) if **msm == MSM::Empty => format!(
+                "MSM{{elements: [MSMElement {{ scalar: {}, g1: {} }}]}}",
+                scalar.compile_expression(),
+                commitment.compile_expression()
+            ),
+
+            MSM::Append(msm, scalar, commitment) => format!(
+                "append_term({},MSMElement {{ scalar: {}, g1: {} }})",
+                msm.compile_expression(),
+                scalar.compile_expression(),
+                commitment.compile_expression()
+            ),
+
+            MSM::AppendW(msm, scalar, constant) if **msm == MSM::Empty => {
+                format!(
+                    "MSM{{elements: [MSMElement {{ scalar: {}, g1: {} }}]}}",
+                    scalar.compile_expression(),
+                    constant.compile_expression()
+                )
+            }
+
+            MSM::AppendW(msm, scalar, constant) => {
+                format!(
+                    "append_term({},MSMElement {{ scalar: {}, g1: {} }})",
+                    msm.compile_expression(),
+                    scalar.compile_expression(),
+                    constant.compile_expression()
+                )
+            }
+            MSM::Add(msm_a, msm_b) if **msm_a == MSM::Empty => msm_b.compile_expression(),
+            MSM::Add(msm_a, msm_b) => {
+                format!(
+                    "add_msm({},{})",
+                    msm_a.compile_expression(),
+                    msm_b.compile_expression()
+                )
+            }
+            MSM::Scale(msm, scalar) => {
+                format!(
+                    "scale_msm({},{})",
+                    msm.compile_expression(),
+                    scalar.compile_expression()
+                )
+            }
+        }
+    }
+}
+
+impl AikenExpression for HelperConstants {
+    fn compile_expression(&self) -> String {
+        match self {
+            HelperConstants::W(id) => {
+                format!("w{}", id + 1)
+            }
+            HelperConstants::NegatedG1 => "bls12_381_g1_neg(generatorG1)".to_string(),
+        }
+    }
+}
+impl AikenExpression for DualMSM {
+    fn compile_expression(&self) -> String {
+        match self {
+            DualMSM::Empty => "".to_string(),
+            DualMSM::Standard(left, right) => {
+                format!(
+                    "    let el = eval({})\n    let er = eval({})",
+                    left.compile_expression(),
+                    right.compile_expression()
+                )
+            }
+        }
+    }
+}
+
+impl AikenExpression for Scalar_ {
+    fn compile_expression(&self) -> String {
+        match self {
+            Scalar_::Zero => "from_int(0)".to_string(),
+            Mul(scalar, evaluation) => {
+                format!(
+                    "mul({}, {})",
+                    scalar.compile_expression(),
+                    evaluation.compile_expression()
+                )
+            }
+            Scalar_::MulS(scalar_a, scalar_b) => {
+                format!(
+                    "mul({}, {})",
+                    scalar_a.compile_expression(),
+                    scalar_b.compile_expression()
+                )
+            }
+            Power(name, exponent) => {
+                format!("scale({}, {})", name, exponent)
+            }
+            Scalar_::Add(scalar_a, scalar_b) => {
+                format!(
+                    "add({}, {})",
+                    scalar_a.compile_expression(),
+                    scalar_b.compile_expression()
+                )
+            }
+            Scalar_::Rotation(x) => decode_rotation(x),
+        }
+    }
 }

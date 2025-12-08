@@ -85,8 +85,14 @@ where
         extract_circuit(params, vk, instances).map_err(|e| e.to_string())?;
     let circuit_representation = S::extract_kzg_steps(circuit_representation);
 
+    // static locations of files in plutus directory
+    let verifier_template_file = match S::kzg_type() {
+        KzgType::GWC19 => Path::new("aiken-verifier/templates/verification_gwc19.hbs"),
+        KzgType::Halo2MultiOpen => Path::new("aiken-verifier/templates/verification_h2.hbs"),
+    };
+
     emit_verifier_code_aiken(
-        Path::new("aiken-verifier/templates/verification.hbs"),
+        verifier_template_file,
         Path::new("aiken-verifier/aiken_halo2/lib/proof_verifier.ak"),
         &circuit_representation,
         test_proof.map(|p| (p, vk.transcript_repr(), instances[0][0].to_vec())),

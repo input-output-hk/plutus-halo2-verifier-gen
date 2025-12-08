@@ -82,7 +82,7 @@ pub struct InstantiationSpecificData {
 /// if allowing custom rotations is implemented remember about halo2 query collision described here
 /// https://blog.zksecurity.xyz/posts/halo2-query-collision/
 /// especially handle case where rotation 2^k is used to check for wrapping of the trace table rows
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq, Default, Hash)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq, Default, Hash)]
 pub enum RotationDescription {
     Last,
     Previous,
@@ -225,7 +225,7 @@ impl AikenExpression for Commitments {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, Eq, PartialEq, Hash)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, Eq, PartialEq, Hash)]
 pub enum Commitments {
     Advice(usize),
     Fixed(usize),
@@ -238,7 +238,7 @@ pub enum Commitments {
     PermutedTable(usize),
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, Eq, PartialEq, Hash)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, Eq, PartialEq, Hash)]
 pub enum Evaluations {
     Advice(usize),
     Fixed(usize),
@@ -273,7 +273,7 @@ pub struct CommitmentData {
     pub points: Vec<RotationDescription>,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, Default)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, Default)]
 pub struct Query {
     pub commitment: Commitments,
     pub evaluation: Evaluations,

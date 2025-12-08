@@ -120,11 +120,11 @@ fn compute_v(
   )
 }
 
-fn append_term(msm: MSM, element: MSMElement) -> MSM {
+pub fn append_term(msm: MSM, element: MSMElement) -> MSM {
   MSM { elements: push(msm.elements, element) }
 }
 
-fn add_msm(a: MSM, b: MSM) -> MSM {
+pub fn add_msm(a: MSM, b: MSM) -> MSM {
   MSM { elements: concat(a.elements, b.elements) }
 }
 
