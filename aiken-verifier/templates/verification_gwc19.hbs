@@ -6,7 +6,7 @@ use aiken/crypto/bls12_381/g2.{generator as generatorG2}
 use aiken/crypto/bls12_381/scalar.{
   Scalar, add, from_int, mul, neg, recip, scale, sub
 }
-use inner_product.{inner_product}
+use bls_utils.{inner_product}
 use lagrange.{lagrange_polynomial_basis}
 use omega_rotations.{rotate_omegas, rotate_omega, powers}
 use transcript.{
