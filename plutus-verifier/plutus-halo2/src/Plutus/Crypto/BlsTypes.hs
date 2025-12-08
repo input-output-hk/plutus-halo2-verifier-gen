@@ -49,7 +49,7 @@ import PlutusTx.Builtins (
     bls12_381_G2_uncompress,
     consByteString,
     emptyByteString,
-    expModInteger,
+--    expModInteger, --TODO: use `expModInteger` built-in for powmod and recip, when it get's activated on-chain
     indexByteString,
  )
 import PlutusTx.Numeric (
@@ -75,6 +75,7 @@ import PlutusTx.Prelude (
     otherwise,
     ($),
     (&&),
+    (/=),
     (.),
     (<>),
     (>),
@@ -183,7 +184,12 @@ reverseByteString bs
 
 {-# INLINEABLE powMod #-}
 powMod :: Scalar -> Integer -> Scalar
-powMod (Scalar b) e = Scalar (expModInteger b e bls12_381_field_prime)
+--powMod (Scalar b) e = Scalar (expModInteger b e bls12_381_field_prime)   --TODO: substitute manual impl with `expModInteger` built-in, when it get's activated on-chain
+powMod b e
+    | e < 0 = zero
+    | e == 0 = one
+    | even e = powMod (b * b) (e `divide` 2)
+    | otherwise = b * powMod (b * b) ((e - 1) `divide` 2)
 
 instance MultiplicativeGroup Scalar where
     {-# INLINEABLE div #-}
@@ -193,7 +199,17 @@ instance MultiplicativeGroup Scalar where
         | otherwise = a * recip b
     {-# INLINEABLE recip #-}
     recip :: Scalar -> Scalar
-    recip (Scalar a) = Scalar (expModInteger a (-1) bls12_381_field_prime)
+--    recip (Scalar a) = Scalar (expModInteger a (-1) bls12_381_field_prime) --TODO: substitute manual impl with `expModInteger` built-in, when it get's activated on-chain
+    recip (Scalar a) = Scalar (go a bls12_381_field_prime 1 0)
+        where
+        go !u !v !x1 !x2 =
+            if u /= 1
+                then
+                    let !q = v `divide` u
+                        r = v - q * u
+                        x = x2 - q * x1
+                     in go r u x x1
+                else x1 `modulo` bls12_381_field_prime
 
 -- The field elements are the x and y coordinates of the points on the curve.
 newtype Fp = Fp {unFp :: Integer} deriving (Haskell.Show, Haskell.Eq)
@@ -243,7 +259,12 @@ instance MultiplicativeMonoid Fp where
 
 {-# INLINEABLE modularExponentiationFp #-}
 modularExponentiationFp :: Fp -> Integer -> Fp
-modularExponentiationFp (Fp b) e = Fp (expModInteger b e bls12_381_base_prime)
+--modularExponentiationFp (Fp b) e = Fp (expModInteger b e bls12_381_base_prime) --TODO: substitute manual impl with `expModInteger` built-in, when it get's activated on-chain
+modularExponentiationFp b e
+    | e < 0 = zero
+    | e == 0 = one
+    | even e = modularExponentiationFp (b * b) (e `divide` 2)
+    | otherwise = b * modularExponentiationFp (b * b) ((e - 1) `divide` 2)
 
 instance Module Integer Fp where
     {-# INLINEABLE scale #-}

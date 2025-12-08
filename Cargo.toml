@@ -21,6 +21,7 @@ rand_core = { package = "rand_core", version = "0.6.4" }
 serde = { version = "1.0.219", features = ["derive"] }
 rand = "0.8"
 rand_chacha = "0.3.1"
+anyhow = "1.0.100"
 
 [features]
 plutus_debug = ["halo2_proofs/plutus_debug"]
