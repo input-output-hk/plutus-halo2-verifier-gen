@@ -758,14 +758,18 @@ fn powers(name: char) -> impl Iterator<Item = ScalarOperation> {
 
 //this is done in Plinth with template haskell since there is no macro language for aiken
 // constructing final MSM was reimplemented with pure code generation
-fn construct_msm(commitment_data: Vec<(Vec<Query>, RotationDescription)>) -> (MSM, MSM) {
+// to make it easier to debug this function is 1:1 analog to multi_prepare
+// in src/poly/gwc_kzg/mod.rs
+// in https://github.com/input-output-hk/halo2/blob/gwc19_kzg/src/poly/gwc_kzg/mod.rs#L142-L212
+// but was translated to build MSM description instead of calculating one
+fn construct_msm(commitment_data: Vec<(Vec<Query>, RotationDescription)>) -> (MsmOperations, MsmOperations) {
     let w_count = commitment_data.len();
 
-    let mut commitment_multi = MSM::Empty;
+    let mut commitment_multi = MsmOperations::Empty;
     let mut eval_multi = ScalarOperation::Zero;
 
-    let mut witness = MSM::Empty;
-    let mut witness_with_aux = MSM::Empty;
+    let mut witness = MsmOperations::Empty;
+    let mut witness_with_aux = MsmOperations::Empty;
 
     for ((commitment_at_a_point, wi), power_of_u) in
         commitment_data.iter().zip(0..w_count).zip(powers('u'))
@@ -782,8 +786,8 @@ fn construct_msm(commitment_data: Vec<(Vec<Query>, RotationDescription)>) -> (MS
                 assert_eq!(query.point, *z);
 
                 let commitment = query.commitment;
-                let mut msm = MSM::Empty;
-                msm = MSM::Append(Box::new(msm), power_of_v.clone(), commitment);
+                let mut msm = MsmOperations::Empty;
+                msm = MsmOperations::Append(Box::new(msm), power_of_v.clone(), commitment);
 
                 let eval = ScalarOperation::Mul(Box::new(power_of_v), query.evaluation);
 
@@ -791,14 +795,14 @@ fn construct_msm(commitment_data: Vec<(Vec<Query>, RotationDescription)>) -> (MS
             })
             .reduce(|(commitment_acc, eval_acc), (commitment, eval)| {
                 (
-                    MSM::Add(Box::new(commitment_acc.clone()), Box::new(commitment)),
+                    MsmOperations::Add(Box::new(commitment_acc.clone()), Box::new(commitment)),
                     ScalarOperation::Add(Box::new(eval_acc), Box::new(eval)),
                 )
             })
             .unwrap();
 
-        let commitment_batch = MSM::Scale(Box::new(commitment_batch.clone()), power_of_u.clone());
-        commitment_multi = MSM::Add(Box::new(commitment_multi), Box::new(commitment_batch));
+        let commitment_batch = MsmOperations::Scale(Box::new(commitment_batch.clone()), power_of_u.clone());
+        commitment_multi = MsmOperations::Add(Box::new(commitment_multi), Box::new(commitment_batch));
         eval_multi = ScalarOperation::Add(
             Box::new(eval_multi),
             Box::new(ScalarOperation::MulS(
@@ -807,7 +811,7 @@ fn construct_msm(commitment_data: Vec<(Vec<Query>, RotationDescription)>) -> (MS
             )),
         );
 
-        witness_with_aux = MSM::AppendW(
+        witness_with_aux = MsmOperations::AppendW(
             Box::new(witness_with_aux),
             ScalarOperation::MulS(
                 Box::new(power_of_u.clone()),
@@ -815,15 +819,15 @@ fn construct_msm(commitment_data: Vec<(Vec<Query>, RotationDescription)>) -> (MS
             ),
             wi,
         );
-        witness = MSM::AppendW(Box::new(witness), power_of_u, wi);
+        witness = MsmOperations::AppendW(Box::new(witness), power_of_u, wi);
     }
 
-    let left: MSM = witness;
-    let mut right: MSM = MSM::Empty;
+    let left: MsmOperations = witness;
+    let mut right: MsmOperations = MsmOperations::Empty;
 
-    right = MSM::Add(Box::new(right), Box::new(witness_with_aux));
-    right = MSM::Add(Box::new(right), Box::new(commitment_multi));
-    right = MSM::AppendNegatedG1(Box::new(right), eval_multi);
+    right = MsmOperations::Add(Box::new(right), Box::new(witness_with_aux));
+    right = MsmOperations::Add(Box::new(right), Box::new(commitment_multi));
+    right = MsmOperations::AppendNegatedG1(Box::new(right), eval_multi);
 
     (left, right)
 }
@@ -839,40 +843,40 @@ enum ScalarOperation {
 }
 
 #[derive(Clone, Eq, PartialEq)]
-enum MSM {
+enum MsmOperations {
     Empty,
-    Append(Box<MSM>, ScalarOperation, Commitments),
-    AppendW(Box<MSM>, ScalarOperation, usize),
-    AppendNegatedG1(Box<MSM>, ScalarOperation),
-    Add(Box<MSM>, Box<MSM>),
-    Scale(Box<MSM>, ScalarOperation),
+    Append(Box<MsmOperations>, ScalarOperation, Commitments),
+    AppendW(Box<MsmOperations>, ScalarOperation, usize),
+    AppendNegatedG1(Box<MsmOperations>, ScalarOperation),
+    Add(Box<MsmOperations>, Box<MsmOperations>),
+    Scale(Box<MsmOperations>, ScalarOperation),
 }
 
-impl AikenExpression for MSM {
+impl AikenExpression for MsmOperations {
     fn compile_expression(&self) -> String {
         match self {
-            MSM::Empty => "MSM{elements: []}".to_string(),
+            MsmOperations::Empty => "MSM{elements: []}".to_string(),
 
-            MSM::Append(msm, scalar, commitment) if **msm == MSM::Empty => format!(
+            MsmOperations::Append(msm, scalar, commitment) if **msm == MsmOperations::Empty => format!(
                 "MSM{{elements: [MSMElement {{ scalar: {}, g1: {} }}]}}",
                 scalar.compile_expression(),
                 commitment.compile_expression()
             ),
 
-            MSM::Append(msm, scalar, commitment) => format!(
+            MsmOperations::Append(msm, scalar, commitment) => format!(
                 "append_term({},MSMElement {{ scalar: {}, g1: {} }})",
                 msm.compile_expression(),
                 scalar.compile_expression(),
                 commitment.compile_expression()
             ),
-            MSM::AppendW(msm, scalar, w_index) if **msm == MSM::Empty => {
+            MsmOperations::AppendW(msm, scalar, w_index) if **msm == MsmOperations::Empty => {
                 format!(
                     "MSM{{elements: [MSMElement {{ scalar: {}, g1: w{} }}]}}",
                     scalar.compile_expression(),
                     w_index + 1
                 )
             }
-            MSM::AppendW(msm, scalar, w_index) => {
+            MsmOperations::AppendW(msm, scalar, w_index) => {
                 format!(
                     "append_term({},MSMElement {{ scalar: {}, g1: w{} }})",
                     msm.compile_expression(),
@@ -880,22 +884,22 @@ impl AikenExpression for MSM {
                     w_index + 1
                 )
             }
-            MSM::AppendNegatedG1(msm, scalar) => {
+            MsmOperations::AppendNegatedG1(msm, scalar) => {
                 format!(
                     "append_term({},MSMElement {{ scalar: {}, g1: bls12_381_g1_neg(generatorG1) }})",
                     msm.compile_expression(),
                     scalar.compile_expression(),
                 )
             }
-            MSM::Add(msm_a, msm_b) if **msm_a == MSM::Empty => msm_b.compile_expression(),
-            MSM::Add(msm_a, msm_b) => {
+            MsmOperations::Add(msm_a, msm_b) if **msm_a == MsmOperations::Empty => msm_b.compile_expression(),
+            MsmOperations::Add(msm_a, msm_b) => {
                 format!(
                     "add_msm({},{})",
                     msm_a.compile_expression(),
                     msm_b.compile_expression()
                 )
             }
-            MSM::Scale(msm, scalar) => {
+            MsmOperations::Scale(msm, scalar) => {
                 format!(
                     "scale_msm({},{})",
                     scalar.compile_expression(),
