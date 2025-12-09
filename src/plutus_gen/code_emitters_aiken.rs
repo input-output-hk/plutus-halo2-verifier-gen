@@ -768,7 +768,7 @@ fn construct_msm(commitment_data: Vec<(Vec<Query>, RotationDescription)>) -> Dua
         assert!(!queries.is_empty());
         let z = point;
 
-        let (mut commitment_batch, eval_batch) = queries
+        let (commitment_batch, eval_batch) = queries
             .iter()
             .zip(powers('v'))
             .map(|(query, power_of_v)| {
@@ -782,16 +782,15 @@ fn construct_msm(commitment_data: Vec<(Vec<Query>, RotationDescription)>) -> Dua
 
                 (msm, eval)
             })
-            .reduce(|(mut commitment_acc, eval_acc), (commitment, eval)| {
-                MSM::Add(Box::new(commitment_acc.clone()), Box::new(commitment));
+            .reduce(|(commitment_acc, eval_acc), (commitment, eval)| {
                 (
-                    commitment_acc,
+                    MSM::Add(Box::new(commitment_acc.clone()), Box::new(commitment)),
                     Scalar_::Add(Box::new(eval_acc), Box::new(eval)),
                 )
             })
             .unwrap();
 
-        MSM::Scale(Box::new(commitment_batch.clone()), power_of_u.clone());
+        let commitment_batch = MSM::Scale(Box::new(commitment_batch.clone()), power_of_u.clone());
         commitment_multi = MSM::Add(Box::new(commitment_multi), Box::new(commitment_batch));
         eval_multi = Scalar_::Add(
             Box::new(eval_multi),
@@ -899,8 +898,8 @@ impl AikenExpression for MSM {
             MSM::Scale(msm, scalar) => {
                 format!(
                     "scale_msm({},{})",
+                    scalar.compile_expression(),
                     msm.compile_expression(),
-                    scalar.compile_expression()
                 )
             }
         }
@@ -950,8 +949,14 @@ impl AikenExpression for Scalar_ {
                     scalar_b.compile_expression()
                 )
             }
+            Power(name, exponent) if *exponent == 0 => {
+                "from_int(1)".to_string()
+            }
             Power(name, exponent) => {
                 format!("scale({}, {})", name, exponent)
+            }
+            Scalar_::Add(scalar_a, scalar_b) if **scalar_a == Scalar_::Zero => {
+                scalar_b.compile_expression()
             }
             Scalar_::Add(scalar_a, scalar_b) => {
                 format!(

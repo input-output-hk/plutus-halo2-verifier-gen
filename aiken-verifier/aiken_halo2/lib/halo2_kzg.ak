@@ -195,7 +195,7 @@ pub fn add_msm(a: MSM, b: MSM) -> MSM {
   MSM { elements: concat(a.elements, b.elements) }
 }
 
-fn scale_msm(s: State<Scalar>, msm: MSM) -> MSM {
+pub fn scale_msm(s: State<Scalar>, msm: MSM) -> MSM {
   MSM {
     elements: map(
       msm.elements,
