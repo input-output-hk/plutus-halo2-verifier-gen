@@ -106,8 +106,7 @@ pub fn verifier(proof: Data, transcript_rep: State<Scalar>, {{{PUBLIC_INPUTS_NAM
     // right and g2
     // g2 is not negated as final_exponentiation is doing negation
     let g2 = generatorG2
-
-    //todo MSM construction goes here
+    
 {{{MSM}}}
 
     let ml_l = miller_loop(el, g2_const)

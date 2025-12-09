@@ -454,7 +454,7 @@ pub fn emit_verifier_code(
         .join(", ");
     data.insert("Q_EVALS_FROM_PROOF".to_string(), q_evaluations);
 
-    let commitment_data = commitment_data
+    let halo2_commitment_data = commitment_data
         .iter()
         .map(|commitment_data| {
             format!(
@@ -471,22 +471,20 @@ pub fn emit_verifier_code(
         })
         .join("),(");
 
-    let commitment_map = format!("    let commitment_data = [({})]", commitment_data);
-    data.insert("COMMITMENT_MAP".to_string(), commitment_map);
+    let kzg_halo2_commitment_map = format!("    let commitment_data = [({})]", halo2_commitment_data);
+    data.insert("COMMITMENT_MAP".to_string(), kzg_halo2_commitment_map);
 
-    let point_sets = unique_grouped_points
+    let kzg_halo2_point_sets = unique_grouped_points
         .iter()
         .map(|set| set.iter().map(decode_rotation).join(","))
         .join("],[");
 
-    let point_sets = format!("     let point_sets = [[{}]]", point_sets);
-    data.insert("POINT_SETS".to_string(), point_sets);
+    let kzg_halo2_point_sets = format!("     let point_sets = [[{}]]", kzg_halo2_point_sets);
+    data.insert("POINT_SETS".to_string(), kzg_halo2_point_sets);
 
-    let foo = construct_intermediate_sets(circuit.all_queries_ordered());
-
-    let msm = construct_msm(foo);
-
-    data.insert("MSM".to_string(), msm.compile_expression());
+    let kzg_gwc19_intermediate_sets = construct_intermediate_sets(circuit.all_queries_ordered());
+    let kzg_gwc19_msm = construct_msm(kzg_gwc19_intermediate_sets);
+    data.insert("MSM".to_string(), kzg_gwc19_msm.compile_expression());
 
     let fixed_commitments_imports = (1..=circuit.instantiation_data.fixed_commitments.len())
         .map(|id| format!("f{}_commitment", id))
@@ -751,6 +749,9 @@ fn construct_intermediate_sets(queries: [Vec<Query>; 6]) -> Vec<(Vec<Query>, Rot
 fn powers(name: char) -> impl Iterator<Item = Scalar_> {
     (0..).map(move |idx| Power(name, idx))
 }
+
+//this is done in Plinth with template haskell since there is no macro language for aiken
+// constructing final MSM was reimplemented with pure code generation
 fn construct_msm(commitment_data: Vec<(Vec<Query>, RotationDescription)>) -> DualMSM {
     let w_count = commitment_data.len();
 
