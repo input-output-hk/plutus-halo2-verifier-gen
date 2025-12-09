@@ -86,7 +86,7 @@ where
         .context("Failed to extract the circuit representation")?;
     let circuit_representation = S::extract_kzg_steps(circuit_representation);
 
-    // static locations of files in plutus directory
+    // static locations of files in aiken directory
     let verifier_template_file = match S::kzg_type() {
         KzgType::GWC19 => Path::new("aiken-verifier/templates/verification_gwc19.hbs"),
         KzgType::Halo2MultiOpen => Path::new("aiken-verifier/templates/verification_h2.hbs"),

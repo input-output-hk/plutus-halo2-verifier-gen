@@ -1,4 +1,4 @@
-use crate::plutus_gen::code_emitters_aiken::Scalar_::{Mul, Power};
+use crate::plutus_gen::code_emitters_aiken::ScalarOperation::{Mul, Power};
 use crate::plutus_gen::decode_rotation;
 use crate::plutus_gen::extraction::data::{Commitments, Evaluations, Query, RotationDescription};
 use crate::plutus_gen::extraction::{
@@ -9,11 +9,11 @@ use crate::plutus_gen::extraction::{
 use blstrs::Scalar;
 use ff::Field;
 use halo2_proofs::halo2curves::group::GroupEncoding;
-use halo2_proofs::poly::kzg::msm::MSMKZG;
+
 use handlebars::{Handlebars, RenderError};
 use itertools::Itertools;
 use log::debug;
-use std::ops::{Deref, Neg};
+use std::ops::Neg;
 use std::{collections::HashMap, fs::File, iter::once, path::Path};
 
 pub fn emit_verifier_code(
@@ -471,7 +471,8 @@ pub fn emit_verifier_code(
         })
         .join("),(");
 
-    let kzg_halo2_commitment_map = format!("    let commitment_data = [({})]", halo2_commitment_data);
+    let kzg_halo2_commitment_map =
+        format!("    let commitment_data = [({})]", halo2_commitment_data);
     data.insert("COMMITMENT_MAP".to_string(), kzg_halo2_commitment_map);
 
     let kzg_halo2_point_sets = unique_grouped_points
@@ -483,8 +484,13 @@ pub fn emit_verifier_code(
     data.insert("POINT_SETS".to_string(), kzg_halo2_point_sets);
 
     let kzg_gwc19_intermediate_sets = construct_intermediate_sets(circuit.all_queries_ordered());
-    let kzg_gwc19_msm = construct_msm(kzg_gwc19_intermediate_sets);
-    data.insert("MSM".to_string(), kzg_gwc19_msm.compile_expression());
+    let (left, right) = construct_msm(kzg_gwc19_intermediate_sets);
+    let kzg_gwc19_msm = format!(
+        "    let el = eval({})\n    let er = eval({})",
+        left.compile_expression(),
+        right.compile_expression()
+    );
+    data.insert("MSM".to_string(), kzg_gwc19_msm);
 
     let fixed_commitments_imports = (1..=circuit.instantiation_data.fixed_commitments.len())
         .map(|id| format!("f{}_commitment", id))
@@ -746,17 +752,17 @@ fn construct_intermediate_sets(queries: [Vec<Query>; 6]) -> Vec<(Vec<Query>, Rot
 }
 
 // symbolic representation of powers of specific scalar
-fn powers(name: char) -> impl Iterator<Item = Scalar_> {
+fn powers(name: char) -> impl Iterator<Item = ScalarOperation> {
     (0..).map(move |idx| Power(name, idx))
 }
 
 //this is done in Plinth with template haskell since there is no macro language for aiken
 // constructing final MSM was reimplemented with pure code generation
-fn construct_msm(commitment_data: Vec<(Vec<Query>, RotationDescription)>) -> DualMSM {
+fn construct_msm(commitment_data: Vec<(Vec<Query>, RotationDescription)>) -> (MSM, MSM) {
     let w_count = commitment_data.len();
 
     let mut commitment_multi = MSM::Empty;
-    let mut eval_multi = Scalar_::Zero;
+    let mut eval_multi = ScalarOperation::Zero;
 
     let mut witness = MSM::Empty;
     let mut witness_with_aux = MSM::Empty;
@@ -779,23 +785,23 @@ fn construct_msm(commitment_data: Vec<(Vec<Query>, RotationDescription)>) -> Dua
                 let mut msm = MSM::Empty;
                 msm = MSM::Append(Box::new(msm), power_of_v.clone(), commitment);
 
-                let eval = Scalar_::Mul(Box::new(power_of_v), query.evaluation);
+                let eval = ScalarOperation::Mul(Box::new(power_of_v), query.evaluation);
 
                 (msm, eval)
             })
             .reduce(|(commitment_acc, eval_acc), (commitment, eval)| {
                 (
                     MSM::Add(Box::new(commitment_acc.clone()), Box::new(commitment)),
-                    Scalar_::Add(Box::new(eval_acc), Box::new(eval)),
+                    ScalarOperation::Add(Box::new(eval_acc), Box::new(eval)),
                 )
             })
             .unwrap();
 
         let commitment_batch = MSM::Scale(Box::new(commitment_batch.clone()), power_of_u.clone());
         commitment_multi = MSM::Add(Box::new(commitment_multi), Box::new(commitment_batch));
-        eval_multi = Scalar_::Add(
+        eval_multi = ScalarOperation::Add(
             Box::new(eval_multi),
-            Box::new(Scalar_::MulS(
+            Box::new(ScalarOperation::MulS(
                 Box::new(power_of_u.clone()),
                 Box::new(eval_batch),
             )),
@@ -803,13 +809,13 @@ fn construct_msm(commitment_data: Vec<(Vec<Query>, RotationDescription)>) -> Dua
 
         witness_with_aux = MSM::AppendW(
             Box::new(witness_with_aux),
-            Scalar_::MulS(
+            ScalarOperation::MulS(
                 Box::new(power_of_u.clone()),
-                Box::new(Scalar_::Rotation(*z)),
+                Box::new(ScalarOperation::Rotation(*z)),
             ),
-            HelperConstants::W(wi),
+            wi,
         );
-        witness = MSM::AppendW(Box::new(witness), power_of_u, HelperConstants::W(wi));
+        witness = MSM::AppendW(Box::new(witness), power_of_u, wi);
     }
 
     let left: MSM = witness;
@@ -817,41 +823,29 @@ fn construct_msm(commitment_data: Vec<(Vec<Query>, RotationDescription)>) -> Dua
 
     right = MSM::Add(Box::new(right), Box::new(witness_with_aux));
     right = MSM::Add(Box::new(right), Box::new(commitment_multi));
-    right = MSM::AppendW(Box::new(right), eval_multi, HelperConstants::NegatedG1);
+    right = MSM::AppendNegatedG1(Box::new(right), eval_multi);
 
-    DualMSM::Standard(left, right)
-}
-
-#[derive(Clone)]
-enum DualMSM {
-    Empty,
-    Standard(MSM, MSM),
+    (left, right)
 }
 
 #[derive(Clone, Eq, PartialEq)]
-enum Scalar_ {
+enum ScalarOperation {
     Zero,
-    Mul(Box<Scalar_>, Evaluations),
-    MulS(Box<Scalar_>, Box<Scalar_>),
+    Mul(Box<ScalarOperation>, Evaluations),
+    MulS(Box<ScalarOperation>, Box<ScalarOperation>),
     Power(char, i32),
-    Add(Box<Scalar_>, Box<Scalar_>),
+    Add(Box<ScalarOperation>, Box<ScalarOperation>),
     Rotation(RotationDescription),
-}
-
-#[derive(Clone, Eq, PartialEq)]
-enum HelperConstants {
-    W(usize),
-    NegatedG1,
 }
 
 #[derive(Clone, Eq, PartialEq)]
 enum MSM {
     Empty,
-    // power *
-    Append(Box<MSM>, Scalar_, Commitments),
-    AppendW(Box<MSM>, Scalar_, HelperConstants),
+    Append(Box<MSM>, ScalarOperation, Commitments),
+    AppendW(Box<MSM>, ScalarOperation, usize),
+    AppendNegatedG1(Box<MSM>, ScalarOperation),
     Add(Box<MSM>, Box<MSM>),
-    Scale(Box<MSM>, Scalar_),
+    Scale(Box<MSM>, ScalarOperation),
 }
 
 impl AikenExpression for MSM {
@@ -871,21 +865,26 @@ impl AikenExpression for MSM {
                 scalar.compile_expression(),
                 commitment.compile_expression()
             ),
-
-            MSM::AppendW(msm, scalar, constant) if **msm == MSM::Empty => {
+            MSM::AppendW(msm, scalar, w_index) if **msm == MSM::Empty => {
                 format!(
-                    "MSM{{elements: [MSMElement {{ scalar: {}, g1: {} }}]}}",
+                    "MSM{{elements: [MSMElement {{ scalar: {}, g1: w{} }}]}}",
                     scalar.compile_expression(),
-                    constant.compile_expression()
+                    w_index + 1
                 )
             }
-
-            MSM::AppendW(msm, scalar, constant) => {
+            MSM::AppendW(msm, scalar, w_index) => {
                 format!(
-                    "append_term({},MSMElement {{ scalar: {}, g1: {} }})",
+                    "append_term({},MSMElement {{ scalar: {}, g1: w{} }})",
                     msm.compile_expression(),
                     scalar.compile_expression(),
-                    constant.compile_expression()
+                    w_index + 1
+                )
+            }
+            MSM::AppendNegatedG1(msm, scalar) => {
+                format!(
+                    "append_term({},MSMElement {{ scalar: {}, g1: bls12_381_g1_neg(generatorG1) }})",
+                    msm.compile_expression(),
+                    scalar.compile_expression(),
                 )
             }
             MSM::Add(msm_a, msm_b) if **msm_a == MSM::Empty => msm_b.compile_expression(),
@@ -907,35 +906,10 @@ impl AikenExpression for MSM {
     }
 }
 
-impl AikenExpression for HelperConstants {
+impl AikenExpression for ScalarOperation {
     fn compile_expression(&self) -> String {
         match self {
-            HelperConstants::W(id) => {
-                format!("w{}", id + 1)
-            }
-            HelperConstants::NegatedG1 => "bls12_381_g1_neg(generatorG1)".to_string(),
-        }
-    }
-}
-impl AikenExpression for DualMSM {
-    fn compile_expression(&self) -> String {
-        match self {
-            DualMSM::Empty => "".to_string(),
-            DualMSM::Standard(left, right) => {
-                format!(
-                    "    let el = eval({})\n    let er = eval({})",
-                    left.compile_expression(),
-                    right.compile_expression()
-                )
-            }
-        }
-    }
-}
-
-impl AikenExpression for Scalar_ {
-    fn compile_expression(&self) -> String {
-        match self {
-            Scalar_::Zero => "from_int(0)".to_string(),
+            ScalarOperation::Zero => "from_int(0)".to_string(),
             Mul(scalar, evaluation) => {
                 format!(
                     "mul({}, {})",
@@ -943,30 +917,28 @@ impl AikenExpression for Scalar_ {
                     evaluation.compile_expression()
                 )
             }
-            Scalar_::MulS(scalar_a, scalar_b) => {
+            ScalarOperation::MulS(scalar_a, scalar_b) => {
                 format!(
                     "mul({}, {})",
                     scalar_a.compile_expression(),
                     scalar_b.compile_expression()
                 )
             }
-            Power(name, exponent) if *exponent == 0 => {
-                "from_int(1)".to_string()
-            }
+            Power(_name, exponent) if *exponent == 0 => "from_int(1)".to_string(),
             Power(name, exponent) => {
                 format!("scale({}, {})", name, exponent)
             }
-            Scalar_::Add(scalar_a, scalar_b) if **scalar_a == Scalar_::Zero => {
+            ScalarOperation::Add(scalar_a, scalar_b) if **scalar_a == ScalarOperation::Zero => {
                 scalar_b.compile_expression()
             }
-            Scalar_::Add(scalar_a, scalar_b) => {
+            ScalarOperation::Add(scalar_a, scalar_b) => {
                 format!(
                     "add({}, {})",
                     scalar_a.compile_expression(),
                     scalar_b.compile_expression()
                 )
             }
-            Scalar_::Rotation(x) => decode_rotation(x),
+            ScalarOperation::Rotation(x) => decode_rotation(x),
         }
     }
 }
