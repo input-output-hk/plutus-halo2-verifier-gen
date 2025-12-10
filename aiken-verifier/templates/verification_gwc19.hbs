@@ -14,7 +14,7 @@ use transcript.{
   squeeze_challenge,
 }
 use verifier_key.{barycentric_weight, blinding_factors, omega, omega_inv, g2_const, {{{F_IMPORTS}}}, {{{P_IMPORTS}}} }
-use halo2_kzg.{build_msm, eval, MSM, append_term, MSMElement, add_msm, scale_msm}
+use halo2_kzg.{eval, MSM, MSMElement}
 use aiken/crypto/bls12_381/pairing.{miller_loop, final_exponentiation}
 
 pub fn verifier(proof: Data, transcript_rep: State<Scalar>, {{{PUBLIC_INPUTS_NAMES}}}) -> Bool {
@@ -106,7 +106,7 @@ pub fn verifier(proof: Data, transcript_rep: State<Scalar>, {{{PUBLIC_INPUTS_NAM
     // right and g2
     // g2 is not negated as final_exponentiation is doing negation
     let g2 = generatorG2
-    
+
 {{{MSM}}}
 
     let ml_l = miller_loop(el, g2_const)

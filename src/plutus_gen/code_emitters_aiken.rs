@@ -485,10 +485,14 @@ pub fn emit_verifier_code(
 
     let kzg_gwc19_intermediate_sets = construct_intermediate_sets(circuit.all_queries_ordered());
     let (left, right) = construct_msm(kzg_gwc19_intermediate_sets);
+
+    let optimized_left = optimize_msm(&left);
+    let optimized_right = optimize_msm(&right);
+
     let kzg_gwc19_msm = format!(
         "    let el = eval({})\n    let er = eval({})",
-        left.compile_expression(),
-        right.compile_expression()
+        optimized_left.compile_expression(),
+        optimized_right.compile_expression()
     );
     data.insert("MSM".to_string(), kzg_gwc19_msm);
 
@@ -762,7 +766,9 @@ fn powers(name: char) -> impl Iterator<Item = ScalarOperation> {
 // in src/poly/gwc_kzg/mod.rs
 // in https://github.com/input-output-hk/halo2/blob/gwc19_kzg/src/poly/gwc_kzg/mod.rs#L142-L212
 // but was translated to build MSM description instead of calculating one
-fn construct_msm(commitment_data: Vec<(Vec<Query>, RotationDescription)>) -> (MsmOperations, MsmOperations) {
+fn construct_msm(
+    commitment_data: Vec<(Vec<Query>, RotationDescription)>,
+) -> (MsmOperations, MsmOperations) {
     let w_count = commitment_data.len();
 
     let mut commitment_multi = MsmOperations::Empty;
@@ -801,8 +807,10 @@ fn construct_msm(commitment_data: Vec<(Vec<Query>, RotationDescription)>) -> (Ms
             })
             .unwrap();
 
-        let commitment_batch = MsmOperations::Scale(Box::new(commitment_batch.clone()), power_of_u.clone());
-        commitment_multi = MsmOperations::Add(Box::new(commitment_multi), Box::new(commitment_batch));
+        let commitment_batch =
+            MsmOperations::Scale(Box::new(commitment_batch.clone()), power_of_u.clone());
+        commitment_multi =
+            MsmOperations::Add(Box::new(commitment_multi), Box::new(commitment_batch));
         eval_multi = ScalarOperation::Add(
             Box::new(eval_multi),
             Box::new(ScalarOperation::MulS(
@@ -832,7 +840,7 @@ fn construct_msm(commitment_data: Vec<(Vec<Query>, RotationDescription)>) -> (Ms
     (left, right)
 }
 
-#[derive(Clone, Eq, PartialEq)]
+#[derive(Clone, Eq, PartialEq, Debug)]
 enum ScalarOperation {
     Zero,
     Mul(Box<ScalarOperation>, Evaluations),
@@ -852,68 +860,117 @@ enum MsmOperations {
     Scale(Box<MsmOperations>, ScalarOperation),
 }
 
-impl AikenExpression for MsmOperations {
-    fn compile_expression(&self) -> String {
+#[derive(Debug)]
+struct OptimizedMSM {
+    elements: Vec<ElementMSM>,
+}
+
+#[derive(Debug)]
+enum ElementMSM {
+    Element(ScalarOperation, Commitments),
+    ElementW(ScalarOperation, usize),
+    ElementNegatedG1(ScalarOperation),
+}
+
+impl ElementMSM {
+    fn get_scalar(&mut self) -> &mut ScalarOperation {
         match self {
-            MsmOperations::Empty => "MSM{elements: []}".to_string(),
-
-            MsmOperations::Append(msm, scalar, commitment) if **msm == MsmOperations::Empty => format!(
-                "MSM{{elements: [MSMElement {{ scalar: {}, g1: {} }}]}}",
-                scalar.compile_expression(),
-                commitment.compile_expression()
-            ),
-
-            MsmOperations::Append(msm, scalar, commitment) => format!(
-                "append_term({},MSMElement {{ scalar: {}, g1: {} }})",
-                msm.compile_expression(),
-                scalar.compile_expression(),
-                commitment.compile_expression()
-            ),
-            MsmOperations::AppendW(msm, scalar, w_index) if **msm == MsmOperations::Empty => {
-                format!(
-                    "MSM{{elements: [MSMElement {{ scalar: {}, g1: w{} }}]}}",
-                    scalar.compile_expression(),
-                    w_index + 1
-                )
-            }
-            MsmOperations::AppendW(msm, scalar, w_index) => {
-                format!(
-                    "append_term({},MSMElement {{ scalar: {}, g1: w{} }})",
-                    msm.compile_expression(),
-                    scalar.compile_expression(),
-                    w_index + 1
-                )
-            }
-            MsmOperations::AppendNegatedG1(msm, scalar) => {
-                format!(
-                    "append_term({},MSMElement {{ scalar: {}, g1: bls12_381_g1_neg(generatorG1) }})",
-                    msm.compile_expression(),
-                    scalar.compile_expression(),
-                )
-            }
-            MsmOperations::Add(msm_a, msm_b) if **msm_a == MsmOperations::Empty => msm_b.compile_expression(),
-            MsmOperations::Add(msm_a, msm_b) => {
-                format!(
-                    "add_msm({},{})",
-                    msm_a.compile_expression(),
-                    msm_b.compile_expression()
-                )
-            }
-            MsmOperations::Scale(msm, scalar) => {
-                format!(
-                    "scale_msm({},{})",
-                    scalar.compile_expression(),
-                    msm.compile_expression(),
-                )
-            }
+            ElementMSM::Element(scalar, _) => scalar,
+            ElementMSM::ElementW(scalar, _) => scalar,
+            ElementMSM::ElementNegatedG1(scalar) => scalar,
         }
+    }
+}
+
+// this function moves all MSM building functions execution from on-chain runtime to code generation stage
+fn optimize_msm(msm: &MsmOperations) -> OptimizedMSM {
+    match msm {
+        MsmOperations::Empty => OptimizedMSM { elements: vec![] },
+        MsmOperations::Append(msm, scalar, commitment) => {
+            let mut optimized = optimize_msm(msm);
+            optimized
+                .elements
+                .push(ElementMSM::Element(scalar.clone(), *commitment));
+            optimized
+        }
+        MsmOperations::AppendW(msm, scalar, index) => {
+            let mut optimized = optimize_msm(msm);
+            optimized
+                .elements
+                .push(ElementMSM::ElementW(scalar.clone(), *index));
+            optimized
+        }
+        MsmOperations::AppendNegatedG1(msm, scalar) => {
+            let mut optimized = optimize_msm(msm);
+            optimized
+                .elements
+                .push(ElementMSM::ElementNegatedG1(scalar.clone()));
+            optimized
+        }
+        MsmOperations::Add(msm_a, msm_b) => {
+            let mut optimized_a = optimize_msm(msm_a);
+            let mut optimized_b = optimize_msm(msm_b);
+            optimized_a.elements.append(&mut optimized_b.elements);
+            optimized_a
+        }
+        MsmOperations::Scale(msm, scalar) => {
+            let mut optimized = optimize_msm(msm);
+            optimized.elements.iter_mut().for_each(|e| {
+                let s = e.get_scalar();
+                *s = ScalarOperation::MulS(Box::new(scalar.clone()), Box::new(s.clone()))
+            });
+            optimized
+        }
+    }
+}
+
+impl AikenExpression for OptimizedMSM {
+    fn compile_expression(&self) -> String {
+        let elements = self
+            .elements
+            .iter()
+            .map(|element| match element {
+                ElementMSM::Element(scalar, commitment) => format!(
+                    "MSMElement {{ scalar: {}, g1: {} }}",
+                    scalar.compile_expression(),
+                    commitment.compile_expression(),
+                ),
+                ElementMSM::ElementW(scalar, index) => format!(
+                    "MSMElement {{ scalar: {}, g1: w{} }}",
+                    scalar.compile_expression(),
+                    index + 1,
+                ),
+                ElementMSM::ElementNegatedG1(scalar) => {
+                    format!(
+                        "MSMElement {{ scalar: {}, g1: bls12_381_g1_neg(generatorG1) }}",
+                        scalar.compile_expression(),
+                    )
+                }
+            })
+            .join(", ");
+        format!("MSM{{elements: [ {} ]}}", elements)
     }
 }
 
 impl AikenExpression for ScalarOperation {
     fn compile_expression(&self) -> String {
         match self {
-            ScalarOperation::Zero => "from_int(0)".to_string(),
+            //if rules are for eliminating operations that outcome can be predicted
+            Mul(scalar, evaluation) if matches!(**scalar, Power(_, 0)) => {
+                evaluation.compile_expression()
+            }
+            ScalarOperation::MulS(scalar_a, scalar_b) if matches!(**scalar_a, Power(_, 0)) => {
+                scalar_b.compile_expression()
+            }
+            ScalarOperation::MulS(scalar_a, scalar_b) if matches!(**scalar_b, Power(_, 0)) => {
+                scalar_a.compile_expression()
+            }
+            Power(_name, exponent) if *exponent == 0 => "scalarOne".to_string(),
+            ScalarOperation::Add(scalar_a, scalar_b) if **scalar_a == ScalarOperation::Zero => {
+                scalar_b.compile_expression()
+            }
+
+            ScalarOperation::Zero => "scalarZero".to_string(),
             Mul(scalar, evaluation) => {
                 format!(
                     "mul({}, {})",
@@ -928,12 +985,8 @@ impl AikenExpression for ScalarOperation {
                     scalar_b.compile_expression()
                 )
             }
-            Power(_name, exponent) if *exponent == 0 => "from_int(1)".to_string(),
             Power(name, exponent) => {
                 format!("scale({}, {})", name, exponent)
-            }
-            ScalarOperation::Add(scalar_a, scalar_b) if **scalar_a == ScalarOperation::Zero => {
-                scalar_b.compile_expression()
             }
             ScalarOperation::Add(scalar_a, scalar_b) => {
                 format!(

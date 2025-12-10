@@ -187,15 +187,15 @@ fn compute_v(
   )
 }
 
-pub fn append_term(msm: MSM, element: MSMElement) -> MSM {
+fn append_term(msm: MSM, element: MSMElement) -> MSM {
   MSM { elements: push(msm.elements, element) }
 }
 
-pub fn add_msm(a: MSM, b: MSM) -> MSM {
+fn add_msm(a: MSM, b: MSM) -> MSM {
   MSM { elements: concat(a.elements, b.elements) }
 }
 
-pub fn scale_msm(s: State<Scalar>, msm: MSM) -> MSM {
+fn scale_msm(s: State<Scalar>, msm: MSM) -> MSM {
   MSM {
     elements: map(
       msm.elements,
