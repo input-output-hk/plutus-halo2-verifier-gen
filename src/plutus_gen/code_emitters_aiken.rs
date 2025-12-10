@@ -31,7 +31,10 @@ pub fn emit_verifier_code(
         .map(|(section_type, section)| match section_type {
             ProofExtractionSteps::AdviceCommitments => section
                 .enumerate()
-                .map(|(number, _advice)| format!("    let (a{}, transcript) = read_point(transcript)\n", number + 1))
+                .map(|(number, _advice)| format!(
+                    "\tlet (a{idx}, transcript) = read_point(transcript)\n\
+                    \tlet a{idx} = decompress(a{idx})\n",
+                    idx = number + 1))
                 .join(""),
             ProofExtractionSteps::Theta => "    let (theta, transcript) = squeeze_challenge(transcript)\n".to_string(),
             ProofExtractionSteps::Beta => "    let (beta, transcript) = squeeze_challenge(transcript)\n".to_string(),
@@ -39,15 +42,22 @@ pub fn emit_verifier_code(
             ProofExtractionSteps::PermutationsCommited => section
                 .zip(letters.clone())
                 .map(|(_permutation, letter)| {
-                    format!("    let (permutations_committed_{}, transcript) = read_point(transcript)\n", letter)
+                    format!(
+                        "\tlet (permutations_committed_{letter}, transcript) = read_point(transcript)\n\
+                        \tlet permutations_committed_{letter} = decompress(permutations_committed_{letter})\n")
                 })
                 .join(""),
-            ProofExtractionSteps::VanishingRand => "    let (vanishing_rand, transcript) = read_point(transcript)\n".to_string(),
+            ProofExtractionSteps::VanishingRand =>
+                "\tlet (vanishing_rand, transcript) = read_point(transcript)\n\
+                \tlet vanishing_rand = decompress(vanishing_rand)\n".to_string(),
             ProofExtractionSteps::YCoordinate => "    let (y, transcript) = squeeze_challenge(transcript)\n".to_string(),
             ProofExtractionSteps::VanishingSplit => section
                 .enumerate()
                 .map(|(number, _vanishing_split)| {
-                    format!("    let (vanishing_split_{}, transcript) =  read_point(transcript)\n", number + 1)
+                    format!(
+                        "\tlet (vanishing_split_{idx}, transcript) =  read_point(transcript)\n\
+                        \tlet vanishing_split_{idx} = decompress(vanishing_split_{idx})\n",
+                        idx = number + 1)
                 })
                 .join(""),
             ProofExtractionSteps::XCoordinate => "    let (x, transcript) = squeeze_challenge(transcript)\n".to_string(),
@@ -84,14 +94,21 @@ pub fn emit_verifier_code(
             ProofExtractionSteps::LookupPermuted => section
                 .enumerate()
                 .map(|(number, _lookup_permuted)| {
-                    format!("    let (permuted_input_{}, transcript) =  read_point(transcript)\n", number + 1)
-                        + &format!("    let (permuted_table_{}, transcript) =  read_point(transcript)\n", number + 1)
+                    format!(
+                        "\tlet (permuted_input_{idx}, transcript) =  read_point(transcript)\n\
+                        \tlet permuted_input_{idx} = decompress(permuted_input_{idx})\n\
+                        \tlet (permuted_table_{idx}, transcript) =  read_point(transcript)\n\
+                        \tlet permuted_table_{idx} = decompress(permuted_table_{idx})\n",
+                        idx = number + 1)
                 })
                 .join(""),
             ProofExtractionSteps::LookupCommitment => section
                 .enumerate()
                 .map(|(number, _lookup_commitment)| {
-                    format!("    let (lookup_commitment_{}, transcript) =  read_point(transcript)\n", number + 1)
+                    format!(
+                        "\tlet (lookup_commitment_{idx}, transcript) =  read_point(transcript)\n\
+                        \tlet lookup_commitment_{idx} = decompress(lookup_commitment_{idx})\n",
+                        idx = number + 1)
                 })
                 .join(""),
             ProofExtractionSteps::LookupEval => section
@@ -112,8 +129,12 @@ pub fn emit_verifier_code(
             ProofExtractionSteps::X2 => "    let (x2, transcript) = squeeze_challenge(transcript)\n".to_string(),
             ProofExtractionSteps::X3 => "    let (x3, transcript) = squeeze_challenge(transcript)\n".to_string(),
             ProofExtractionSteps::X4 => "    let (x4, transcript) = squeeze_challenge(transcript)\n".to_string(),
-            ProofExtractionSteps::FCommitment => "    let (f_commitment, transcript) =  read_point(transcript)\n".to_string(),
-            ProofExtractionSteps::PI => "    let (pi_term, _) =  read_point(transcript)\n".to_string(),
+            ProofExtractionSteps::FCommitment =>
+                "\tlet (f_commitment, transcript) =  read_point(transcript)\n\
+                \tlet f_commitment = decompress(f_commitment)\n".to_string(),
+            ProofExtractionSteps::PI =>
+                "\tlet (pi_term, _) =  read_point(transcript)\n\
+                \tlet pi_term = decompress(pi_term)\n".to_string(),
             ProofExtractionSteps::QEvals => section
                 .enumerate()
                 .map(|(number, _permutation_common)| {
@@ -126,7 +147,10 @@ pub fn emit_verifier_code(
             ProofExtractionSteps::U => "    let (u, transcript) = squeeze_challenge(transcript)\n".to_string(),
             ProofExtractionSteps::Witnesses => section
                 .enumerate()
-                .map(|(number, _permutation_common)| format!("    let (w{}, transcript) =  read_point(transcript)\n", number + 1))
+                .map(|(number, _permutation_common)| format!(
+                    "\tlet (w{idx}, transcript) =  read_point(transcript)\n\
+                    \tlet w{idx} = decompress(w{idx})\n",
+                    idx = number + 1))
                 .join(""),
         })
         .collect();

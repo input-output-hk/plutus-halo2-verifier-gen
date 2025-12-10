@@ -1,4 +1,3 @@
-use aiken.{G1Element}
 use aiken/builtin.{
   blake2b_256, bls12_381_g1_neg, bls12_381_g1_scalar_mul,
   bls12_381_g1_uncompress, bytearray_to_integer, integer_to_bytearray,
@@ -60,10 +59,8 @@ pub fn common_scalar(
   Transcript { ..transcript, accumulated_for_hash: new_bytes_for_hash }
 }
 
-pub fn read_point(transcript: Transcript) -> (G1Element, Transcript) {
+pub fn read_point(transcript: Transcript) -> (ByteArray, Transcript) {
   let g1_bytes = bytearray.take(transcript.remaining_proof, 48)
-  let g1 = bls12_381_g1_uncompress(g1_bytes)
-
   let remaining_proof_data = bytearray.drop(transcript.remaining_proof, 48)
 
   let bytes_to_append = bytearray.concat(prefix_common, g1_bytes)
@@ -71,7 +68,7 @@ pub fn read_point(transcript: Transcript) -> (G1Element, Transcript) {
     bytearray.concat(transcript.accumulated_for_hash, bytes_to_append)
 
   (
-    g1,
+    g1_bytes,
     Transcript {
       remaining_proof: remaining_proof_data,
       accumulated_for_hash: new_bytes_for_hash,
@@ -115,6 +112,7 @@ test point_deserialization_generator() {
 
   let transcript_data = construct_transcript(generator_bytes, rep)
   let (point, _) = read_point(transcript_data)
+  let point = bls12_381_g1_uncompress(point)
 
   expect generator == point
 }
@@ -127,6 +125,7 @@ test point_deserialization_negated_generator() {
 
   let transcript_data = construct_transcript(negated_generator_bytes, rep)
   let (point, _) = read_point(transcript_data)
+  let point = bls12_381_g1_uncompress(point)
 
   expect bls12_381_g1_neg(generator) == point
 }
@@ -137,6 +136,7 @@ test point_deserialization() {
     #"8ce3b57b791798433fd323753489cac9bca43b98deaafaed91f4cb010730ae1e38b186ccd37a09b8aed62ce23b699c48"
   let transcript_data = construct_transcript(point_bytes, rep)
   let (point, _) = read_point(transcript_data)
+  let point = bls12_381_g1_uncompress(point)
 
   expect bls12_381_g1_scalar_mul(42, generator) == point
 }
@@ -191,6 +191,7 @@ test squeeze_challenge_calculations() {
   let transcript_data = construct_transcript(proof_for_testing, rep)
   let transcript_data = common_scalar(c_scalar, transcript_data)
   let (point, transcript_data) = read_point(transcript_data)
+  let point = bls12_381_g1_uncompress(point)
   let (scalar, transcript_data) = read_scalar(transcript_data)
   let (challenge, _) = squeeze_challenge(transcript_data)
 
@@ -335,6 +336,7 @@ test full_proof_deserialization_for_simple_mul_circuit() {
   let (x4, transcript_data) = squeeze_challenge(transcript_data)
 
   let (pi_term, _) = read_point(transcript_data)
+  let pi_term = bls12_381_g1_uncompress(pi_term)
 
   expect
     x4 == from_int(

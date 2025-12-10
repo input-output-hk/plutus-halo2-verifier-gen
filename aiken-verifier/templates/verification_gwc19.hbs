@@ -1,7 +1,7 @@
 use aiken/builtin.{bls12_381_g1_neg}
 use aiken/collection/list.{at, drop, foldl, head, take}
 use aiken/crypto/bitwise.{State}
-use aiken/crypto/bls12_381/g1.{add as addG1, scale as scaleG1, zero, generator as generatorG1}
+use aiken/crypto/bls12_381/g1.{add as addG1, scale as scaleG1, zero, generator as generatorG1, decompress}
 use aiken/crypto/bls12_381/g2.{generator as generatorG2}
 use aiken/crypto/bls12_381/scalar.{
   Scalar, add, from_int, mul, neg, scale, sub
