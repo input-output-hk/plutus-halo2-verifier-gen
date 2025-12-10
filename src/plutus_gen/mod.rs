@@ -77,7 +77,7 @@ pub fn generate_aiken_verifier<S>(
     params: &ParamsKZG<Bls12>,
     vk: &VerifyingKey<Scalar, S>,
     instances: &[&[&[Scalar]]],
-    test_proof: Option<Vec<u8>>,
+    test_proofs: Option<(Vec<u8>, Vec<u8>)>,
 ) -> Result<()>
 where
     S: PolynomialCommitmentScheme<Scalar, Commitment = G1Projective> + ExtractKZG,
@@ -96,7 +96,8 @@ where
         verifier_template_file,
         Path::new("aiken-verifier/aiken_halo2/lib/proof_verifier.ak"),
         &circuit_representation,
-        test_proof.map(|p| (p, vk.transcript_repr(), instances[0][0].to_vec())),
+        test_proofs
+            .map(|(p, invalid_p)| (p, invalid_p, vk.transcript_repr(), instances[0][0].to_vec())),
     )
     .context("Failed to emit the verifier code for aiken")?;
     emit_vk_code_aiken(

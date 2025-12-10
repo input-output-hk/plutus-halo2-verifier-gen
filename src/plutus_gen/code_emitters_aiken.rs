@@ -20,7 +20,7 @@ pub fn emit_verifier_code(
     template_file: &Path, // aiken mustashe template
     aiken_file: &Path,    // generated aiken file, output
     circuit: &CircuitRepresentation,
-    test_data: Option<(Vec<u8>, Scalar, Vec<Scalar>)>,
+    test_data: Option<(Vec<u8>, Vec<u8>, Scalar, Vec<Scalar>)>,
 ) -> Result<String, RenderError> {
     let letters = 'a'..='z';
     let proof_extraction: Vec<_> = circuit
@@ -530,17 +530,7 @@ pub fn emit_verifier_code(
                 "False".to_string(),
             );
         }
-        Some((proof, transcript_rep, public_inputs)) => {
-            let mut invalid_proof = proof.clone();
-
-            // index points to one of last bytes of las scalar that is part of the proof
-            // this should be safe and not result in malformed encoding exception
-            // which is likely for flipping Byte for compressed G1 element
-            let index = invalid_proof.len() - 1 - 48 - 2;
-            let firs_byte = invalid_proof[index];
-            let negated_firs_byte = !firs_byte;
-            invalid_proof[index] = negated_firs_byte;
-
+        Some((proof, invalid_proof, transcript_rep, public_inputs)) => {
             let test_valid_proof_valid_inputs = format!(
                 "verifier(#\"{}\", from_int(0x{}), {})",
                 hex::encode(proof.clone()),
