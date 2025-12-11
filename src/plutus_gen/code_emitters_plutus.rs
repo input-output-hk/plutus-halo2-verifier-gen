@@ -489,7 +489,11 @@ pub fn emit_verifier_code(
                 commitment_data.commitment.compile_expression(),
                 commitment_data.point_set_index,
                 commitment_data.points.iter().map(decode_rotation).join(","),
-                commitment_data.evaluations.iter().map(PlinthExpression::compile_expression).join(",")
+                commitment_data
+                    .evaluations
+                    .iter()
+                    .map(PlinthExpression::compile_expression)
+                    .join(",")
             )
         })
         .join("),(");

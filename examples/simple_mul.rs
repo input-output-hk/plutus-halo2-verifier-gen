@@ -108,6 +108,16 @@ fn compile_simple_mul_circuit<
 
     let proof = transcript.finalize();
 
+    let mut invalid_proof = proof.clone();
+    // index points to bytes of first scalar that is part of the proof
+    // this should be safe and not result in malformed encoding exception
+    // which is likely for flipping Byte for compressed G1 element
+    // simple mul has 8 G1 elements at the beginning of the proof each 48 bytes long
+    let index = 48 * 8 + 2;
+    let firs_byte = invalid_proof[index];
+    let negated_firs_byte = !firs_byte;
+    invalid_proof[index] = negated_firs_byte;
+
     info!("proof size {:?}", proof.len());
 
     let mut transcript_verifier: CircuitTranscript<CardanoFriendlyState> =
@@ -139,7 +149,7 @@ fn compile_simple_mul_circuit<
     generate_plinth_verifier(&params, &vk, instances)
         .context("Plinth verifier generation failed")?;
 
-    generate_aiken_verifier(&params, &vk, instances, Some(proof))
+    generate_aiken_verifier(&params, &vk, instances, Some((proof, invalid_proof)))
         .context("Aiken verifier generation failed")?;
 
     Ok(())

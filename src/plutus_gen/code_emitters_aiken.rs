@@ -1,4 +1,6 @@
+use crate::plutus_gen::code_emitters_aiken::ScalarOperation::{Mul, Power};
 use crate::plutus_gen::decode_rotation;
+use crate::plutus_gen::extraction::data::{Commitments, Evaluations, Query, RotationDescription};
 use crate::plutus_gen::extraction::{
     AikenExpression, combine_aiken_expressions,
     data::{CircuitRepresentation, ProofExtractionSteps},
@@ -7,6 +9,7 @@ use crate::plutus_gen::extraction::{
 use blstrs::Scalar;
 use ff::Field;
 use halo2_proofs::halo2curves::group::GroupEncoding;
+
 use handlebars::{Handlebars, RenderError};
 use itertools::Itertools;
 use log::debug;
@@ -17,7 +20,7 @@ pub fn emit_verifier_code(
     template_file: &Path, // aiken mustashe template
     aiken_file: &Path,    // generated aiken file, output
     circuit: &CircuitRepresentation,
-    test_data: Option<(Vec<u8>, Scalar, Vec<Scalar>)>,
+    test_data: Option<(Vec<u8>, Vec<u8>, Scalar, Vec<Scalar>)>,
 ) -> Result<String, RenderError> {
     let letters = 'a'..='z';
     let proof_extraction: Vec<_> = circuit
@@ -98,9 +101,9 @@ pub fn emit_verifier_code(
                         + &format!("    let (product_next_eval_{}, transcript) = read_scalar(transcript)\n", number + 1)
                         + &format!("    let (permuted_input_eval_{}, transcript) = read_scalar(transcript)\n", number + 1)
                         + &format!(
-                            "    let (permuted_input_inv_eval_{}, transcript) = read_scalar(transcript)\n",
-                            number + 1
-                        )
+                        "    let (permuted_input_inv_eval_{}, transcript) = read_scalar(transcript)\n",
+                        number + 1
+                    )
                         + &format!("    let (permuted_table_eval_{}, transcript) = read_scalar(transcript)\n", number + 1)
                 })
                 .join(""),
@@ -123,7 +126,7 @@ pub fn emit_verifier_code(
             ProofExtractionSteps::U => "    let (u, transcript) = squeeze_challenge(transcript)\n".to_string(),
             ProofExtractionSteps::Witnesses => section
                 .enumerate()
-                .map(|(number, _permutation_common)| format!("let (w{}, transcript)) =  read_point(transcript)\n", number + 1))
+                .map(|(number, _permutation_common)| format!("    let (w{}, transcript) =  read_point(transcript)\n", number + 1))
                 .join(""),
         })
         .collect();
@@ -425,6 +428,11 @@ pub fn emit_verifier_code(
 
     let (unique_grouped_points, commitment_data) = precompute_intermediate_sets(circuit);
 
+    // below there are computations for both cases HALO2 and GWC19, but not all of them are used
+    // specific values are picked based on what is used in .hbs template
+    // elements are separated by prefix HALO2_ elements are related to halo2 version of KZG
+    // prefix GEC19_ is for elements related to gwc19 version of KZG
+
     let point_sets_indexes: Vec<usize> = (0..unique_grouped_points.len()).collect();
     let max_commitments_per_points_set = point_sets_indexes
         .iter()
@@ -437,21 +445,21 @@ pub fn emit_verifier_code(
         .max()
         .unwrap_or(0);
     data.insert(
-        "X1_POWERS_COUNT".to_string(),
+        "HALO2_X1_POWERS_COUNT".to_string(),
         max_commitments_per_points_set.to_string(),
     );
 
     data.insert(
-        "X4_POWERS_COUNT".to_string(),
+        "HALO2_X4_POWERS_COUNT".to_string(),
         (point_sets_indexes.len() + 1).to_string(),
     );
 
     let q_evaluations = (1..=circuit.instantiation_data.q_evaluations_count)
         .map(|n| format!("q_eval_on_x3_{}", n))
         .join(", ");
-    data.insert("Q_EVALS_FROM_PROOF".to_string(), q_evaluations);
+    data.insert("HALO2_Q_EVALS_FROM_PROOF".to_string(), q_evaluations);
 
-    let commitment_data = commitment_data
+    let halo2_commitment_data = commitment_data
         .iter()
         .map(|commitment_data| {
             format!(
@@ -468,16 +476,30 @@ pub fn emit_verifier_code(
         })
         .join("),(");
 
-    let commitment_map = format!("    let commitment_data = [({})]", commitment_data);
-    data.insert("COMMITMENT_MAP".to_string(), commitment_map);
+    let kzg_halo2_commitment_map =
+        format!("    let commitment_data = [({})]", halo2_commitment_data);
+    data.insert("HALO2_COMMITMENT_MAP".to_string(), kzg_halo2_commitment_map);
 
-    let point_sets = unique_grouped_points
+    let kzg_halo2_point_sets = unique_grouped_points
         .iter()
         .map(|set| set.iter().map(decode_rotation).join(","))
         .join("],[");
 
-    let point_sets = format!("     let point_sets = [[{}]]", point_sets);
-    data.insert("POINT_SETS".to_string(), point_sets);
+    let kzg_halo2_point_sets = format!("     let point_sets = [[{}]]", kzg_halo2_point_sets);
+    data.insert("HALO2_POINT_SETS".to_string(), kzg_halo2_point_sets);
+
+    let kzg_gwc19_intermediate_sets = construct_intermediate_sets(circuit.all_queries_ordered());
+    let (left, right) = construct_msm(kzg_gwc19_intermediate_sets);
+
+    let optimized_left = optimize_msm(&left);
+    let optimized_right = optimize_msm(&right);
+
+    let kzg_gwc19_msm = format!(
+        "    let el = eval({})\n    let er = eval({})",
+        optimized_left.compile_expression(),
+        optimized_right.compile_expression()
+    );
+    data.insert("GWC19_MSM".to_string(), kzg_gwc19_msm);
 
     let fixed_commitments_imports = (1..=circuit.instantiation_data.fixed_commitments.len())
         .map(|id| format!("f{}_commitment", id))
@@ -513,17 +535,7 @@ pub fn emit_verifier_code(
                 "False".to_string(),
             );
         }
-        Some((proof, transcript_rep, public_inputs)) => {
-            let mut invalid_proof = proof.clone();
-
-            // index points to one of last bytes of las scalar that is part of the proof
-            // this should be safe and not result in malformed encoding exception
-            // which is likely for flipping Byte for compressed G1 element
-            let index = invalid_proof.len() - 1 - 48 - 2;
-            let firs_byte = invalid_proof[index];
-            let negated_firs_byte = !firs_byte;
-            invalid_proof[index] = negated_firs_byte;
-
+        Some((proof, invalid_proof, transcript_rep, public_inputs)) => {
             let test_valid_proof_valid_inputs = format!(
                 "verifier(#\"{}\", from_int(0x{}), {})",
                 hex::encode(proof.clone()),
@@ -716,4 +728,269 @@ pub fn emit_vk_code(
     let mut output_file = File::create(aiken_file)?;
     handlebars.render_to_write("aiken_template", &data, &mut output_file)?;
     handlebars.render("aiken_template", &data)
+}
+
+fn construct_intermediate_sets(queries: [Vec<Query>; 6]) -> Vec<(Vec<Query>, RotationDescription)> {
+    let mut point_query_map: Vec<(RotationDescription, Vec<Query>)> = Vec::new();
+    for query in queries.iter().flatten() {
+        if let Some(pos) = point_query_map
+            .iter()
+            .position(|(point, _)| *point == query.point)
+        {
+            let (_, queries) = &mut point_query_map[pos];
+            queries.push(*query);
+        } else {
+            point_query_map.push((query.point, vec![*query]));
+        }
+    }
+
+    point_query_map
+        .into_iter()
+        .map(|(point, queries)| (queries, point))
+        .collect()
+}
+
+// symbolic representation of powers of specific scalar
+fn powers(name: char) -> impl Iterator<Item = ScalarOperation> {
+    (0..).map(move |idx| Power(name, idx))
+}
+
+//this is done in Plinth with template haskell since there is no macro language for aiken
+// constructing final MSM was reimplemented with pure code generation
+// to make it easier to debug this function is 1:1 analog to multi_prepare
+// in src/poly/gwc_kzg/mod.rs
+// in https://github.com/input-output-hk/halo2/blob/gwc19_kzg/src/poly/gwc_kzg/mod.rs#L142-L212
+// but was translated to build MSM description instead of calculating one
+fn construct_msm(
+    commitment_data: Vec<(Vec<Query>, RotationDescription)>,
+) -> (MsmOperations, MsmOperations) {
+    let w_count = commitment_data.len();
+
+    let mut commitment_multi = MsmOperations::Empty;
+    let mut eval_multi = ScalarOperation::Zero;
+
+    let mut witness = MsmOperations::Empty;
+    let mut witness_with_aux = MsmOperations::Empty;
+
+    for ((commitment_at_a_point, wi), power_of_u) in
+        commitment_data.iter().zip(0..w_count).zip(powers('u'))
+    {
+        let (queries, point) = commitment_at_a_point;
+
+        assert!(!queries.is_empty());
+        let z = point;
+
+        let (commitment_batch, eval_batch) = queries
+            .iter()
+            .zip(powers('v'))
+            .map(|(query, power_of_v)| {
+                assert_eq!(query.point, *z);
+
+                let commitment = query.commitment;
+                let mut msm = MsmOperations::Empty;
+                msm = MsmOperations::Append(Box::new(msm), power_of_v.clone(), commitment);
+
+                let eval = ScalarOperation::Mul(Box::new(power_of_v), query.evaluation);
+
+                (msm, eval)
+            })
+            .reduce(|(commitment_acc, eval_acc), (commitment, eval)| {
+                (
+                    MsmOperations::Add(Box::new(commitment_acc.clone()), Box::new(commitment)),
+                    ScalarOperation::Add(Box::new(eval_acc), Box::new(eval)),
+                )
+            })
+            .unwrap();
+
+        let commitment_batch =
+            MsmOperations::Scale(Box::new(commitment_batch.clone()), power_of_u.clone());
+        commitment_multi =
+            MsmOperations::Add(Box::new(commitment_multi), Box::new(commitment_batch));
+        eval_multi = ScalarOperation::Add(
+            Box::new(eval_multi),
+            Box::new(ScalarOperation::MulS(
+                Box::new(power_of_u.clone()),
+                Box::new(eval_batch),
+            )),
+        );
+
+        witness_with_aux = MsmOperations::AppendW(
+            Box::new(witness_with_aux),
+            ScalarOperation::MulS(
+                Box::new(power_of_u.clone()),
+                Box::new(ScalarOperation::Rotation(*z)),
+            ),
+            wi,
+        );
+        witness = MsmOperations::AppendW(Box::new(witness), power_of_u, wi);
+    }
+
+    let left: MsmOperations = witness;
+    let mut right: MsmOperations = MsmOperations::Empty;
+
+    right = MsmOperations::Add(Box::new(right), Box::new(witness_with_aux));
+    right = MsmOperations::Add(Box::new(right), Box::new(commitment_multi));
+    right = MsmOperations::AppendNegatedG1(Box::new(right), eval_multi);
+
+    (left, right)
+}
+
+#[derive(Clone, Eq, PartialEq, Debug)]
+enum ScalarOperation {
+    Zero,
+    Mul(Box<ScalarOperation>, Evaluations),
+    MulS(Box<ScalarOperation>, Box<ScalarOperation>),
+    Power(char, i32),
+    Add(Box<ScalarOperation>, Box<ScalarOperation>),
+    Rotation(RotationDescription),
+}
+
+#[derive(Clone, Eq, PartialEq)]
+enum MsmOperations {
+    Empty,
+    Append(Box<MsmOperations>, ScalarOperation, Commitments),
+    AppendW(Box<MsmOperations>, ScalarOperation, usize),
+    AppendNegatedG1(Box<MsmOperations>, ScalarOperation),
+    Add(Box<MsmOperations>, Box<MsmOperations>),
+    Scale(Box<MsmOperations>, ScalarOperation),
+}
+
+#[derive(Debug)]
+struct OptimizedMSM {
+    elements: Vec<ElementMSM>,
+}
+
+#[derive(Debug)]
+enum ElementMSM {
+    Element(ScalarOperation, Commitments),
+    ElementW(ScalarOperation, usize),
+    ElementNegatedG1(ScalarOperation),
+}
+
+impl ElementMSM {
+    fn get_scalar(&mut self) -> &mut ScalarOperation {
+        match self {
+            ElementMSM::Element(scalar, _) => scalar,
+            ElementMSM::ElementW(scalar, _) => scalar,
+            ElementMSM::ElementNegatedG1(scalar) => scalar,
+        }
+    }
+}
+
+// this function moves all MSM building functions execution from on-chain runtime to code generation stage
+fn optimize_msm(msm: &MsmOperations) -> OptimizedMSM {
+    match msm {
+        MsmOperations::Empty => OptimizedMSM { elements: vec![] },
+        MsmOperations::Append(msm, scalar, commitment) => {
+            let mut optimized = optimize_msm(msm);
+            optimized
+                .elements
+                .push(ElementMSM::Element(scalar.clone(), *commitment));
+            optimized
+        }
+        MsmOperations::AppendW(msm, scalar, index) => {
+            let mut optimized = optimize_msm(msm);
+            optimized
+                .elements
+                .push(ElementMSM::ElementW(scalar.clone(), *index));
+            optimized
+        }
+        MsmOperations::AppendNegatedG1(msm, scalar) => {
+            let mut optimized = optimize_msm(msm);
+            optimized
+                .elements
+                .push(ElementMSM::ElementNegatedG1(scalar.clone()));
+            optimized
+        }
+        MsmOperations::Add(msm_a, msm_b) => {
+            let mut optimized_a = optimize_msm(msm_a);
+            let mut optimized_b = optimize_msm(msm_b);
+            optimized_a.elements.append(&mut optimized_b.elements);
+            optimized_a
+        }
+        MsmOperations::Scale(msm, scalar) => {
+            let mut optimized = optimize_msm(msm);
+            optimized.elements.iter_mut().for_each(|e| {
+                let s = e.get_scalar();
+                *s = ScalarOperation::MulS(Box::new(scalar.clone()), Box::new(s.clone()))
+            });
+            optimized
+        }
+    }
+}
+
+impl AikenExpression for OptimizedMSM {
+    fn compile_expression(&self) -> String {
+        let elements = self
+            .elements
+            .iter()
+            .map(|element| match element {
+                ElementMSM::Element(scalar, commitment) => format!(
+                    "MSMElement {{ scalar: {}, g1: {} }}",
+                    scalar.compile_expression(),
+                    commitment.compile_expression(),
+                ),
+                ElementMSM::ElementW(scalar, index) => format!(
+                    "MSMElement {{ scalar: {}, g1: w{} }}",
+                    scalar.compile_expression(),
+                    index + 1,
+                ),
+                ElementMSM::ElementNegatedG1(scalar) => {
+                    format!(
+                        "MSMElement {{ scalar: {}, g1: bls12_381_g1_neg(generatorG1) }}",
+                        scalar.compile_expression(),
+                    )
+                }
+            })
+            .join(", ");
+        format!("MSM{{elements: [ {} ]}}", elements)
+    }
+}
+
+impl AikenExpression for ScalarOperation {
+    fn compile_expression(&self) -> String {
+        match self {
+            //if rules are for eliminating operations that outcome can be predicted
+            Mul(scalar, evaluation) if matches!(**scalar, Power(_, 0)) => {
+                evaluation.compile_expression()
+            }
+            ScalarOperation::MulS(scalar_a, scalar_b) if matches!(**scalar_a, Power(_, 0)) => {
+                scalar_b.compile_expression()
+            }
+            ScalarOperation::MulS(scalar_a, scalar_b) if matches!(**scalar_b, Power(_, 0)) => {
+                scalar_a.compile_expression()
+            }
+            Power(_name, exponent) if *exponent == 0 => "scalarOne".to_string(),
+            ScalarOperation::Add(scalar_a, scalar_b) if **scalar_a == ScalarOperation::Zero => {
+                scalar_b.compile_expression()
+            }
+
+            ScalarOperation::Zero => "scalarZero".to_string(),
+            Mul(scalar, evaluation) => {
+                format!(
+                    "mul({}, {})",
+                    scalar.compile_expression(),
+                    evaluation.compile_expression()
+                )
+            }
+            ScalarOperation::MulS(scalar_a, scalar_b) => {
+                format!(
+                    "mul({}, {})",
+                    scalar_a.compile_expression(),
+                    scalar_b.compile_expression()
+                )
+            }
+            Power(name, exponent) => {
+                format!("scale({}, {})", name, exponent)
+            }
+            ScalarOperation::Add(scalar_a, scalar_b) => {
+                format!(
+                    "add({}, {})",
+                    scalar_a.compile_expression(),
+                    scalar_b.compile_expression()
+                )
+            }
+            ScalarOperation::Rotation(x) => decode_rotation(x),
+        }
+    }
 }

@@ -77,7 +77,7 @@ pub fn generate_aiken_verifier<S>(
     params: &ParamsKZG<Bls12>,
     vk: &VerifyingKey<Scalar, S>,
     instances: &[&[&[Scalar]]],
-    test_proof: Option<Vec<u8>>,
+    test_proofs: Option<(Vec<u8>, Vec<u8>)>,
 ) -> Result<()>
 where
     S: PolynomialCommitmentScheme<Scalar, Commitment = G1Projective> + ExtractKZG,
@@ -86,11 +86,18 @@ where
         .context("Failed to extract the circuit representation")?;
     let circuit_representation = S::extract_kzg_steps(circuit_representation);
 
+    // static locations of files in aiken directory
+    let verifier_template_file = match S::kzg_type() {
+        KzgType::GWC19 => Path::new("aiken-verifier/templates/verification_gwc19.hbs"),
+        KzgType::Halo2MultiOpen => Path::new("aiken-verifier/templates/verification_h2.hbs"),
+    };
+
     emit_verifier_code_aiken(
-        Path::new("aiken-verifier/templates/verification.hbs"),
+        verifier_template_file,
         Path::new("aiken-verifier/aiken_halo2/lib/proof_verifier.ak"),
         &circuit_representation,
-        test_proof.map(|p| (p, vk.transcript_repr(), instances[0][0].to_vec())),
+        test_proofs
+            .map(|(p, invalid_p)| (p, invalid_p, vk.transcript_repr(), instances[0][0].to_vec())),
     )
     .context("Failed to emit the verifier code for aiken")?;
     emit_vk_code_aiken(

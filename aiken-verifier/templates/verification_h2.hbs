@@ -101,17 +101,17 @@ pub fn verifier(proof: Data, transcript_rep: State<Scalar>, {{{PUBLIC_INPUTS_NAM
     // this is MSM done for h-commitments
 {{{H_COMMITMENTS}}}
 
-{{{COMMITMENT_MAP}}}
+{{{HALO2_COMMITMENT_MAP}}}
 
-{{{POINT_SETS}}}
+{{{HALO2_POINT_SETS}}}
 
     // left and s_g2
     // right and g2
     // g2 is not negated as final_exponentiation is doing negation
     let g2 = generatorG2
 
-    let x1Powers = powers({{{X1_POWERS_COUNT}}}, x1)
-    let x4Powers = powers({{{X4_POWERS_COUNT}}}, x4)
+    let x1Powers = powers({{{HALO2_X1_POWERS_COUNT}}}, x1)
+    let x4Powers = powers({{{HALO2_X4_POWERS_COUNT}}}, x4)
 
     let alt_right =
           build_msm(
@@ -121,7 +121,7 @@ pub fn verifier(proof: Data, transcript_rep: State<Scalar>, {{{PUBLIC_INPUTS_NAM
               x4Powers,
               f_commitment,
               pi_term,
-              [{{{Q_EVALS_FROM_PROOF}}}],
+              [{{{HALO2_Q_EVALS_FROM_PROOF}}}],
               commitment_data,
               point_sets)
 
