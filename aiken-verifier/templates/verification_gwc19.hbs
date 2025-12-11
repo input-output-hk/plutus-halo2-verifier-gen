@@ -4,11 +4,11 @@ use aiken/crypto/bitwise.{State}
 use aiken/crypto/bls12_381/g1.{add as addG1, scale as scaleG1, zero, generator as generatorG1}
 use aiken/crypto/bls12_381/g2.{generator as generatorG2}
 use aiken/crypto/bls12_381/scalar.{
-  Scalar, add, from_int, mul, neg, recip, scale, sub
+  Scalar, add, from_int, mul, neg, scale, sub
 }
 use bls_utils.{inner_product, recip_eea}
 use lagrange.{lagrange_polynomial_basis}
-use omega_rotations.{rotate_omegas, rotate_omega, powers}
+use omega_rotations.{rotate_omegas, rotate_omega}
 use transcript.{
   common_scalar, construct_transcript, read_point, read_scalar,
   squeeze_challenge,
@@ -107,7 +107,7 @@ pub fn verifier(proof: Data, transcript_rep: State<Scalar>, {{{PUBLIC_INPUTS_NAM
     // g2 is not negated as final_exponentiation is doing negation
     let g2 = generatorG2
 
-{{{MSM}}}
+{{{GWC19_MSM}}}
 
     let ml_l = miller_loop(el, g2_const)
     let ml_r = miller_loop(er, g2)

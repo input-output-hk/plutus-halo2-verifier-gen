@@ -428,6 +428,11 @@ pub fn emit_verifier_code(
 
     let (unique_grouped_points, commitment_data) = precompute_intermediate_sets(circuit);
 
+    // below there are computations for both cases HALO2 and GWC19, but not all of them are used
+    // specific values are picked based on what is used in .hbs template
+    // elements are separated by prefix HALO2_ elements are related to halo2 version of KZG
+    // prefix GEC19_ is for elements related to gwc19 version of KZG
+
     let point_sets_indexes: Vec<usize> = (0..unique_grouped_points.len()).collect();
     let max_commitments_per_points_set = point_sets_indexes
         .iter()
@@ -440,19 +445,19 @@ pub fn emit_verifier_code(
         .max()
         .unwrap_or(0);
     data.insert(
-        "X1_POWERS_COUNT".to_string(),
+        "HALO2_X1_POWERS_COUNT".to_string(),
         max_commitments_per_points_set.to_string(),
     );
 
     data.insert(
-        "X4_POWERS_COUNT".to_string(),
+        "HALO2_X4_POWERS_COUNT".to_string(),
         (point_sets_indexes.len() + 1).to_string(),
     );
 
     let q_evaluations = (1..=circuit.instantiation_data.q_evaluations_count)
         .map(|n| format!("q_eval_on_x3_{}", n))
         .join(", ");
-    data.insert("Q_EVALS_FROM_PROOF".to_string(), q_evaluations);
+    data.insert("HALO2_Q_EVALS_FROM_PROOF".to_string(), q_evaluations);
 
     let halo2_commitment_data = commitment_data
         .iter()
@@ -473,7 +478,7 @@ pub fn emit_verifier_code(
 
     let kzg_halo2_commitment_map =
         format!("    let commitment_data = [({})]", halo2_commitment_data);
-    data.insert("COMMITMENT_MAP".to_string(), kzg_halo2_commitment_map);
+    data.insert("HALO2_COMMITMENT_MAP".to_string(), kzg_halo2_commitment_map);
 
     let kzg_halo2_point_sets = unique_grouped_points
         .iter()
@@ -481,7 +486,7 @@ pub fn emit_verifier_code(
         .join("],[");
 
     let kzg_halo2_point_sets = format!("     let point_sets = [[{}]]", kzg_halo2_point_sets);
-    data.insert("POINT_SETS".to_string(), kzg_halo2_point_sets);
+    data.insert("HALO2_POINT_SETS".to_string(), kzg_halo2_point_sets);
 
     let kzg_gwc19_intermediate_sets = construct_intermediate_sets(circuit.all_queries_ordered());
     let (left, right) = construct_msm(kzg_gwc19_intermediate_sets);
@@ -494,7 +499,7 @@ pub fn emit_verifier_code(
         optimized_left.compile_expression(),
         optimized_right.compile_expression()
     );
-    data.insert("MSM".to_string(), kzg_gwc19_msm);
+    data.insert("GWC19_MSM".to_string(), kzg_gwc19_msm);
 
     let fixed_commitments_imports = (1..=circuit.instantiation_data.fixed_commitments.len())
         .map(|id| format!("f{}_commitment", id))
