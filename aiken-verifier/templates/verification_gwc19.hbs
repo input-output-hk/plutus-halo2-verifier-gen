@@ -6,7 +6,7 @@ use aiken/crypto/bls12_381/g2.{generator as generatorG2}
 use aiken/crypto/bls12_381/scalar.{
   Scalar, add, from_int, mul, neg, recip, scale, sub
 }
-use bls_utils.{inner_product}
+use bls_utils.{inner_product, recip_eea}
 use lagrange.{lagrange_polynomial_basis}
 use omega_rotations.{rotate_omegas, rotate_omega, powers}
 use transcript.{
@@ -95,7 +95,7 @@ pub fn verifier(proof: Data, transcript_rep: State<Scalar>, {{{PUBLIC_INPUTS_NAM
 
 {{{VANISHING_EVALUATION}}}
 
-    expect Some(inverted) = recip(sub(xn, scalarOne)) // recip is inverse of the number mod bls12_381_field_prime
+    let inverted = recip_eea(sub(xn, scalarOne)) // recip is inverse of the number mod bls12_381_field_prime
     let vanishing_s = mul(hEval, inverted)
 
     // vanishing split IS PASSED IN REVERSE ORDER!!!
