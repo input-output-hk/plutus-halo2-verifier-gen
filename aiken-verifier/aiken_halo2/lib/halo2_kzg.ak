@@ -3,13 +3,14 @@ use aiken/collection/list.{
   concat, filter, foldl, is_empty, length, map, push, range, reverse, unzip, zip,
 }
 use aiken/crypto/bitwise.{State}
-use aiken/crypto/bls12_381/g1.{add as add_g1, generator, scale, zero}
+use aiken/crypto/bls12_381/g1.{add as add_g1, generator, scale, zero, decompress, compress}
 use aiken/crypto/bls12_381/scalar.{Scalar, add, from_int, mul, sub}
 use lagrange.{batch_inverses, lagrange_evaluation}
+use verifier_key.{neg_g1_generator}
 
 pub type MSMElement {
   scalar: State<Scalar>,
-  g1: G1Element,
+  g1: ByteArray,
 }
 
 pub type MSM {
@@ -21,11 +22,11 @@ pub fn build_msm(
   x2: State<Scalar>,
   x3: State<Scalar>,
   x4Powers: List<State<Scalar>>,
-  f_commitment: G1Element,
-  pi_commitment: G1Element,
+  f_commitment: ByteArray,
+  pi_commitment: ByteArray,
   proofX3QEvals: List<State<Scalar>>,
   commitmentMap: List<
-    (G1Element, Int, List<State<Scalar>>, List<State<Scalar>>),
+    (ByteArray, Int, List<State<Scalar>>, List<State<Scalar>>),
   >,
   pointSets: List<List<State<Scalar>>>,
 ) -> MSM {
@@ -39,7 +40,7 @@ pub fn build_msm(
     append_term(
       final_com,
       // -vG1
-      MSMElement { scalar: v, g1: bls12_381_g1_neg(generator) },
+      MSMElement { scalar: v, g1: neg_g1_generator },
     ),
     // scaled pi
     MSMElement { scalar: x3, g1: pi_commitment },
@@ -48,7 +49,7 @@ pub fn build_msm(
 
 fn build_q(
   commitmentMap: List<
-    (G1Element, Int, List<State<Scalar>>, List<State<Scalar>>),
+    (ByteArray, Int, List<State<Scalar>>, List<State<Scalar>>),
   >,
   pointSetsIndexes: List<Int>,
   x1Powers: List<State<Scalar>>,
@@ -155,7 +156,7 @@ pub fn compute_f_eval(
 
 fn final_commitment(
   q_commitments: List<MSM>,
-  f_commitment: G1Element,
+  f_commitment: ByteArray,
   x4Powers: List<State<Scalar>>,
 ) -> MSM {
   foldl(
@@ -208,6 +209,9 @@ pub fn eval(msm: MSM) -> G1Element {
   foldl(
     msm.elements,
     zero,
-    fn(element, acc) { add_g1(acc, scale(element.g1, element.scalar)) },
+    fn(element, acc) { 
+      let g1 = decompress(element.g1)
+      add_g1(acc, scale(g1, element.scalar)) 
+    },
   )
 }

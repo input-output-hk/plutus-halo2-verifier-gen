@@ -1,6 +1,6 @@
 use aiken/collection/list.{at, drop, foldl, head, take}
 use aiken/crypto/bitwise.{State}
-use aiken/crypto/bls12_381/g1.{add as addG1, scale as scaleG1, zero, decompress}
+use aiken/crypto/bls12_381/g1.{add as addG1, scale as scaleG1, zero, decompress, compress}
 use aiken/crypto/bls12_381/g2.{generator as generatorG2}
 use aiken/crypto/bls12_381/scalar.{
   Scalar, add, from_int, mul, neg, scale, sub,
@@ -100,6 +100,7 @@ pub fn verifier(proof: Data, transcript_rep: State<Scalar>, {{{PUBLIC_INPUTS_NAM
     // vanishing split IS PASSED IN REVERSE ORDER!!!
     // this is MSM done for h-commitments
 {{{H_COMMITMENTS}}}
+    let vanishing_g = compress(vanishing_g) // need to compress computed vanishing_g, because commitment_data expects compressed points
 
 {{{HALO2_COMMITMENT_MAP}}}
 
@@ -126,7 +127,7 @@ pub fn verifier(proof: Data, transcript_rep: State<Scalar>, {{{PUBLIC_INPUTS_NAM
               point_sets)
 
 
-    let el = pi_term
+    let el = decompress(pi_term)
     let er = eval(alt_right)
 
     let ml_l = miller_loop(el, g2_const)

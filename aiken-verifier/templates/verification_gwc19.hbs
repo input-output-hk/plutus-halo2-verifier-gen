@@ -1,7 +1,6 @@
-use aiken/builtin.{bls12_381_g1_neg}
 use aiken/collection/list.{at, drop, foldl, head, take}
 use aiken/crypto/bitwise.{State}
-use aiken/crypto/bls12_381/g1.{add as addG1, scale as scaleG1, zero, generator as generatorG1, decompress}
+use aiken/crypto/bls12_381/g1.{add as addG1, scale as scaleG1, zero, generator as generatorG1, decompress, compress}
 use aiken/crypto/bls12_381/g2.{generator as generatorG2}
 use aiken/crypto/bls12_381/scalar.{
   Scalar, add, from_int, mul, neg, scale, sub
@@ -13,7 +12,7 @@ use transcript.{
   common_scalar, construct_transcript, read_point, read_scalar,
   squeeze_challenge,
 }
-use verifier_key.{barycentric_weight, blinding_factors, omega, omega_inv, g2_const, {{{F_IMPORTS}}}, {{{P_IMPORTS}}} }
+use verifier_key.{barycentric_weight, blinding_factors, omega, omega_inv, g2_const, neg_g1_generator, {{{F_IMPORTS}}}, {{{P_IMPORTS}}} }
 use halo2_kzg.{eval, MSM, MSMElement}
 use aiken/crypto/bls12_381/pairing.{miller_loop, final_exponentiation}
 
@@ -101,6 +100,7 @@ pub fn verifier(proof: Data, transcript_rep: State<Scalar>, {{{PUBLIC_INPUTS_NAM
     // vanishing split IS PASSED IN REVERSE ORDER!!!
     // this is MSM done for h-commitments
 {{{H_COMMITMENTS}}}
+    let vanishing_g = compress(vanishing_g) // we need to compress it back to pass it forward
 
     // left and s_g2
     // right and g2

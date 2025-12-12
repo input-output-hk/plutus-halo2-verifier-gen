@@ -1,6 +1,7 @@
-use aiken/builtin.{bls12_381_g1_uncompress, bls12_381_g2_uncompress}
+use aiken/builtin.{bls12_381_g1_uncompress, bls12_381_g2_uncompress, bls12_381_g1_neg}
 use aiken/crypto/bitwise.{State}
 use aiken/crypto/bls12_381/scalar.{Scalar, from_int}
+use aiken/crypto/bls12_381/g1.{generator, decompress}
 
 
 {{{PERMUTATION_COMMITMENTS}}}
@@ -10,6 +11,7 @@ use aiken/crypto/bls12_381/scalar.{Scalar, from_int}
 
 
 pub const g2_const: G2Element = bls12_381_g2_uncompress( #{{{G2_DEFINITIONS}}} )
+pub const neg_g1_generator: ByteArray = #"B7F1D3A73197D7942695638C4FA9AC0FC3688C4F9774B905A14E3A3F171BAC586C55E83FF97A1AEFFB3AF00ADB22C6BB"
 
 pub const omega: State<Scalar> = from_int( 0x{{{OMEGA}}} )
 pub const omega_inv: State<Scalar> = from_int( 0x{{{OMEGA_INV}}} )
@@ -23,4 +25,9 @@ pub const blinding_factors: Int = {{{BLINDING_FACTORS}}}
 // this test is for checking how much budget is used when G1 constants are used in script, assertions are only to force use of the constant
 test cpu_mem_budget_check() {
 {{{BUDGET_CHECK}}}
+}
+
+test neg_g2_generator() {
+    let neg_g1 = bls12_381_g1_neg(generator)
+    expect bls12_381_g1_uncompress(neg_g1_generator) == neg_g1
 }
