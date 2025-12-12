@@ -1,10 +1,8 @@
-use aiken/builtin.{
-  blake2b_256, bls12_381_g1_neg, bls12_381_g1_scalar_mul, integer_to_bytearray,
-}
+use aiken/builtin.{blake2b_256, bls12_381_g1_neg, bls12_381_g1_scalar_mul}
 use aiken/crypto/bitwise.{State}
 use aiken/crypto/bls12_381/g1.{decompress, generator}
 use aiken/crypto/bls12_381/scalar.{
-  Scalar, from_bytes_little_endian, from_int, to_int,
+  Scalar, from_bytes_little_endian, from_int, to_bytes_little_endian,
 }
 use aiken/primitive/bytearray
 
@@ -46,8 +44,7 @@ pub fn common_scalar(
   scalar: State<Scalar>,
   transcript: Transcript,
 ) -> Transcript {
-  let scalar_integer = to_int(scalar)
-  let scalar_bytes = integer_to_bytearray(False, 32, scalar_integer)
+  let scalar_bytes = to_bytes_little_endian(scalar)
 
   let bytes_to_append = bytearray.concat(prefix_common, scalar_bytes)
   let new_bytes_for_hash =
