@@ -1,15 +1,15 @@
-use aiken/builtin.{bls12_381_g1_neg}
 use aiken/collection/list.{
   concat, filter, foldl, is_empty, length, map, push, range, reverse, unzip, zip,
 }
 use aiken/crypto/bitwise.{State}
-use aiken/crypto/bls12_381/g1.{add as add_g1, generator, scale, zero}
+use aiken/crypto/bls12_381/g1.{add as add_g1, decompress, scale, zero}
 use aiken/crypto/bls12_381/scalar.{Scalar, add, from_int, mul, sub}
 use lagrange.{batch_inverses, lagrange_evaluation}
+use verifier_key.{neg_g1_generator}
 
 pub type MSMElement {
   scalar: State<Scalar>,
-  g1: G1Element,
+  g1: ByteArray,
 }
 
 pub type MSM {
@@ -21,12 +21,10 @@ pub fn build_msm(
   x2: State<Scalar>,
   x3: State<Scalar>,
   x4Powers: List<State<Scalar>>,
-  f_commitment: G1Element,
-  pi_commitment: G1Element,
+  f_commitment: ByteArray,
+  pi_commitment: ByteArray,
   proofX3QEvals: List<State<Scalar>>,
-  commitmentMap: List<
-    (G1Element, Int, List<State<Scalar>>, List<State<Scalar>>),
-  >,
+  commitmentMap: List<(ByteArray, Int, List<State<Scalar>>)>,
   pointSets: List<List<State<Scalar>>>,
 ) -> MSM {
   let point_sets_indexes = range(0, length(pointSets) - 1)
@@ -39,7 +37,7 @@ pub fn build_msm(
     append_term(
       final_com,
       // -vG1
-      MSMElement { scalar: v, g1: bls12_381_g1_neg(generator) },
+      MSMElement { scalar: v, g1: neg_g1_generator },
     ),
     // scaled pi
     MSMElement { scalar: x3, g1: pi_commitment },
@@ -47,9 +45,7 @@ pub fn build_msm(
 }
 
 fn build_q(
-  commitmentMap: List<
-    (G1Element, Int, List<State<Scalar>>, List<State<Scalar>>),
-  >,
+  commitmentMap: List<(ByteArray, Int, List<State<Scalar>>)>,
   pointSetsIndexes: List<Int>,
   x1Powers: List<State<Scalar>>,
 ) -> List<(MSM, List<State<Scalar>>)> {
@@ -57,12 +53,12 @@ fn build_q(
     pointSetsIndexes,
     fn(set_index) {
       let commitments_for_index =
-        filter(commitmentMap, fn((_, idx, _, _)) { idx == set_index })
+        filter(commitmentMap, fn((_, idx, _)) { idx == set_index })
       let commitments =
         foldl(
           zip(x1Powers, commitments_for_index),
           MSM { elements: [] },
-          fn((x1Power, (commitment, _, _, _)), acc) {
+          fn((x1Power, (commitment, _, _)), acc) {
             append_term(acc, MSMElement { scalar: x1Power, g1: commitment })
           },
         )
@@ -70,7 +66,7 @@ fn build_q(
         foldl(
           zip(x1Powers, commitments_for_index),
           [],
-          fn((x1Power, (_, _, _, es)), acc) {
+          fn((x1Power, (_, _, es)), acc) {
             let scaled = map(es, fn(e) { mul(e, x1Power) })
 
             if is_empty(acc) {
@@ -155,7 +151,7 @@ pub fn compute_f_eval(
 
 fn final_commitment(
   q_commitments: List<MSM>,
-  f_commitment: G1Element,
+  f_commitment: ByteArray,
   x4Powers: List<State<Scalar>>,
 ) -> MSM {
   foldl(
@@ -208,6 +204,9 @@ pub fn eval(msm: MSM) -> G1Element {
   foldl(
     msm.elements,
     zero,
-    fn(element, acc) { add_g1(acc, scale(element.g1, element.scalar)) },
+    fn(element, acc) {
+      let g1 = decompress(element.g1)
+      add_g1(acc, scale(g1, element.scalar))
+    },
   )
 }

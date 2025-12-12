@@ -47,7 +47,10 @@ pub fn emit_verifier_code(
             ProofExtractionSteps::VanishingSplit => section
                 .enumerate()
                 .map(|(number, _vanishing_split)| {
-                    format!("    let (vanishing_split_{}, transcript) =  read_point(transcript)\n", number + 1)
+                    format!(
+                        "\tlet (vanishing_split_{idx}, transcript) =  read_point(transcript)\n\
+                        \tlet vanishing_split_{idx} = decompress(vanishing_split_{idx})\n",
+                        idx = number + 1)
                 })
                 .join(""),
             ProofExtractionSteps::XCoordinate => "    let (x, transcript) = squeeze_challenge(transcript)\n".to_string(),
@@ -123,7 +126,7 @@ pub fn emit_verifier_code(
 
             // section for GWC19 version of KZG
             ProofExtractionSteps::V => "    let (v, transcript) = squeeze_challenge(transcript)\n".to_string(),
-            ProofExtractionSteps::U => "    let (u, transcript) = squeeze_challenge(transcript)\n".to_string(),
+            ProofExtractionSteps::U => "    let (u, _) = squeeze_challenge(transcript)\n".to_string(),
             ProofExtractionSteps::Witnesses => section
                 .enumerate()
                 .map(|(number, _permutation_common)| format!("    let (w{}, transcript) =  read_point(transcript)\n", number + 1))
@@ -463,10 +466,9 @@ pub fn emit_verifier_code(
         .iter()
         .map(|commitment_data| {
             format!(
-                "{}, {}, [{}], [{}]",
+                "{}, {}, [{}]",
                 commitment_data.commitment.compile_expression(),
                 commitment_data.point_set_index,
-                commitment_data.points.iter().map(decode_rotation).join(","),
                 commitment_data
                     .evaluations
                     .iter()
@@ -643,7 +645,7 @@ pub fn emit_vk_code(
         .enumerate()
         .map(|(idx, g1_encoded)| {
             format!(
-                "pub const f{}_commitment: G1Element = bls12_381_g1_uncompress(#\"{}\")",
+                "pub const f{}_commitment: ByteArray = #\"{}\"",
                 idx + 1,
                 g1_encoded
             )
@@ -663,7 +665,7 @@ pub fn emit_vk_code(
         .enumerate()
         .map(|(idx, g1_encoded)| {
             format!(
-                "pub const p{}_commitment: G1Element = bls12_381_g1_uncompress(#\"{}\")",
+                "pub const p{}_commitment: ByteArray = #\"{}\"",
                 idx + 1,
                 g1_encoded
             )
@@ -711,9 +713,13 @@ pub fn emit_vk_code(
     let permutation_commitments = circuit.instantiation_data.permutation_commitments.len();
 
     let fixed = (1..=fixed_commitments)
-        .map(|idx| format!("    expect f{}_commitment == f{}_commitment", idx, idx));
+        .map(|idx| format!(
+            "\tlet f{idx}_commitment = decompress(f{idx}_commitment)\n\
+            \texpect f{idx}_commitment == f{idx}_commitment"));
     let permutations = (1..=permutation_commitments)
-        .map(|idx| format!("    expect p{}_commitment == p{}_commitment", idx, idx));
+        .map(|idx| format!(
+            "\tlet p{idx}_commitment = decompress(p{idx}_commitment)\n\
+            \texpect p{idx}_commitment == p{idx}_commitment"));
 
     let budget_check = fixed
         .chain(permutations)
@@ -937,7 +943,7 @@ impl AikenExpression for OptimizedMSM {
                 ),
                 ElementMSM::ElementNegatedG1(scalar) => {
                     format!(
-                        "MSMElement {{ scalar: {}, g1: bls12_381_g1_neg(generatorG1) }}",
+                        "MSMElement {{ scalar: {}, g1: neg_g1_generator }}",
                         scalar.compile_expression(),
                     )
                 }
