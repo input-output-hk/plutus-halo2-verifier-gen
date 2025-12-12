@@ -24,9 +24,7 @@ pub fn build_msm(
   f_commitment: ByteArray,
   pi_commitment: ByteArray,
   proofX3QEvals: List<State<Scalar>>,
-  commitmentMap: List<
-    (ByteArray, Int, List<State<Scalar>>, List<State<Scalar>>),
-  >,
+  commitmentMap: List<(ByteArray, Int, List<State<Scalar>>)>,
   pointSets: List<List<State<Scalar>>>,
 ) -> MSM {
   let point_sets_indexes = range(0, length(pointSets) - 1)
@@ -47,9 +45,7 @@ pub fn build_msm(
 }
 
 fn build_q(
-  commitmentMap: List<
-    (ByteArray, Int, List<State<Scalar>>, List<State<Scalar>>),
-  >,
+  commitmentMap: List<(ByteArray, Int, List<State<Scalar>>)>,
   pointSetsIndexes: List<Int>,
   x1Powers: List<State<Scalar>>,
 ) -> List<(MSM, List<State<Scalar>>)> {
@@ -57,12 +53,12 @@ fn build_q(
     pointSetsIndexes,
     fn(set_index) {
       let commitments_for_index =
-        filter(commitmentMap, fn((_, idx, _, _)) { idx == set_index })
+        filter(commitmentMap, fn((_, idx, _)) { idx == set_index })
       let commitments =
         foldl(
           zip(x1Powers, commitments_for_index),
           MSM { elements: [] },
-          fn((x1Power, (commitment, _, _, _)), acc) {
+          fn((x1Power, (commitment, _, _)), acc) {
             append_term(acc, MSMElement { scalar: x1Power, g1: commitment })
           },
         )
@@ -70,7 +66,7 @@ fn build_q(
         foldl(
           zip(x1Powers, commitments_for_index),
           [],
-          fn((x1Power, (_, _, _, es)), acc) {
+          fn((x1Power, (_, _, es)), acc) {
             let scaled = map(es, fn(e) { mul(e, x1Power) })
 
             if is_empty(acc) {

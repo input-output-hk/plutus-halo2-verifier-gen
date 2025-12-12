@@ -466,10 +466,9 @@ pub fn emit_verifier_code(
         .iter()
         .map(|commitment_data| {
             format!(
-                "{}, {}, [{}], [{}]",
+                "{}, {}, [{}]",
                 commitment_data.commitment.compile_expression(),
                 commitment_data.point_set_index,
-                commitment_data.points.iter().map(decode_rotation).join(","),
                 commitment_data
                     .evaluations
                     .iter()

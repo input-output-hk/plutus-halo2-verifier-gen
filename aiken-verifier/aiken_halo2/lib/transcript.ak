@@ -2,9 +2,9 @@ use aiken/builtin.{
   blake2b_256, bls12_381_g1_neg, bls12_381_g1_scalar_mul, integer_to_bytearray,
 }
 use aiken/crypto/bitwise.{State}
-use aiken/crypto/bls12_381/g1.{generator, decompress}
+use aiken/crypto/bls12_381/g1.{decompress, generator}
 use aiken/crypto/bls12_381/scalar.{
-  Scalar, from_int, to_int, from_bytes_little_endian,
+  Scalar, from_bytes_little_endian, from_int, to_int,
 }
 use aiken/primitive/bytearray
 
