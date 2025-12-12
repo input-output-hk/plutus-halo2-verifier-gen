@@ -126,7 +126,7 @@ pub fn emit_verifier_code(
 
             // section for GWC19 version of KZG
             ProofExtractionSteps::V => "    let (v, transcript) = squeeze_challenge(transcript)\n".to_string(),
-            ProofExtractionSteps::U => "    let (u, transcript) = squeeze_challenge(transcript)\n".to_string(),
+            ProofExtractionSteps::U => "    let (u, _) = squeeze_challenge(transcript)\n".to_string(),
             ProofExtractionSteps::Witnesses => section
                 .enumerate()
                 .map(|(number, _permutation_common)| format!("    let (w{}, transcript) =  read_point(transcript)\n", number + 1))

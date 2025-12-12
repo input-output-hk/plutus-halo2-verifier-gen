@@ -1,9 +1,8 @@
-use aiken/builtin.{bls12_381_g1_neg}
 use aiken/collection/list.{
   concat, filter, foldl, is_empty, length, map, push, range, reverse, unzip, zip,
 }
 use aiken/crypto/bitwise.{State}
-use aiken/crypto/bls12_381/g1.{add as add_g1, generator, scale, zero, decompress, compress}
+use aiken/crypto/bls12_381/g1.{add as add_g1, decompress, scale, zero}
 use aiken/crypto/bls12_381/scalar.{Scalar, add, from_int, mul, sub}
 use lagrange.{batch_inverses, lagrange_evaluation}
 use verifier_key.{neg_g1_generator}
@@ -209,9 +208,9 @@ pub fn eval(msm: MSM) -> G1Element {
   foldl(
     msm.elements,
     zero,
-    fn(element, acc) { 
+    fn(element, acc) {
       let g1 = decompress(element.g1)
-      add_g1(acc, scale(g1, element.scalar)) 
+      add_g1(acc, scale(g1, element.scalar))
     },
   )
 }
