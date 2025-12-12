@@ -5,7 +5,7 @@ use aiken/builtin.{
   mod_integer,
 }
 use aiken/crypto/bitwise.{State}
-use aiken/crypto/bls12_381/g1.{generator}
+use aiken/crypto/bls12_381/g1.{compress, generator}
 use aiken/crypto/bls12_381/scalar.{
   Scalar, field_prime as bls12_381_field_prime, from_int, to_int,
 }
@@ -60,10 +60,10 @@ pub fn common_scalar(
   Transcript { ..transcript, accumulated_for_hash: new_bytes_for_hash }
 }
 
-pub fn read_point(transcript: Transcript) -> (G1Element, Transcript) {
+pub fn read_point(transcript: Transcript) -> (ByteArray, Transcript) {
   let g1_bytes = bytearray.take(transcript.remaining_proof, 48)
-  let g1 = bls12_381_g1_uncompress(g1_bytes)
 
+  //let g1 = bls12_381_g1_uncompress(g1_bytes)
   let remaining_proof_data = bytearray.drop(transcript.remaining_proof, 48)
 
   let bytes_to_append = bytearray.concat(prefix_common, g1_bytes)
@@ -71,7 +71,7 @@ pub fn read_point(transcript: Transcript) -> (G1Element, Transcript) {
     bytearray.concat(transcript.accumulated_for_hash, bytes_to_append)
 
   (
-    g1,
+    g1_bytes,
     Transcript {
       remaining_proof: remaining_proof_data,
       accumulated_for_hash: new_bytes_for_hash,
@@ -116,7 +116,7 @@ test point_deserialization_generator() {
   let transcript_data = construct_transcript(generator_bytes, rep)
   let (point, _) = read_point(transcript_data)
 
-  expect generator == point
+  expect compress(generator) == point
 }
 
 test point_deserialization_negated_generator() {
@@ -128,7 +128,7 @@ test point_deserialization_negated_generator() {
   let transcript_data = construct_transcript(negated_generator_bytes, rep)
   let (point, _) = read_point(transcript_data)
 
-  expect bls12_381_g1_neg(generator) == point
+  expect compress(bls12_381_g1_neg(generator)) == point
 }
 
 test point_deserialization() {
@@ -138,7 +138,7 @@ test point_deserialization() {
   let transcript_data = construct_transcript(point_bytes, rep)
   let (point, _) = read_point(transcript_data)
 
-  expect bls12_381_g1_scalar_mul(42, generator) == point
+  expect compress(bls12_381_g1_scalar_mul(42, generator)) == point
 }
 
 test scalar_deserialization_field_prime() {
@@ -194,7 +194,7 @@ test squeeze_challenge_calculations() {
   let (scalar, transcript_data) = read_scalar(transcript_data)
   let (challenge, _) = squeeze_challenge(transcript_data)
 
-  expect bls12_381_g1_neg(generator) == point
+  expect compress(bls12_381_g1_neg(generator)) == point
   expect
     scalar == from_int(
       0x71eda753299d7d483339d80809a1d80553bda442fffe5bfeffffffff00000001,
@@ -346,5 +346,5 @@ test full_proof_deserialization_for_simple_mul_circuit() {
       #"828567b7479c21b7972dacb8cceb8875fcdcb972287b596f5f635dd3ecfefa6e969ebb60198032d24c6c93bc8b3bfac6",
     )
 
-  expect pi_term == expected_point
+  expect compress(expected_point) == pi_term
 }

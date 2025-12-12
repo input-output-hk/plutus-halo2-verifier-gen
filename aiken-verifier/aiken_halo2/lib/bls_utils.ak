@@ -1,5 +1,6 @@
 use aiken/collection/list.{all, foldl, range, zip}
 use aiken/crypto/bitwise.{State}
+use aiken/crypto/bls12_381/g1.{add as add_g1, decompress}
 use aiken/crypto/bls12_381/scalar.{
   Scalar, add, field_prime, from_int, mul, recip, to_int,
 }
@@ -11,6 +12,10 @@ pub fn inner_product(
   b: List<State<Scalar>>,
 ) -> State<Scalar> {
   foldl(zip(a, b), from_int(0), fn((a, b), acc) { add(mul(a, b), acc) })
+}
+
+pub fn addG1(g1: G1Element, compressedG1: ByteArray) -> G1Element {
+  add_g1(g1, decompress(compressedG1))
 }
 
 // TODO: Replace with built-in primitive, once `expModInteger` available in Plutus
