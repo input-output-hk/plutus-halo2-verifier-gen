@@ -1,6 +1,8 @@
 use crate::plutus_gen::code_emitters_aiken::ScalarOperation::{Mul, Power};
 use crate::plutus_gen::decode_rotation;
-use crate::plutus_gen::extraction::data::{Commitments, Evaluations, Query, RotationDescription};
+use crate::plutus_gen::extraction::data::{
+    CommitmentData, Commitments, Evaluations, Query, RotationDescription,
+};
 use crate::plutus_gen::extraction::{
     AikenExpression, combine_aiken_expressions,
     data::{CircuitRepresentation, ProofExtractionSteps},
@@ -462,24 +464,36 @@ pub fn emit_verifier_code(
         .join(", ");
     data.insert("HALO2_Q_EVALS_FROM_PROOF".to_string(), q_evaluations);
 
-    let halo2_commitment_data = commitment_data
+    // Pre-sort commitment data by point set index to save on this inside the contract
+    let halo2_commitment_data = point_sets_indexes
         .iter()
-        .map(|commitment_data| {
-            format!(
-                "{}, {}, [{}]",
-                commitment_data.commitment.compile_expression(),
-                commitment_data.point_set_index,
-                commitment_data
-                    .evaluations
-                    .iter()
-                    .map(AikenExpression::compile_expression)
-                    .join(",")
-            )
+        .map(|idx| {
+            let commitments_in_set: Vec<&CommitmentData> = commitment_data
+                .iter()
+                .filter(|&cd| cd.point_set_index == *idx)
+                .collect();
+
+            let commitments_in_set_str = commitments_in_set
+                .iter()
+                .map(|commitment_data| {
+                    format!(
+                        "\t\t\t({}, [{}])",
+                        commitment_data.commitment.compile_expression(),
+                        commitment_data
+                            .evaluations
+                            .iter()
+                            .map(AikenExpression::compile_expression)
+                            .join(",")
+                    )
+                })
+                .join(",\n");
+
+            format!("\n\t\t[\n{}\n\t\t]", commitments_in_set_str)
         })
-        .join("),(");
+        .join(",");
 
     let kzg_halo2_commitment_map =
-        format!("    let commitment_data = [({})]", halo2_commitment_data);
+        format!("\tlet commitment_data = [{}]", halo2_commitment_data);
     data.insert("HALO2_COMMITMENT_MAP".to_string(), kzg_halo2_commitment_map);
 
     let kzg_halo2_point_sets = unique_grouped_points
@@ -712,14 +726,18 @@ pub fn emit_vk_code(
 
     let permutation_commitments = circuit.instantiation_data.permutation_commitments.len();
 
-    let fixed = (1..=fixed_commitments)
-        .map(|idx| format!(
+    let fixed = (1..=fixed_commitments).map(|idx| {
+        format!(
             "\tlet f{idx}_commitment = decompress(f{idx}_commitment)\n\
-            \texpect f{idx}_commitment == f{idx}_commitment"));
-    let permutations = (1..=permutation_commitments)
-        .map(|idx| format!(
+            \texpect f{idx}_commitment == f{idx}_commitment"
+        )
+    });
+    let permutations = (1..=permutation_commitments).map(|idx| {
+        format!(
             "\tlet p{idx}_commitment = decompress(p{idx}_commitment)\n\
-            \texpect p{idx}_commitment == p{idx}_commitment"));
+            \texpect p{idx}_commitment == p{idx}_commitment"
+        )
+    });
 
     let budget_check = fixed
         .chain(permutations)

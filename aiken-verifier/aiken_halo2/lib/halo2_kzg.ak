@@ -1,6 +1,4 @@
-use aiken/collection/list.{
-  concat, filter, foldl, is_empty, length, map, push, range, reverse, unzip, zip,
-}
+use aiken/collection/list.{concat, foldl, is_empty, map, push, reverse, unzip, zip}
 use aiken/crypto/bitwise.{State}
 use aiken/crypto/bls12_381/g1.{add as add_g1, decompress, scale, zero}
 use aiken/crypto/bls12_381/scalar.{Scalar, add, from_int, mul, sub}
@@ -24,12 +22,10 @@ pub fn build_msm(
   f_commitment: ByteArray,
   pi_commitment: ByteArray,
   proofX3QEvals: List<State<Scalar>>,
-  commitmentMap: List<(ByteArray, Int, List<State<Scalar>>)>,
+  commitmentMap: List<List<(ByteArray, List<State<Scalar>>)>>,
   pointSets: List<List<State<Scalar>>>,
 ) -> MSM {
-  let point_sets_indexes = range(0, length(pointSets) - 1)
-  let (q_commitments, q_eval_sets) =
-    unzip(build_q(commitmentMap, point_sets_indexes, x1Powers))
+  let (q_commitments, q_eval_sets) = unzip(build_q(commitmentMap, x1Powers))
   let f_eval = compute_f_eval(pointSets, q_eval_sets, x2, x3, proofX3QEvals)
   let final_com = final_commitment(q_commitments, f_commitment, x4Powers)
   let v = compute_v(f_eval, x4Powers, proofX3QEvals)
@@ -45,28 +41,26 @@ pub fn build_msm(
 }
 
 fn build_q(
-  commitmentMap: List<(ByteArray, Int, List<State<Scalar>>)>,
-  pointSetsIndexes: List<Int>,
+  commitmentMap: List<List<(ByteArray, List<State<Scalar>>)>>,
   x1Powers: List<State<Scalar>>,
 ) -> List<(MSM, List<State<Scalar>>)> {
   map(
-    pointSetsIndexes,
-    fn(set_index) {
-      let commitments_for_index =
-        filter(commitmentMap, fn((_, idx, _)) { idx == set_index })
+    commitmentMap,
+    fn(commitments_for_set) {
+      // TODO: combine commitments and eval_set foldings
       let commitments =
         foldl(
-          zip(x1Powers, commitments_for_index),
+          zip(x1Powers, commitments_for_set),
           MSM { elements: [] },
-          fn((x1Power, (commitment, _, _)), acc) {
-            append_term(acc, MSMElement { scalar: x1Power, g1: commitment })
+          fn((x1Power, (commitment, _)), acc) {
+            append_term(acc, MSMElement { scalar: x1Power, g1: commitment }) // TODO: calculate in-place
           },
         )
       let eval_set =
         foldl(
-          zip(x1Powers, commitments_for_index),
+          zip(x1Powers, commitments_for_set),
           [],
-          fn((x1Power, (_, _, es)), acc) {
+          fn((x1Power, (_, es)), acc) {
             let scaled = map(es, fn(e) { mul(e, x1Power) })
 
             if is_empty(acc) {
