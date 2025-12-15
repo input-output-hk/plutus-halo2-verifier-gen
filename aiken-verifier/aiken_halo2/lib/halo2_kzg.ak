@@ -1,4 +1,4 @@
-use aiken/collection/list.{concat, foldl, is_empty, map, push, reverse, unzip, zip}
+use aiken/collection/list.{concat, foldl, foldl2, is_empty, map, push, reverse, unzip, zip}
 use aiken/crypto/bitwise.{State}
 use aiken/crypto/bls12_381/g1.{add as add_g1, decompress, scale, zero}
 use aiken/crypto/bls12_381/scalar.{Scalar, add, from_int, mul, sub}
@@ -47,29 +47,26 @@ fn build_q(
   map(
     commitmentMap,
     fn(commitments_for_set) {
-      // TODO: combine commitments and eval_set foldings
-      let commitments =
-        foldl(
-          zip(x1Powers, commitments_for_set),
-          MSM { elements: [] },
-          fn((x1Power, (commitment, _)), acc) {
-            append_term(acc, MSMElement { scalar: x1Power, g1: commitment }) // TODO: calculate in-place
-          },
-        )
-      let eval_set =
-        foldl(
-          zip(x1Powers, commitments_for_set),
+      // TODO: accumulate commitments and eval sets into different lists with foldl2
+      let commitments, eval_set <- 
+        foldl2(
+          zip(x1Powers, commitments_for_set), 
+          MSM { elements: [] }, 
           [],
-          fn((x1Power, (_, es)), acc) {
-            let scaled = map(es, fn(e) { mul(e, x1Power) })
-
-            if is_empty(acc) {
-              scaled
-            } else {
-              map(zip(acc, scaled), fn((a, b)) { add(a, b) })
+          fn((x1Power, (commitment, es)), acc1, acc2, return) {
+            let acc1 = append_term(acc1, MSMElement { scalar: x1Power, g1: commitment }) // TODO: calculate in-place
+            let acc2 = {
+              let scaled = map(es, fn(e) { mul(e, x1Power) })
+              if is_empty(acc2) {
+                scaled
+              } else {
+                map(zip(acc2, scaled), fn((a, b)) { add(a, b) })
+              }
             }
-          },
+            return (acc1, acc2)
+          } 
         )
+      
       (commitments, eval_set)
     },
   )
