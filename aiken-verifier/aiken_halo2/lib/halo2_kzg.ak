@@ -1,4 +1,4 @@
-use aiken/collection/list.{concat, foldl, foldl2, is_empty, map, push, reverse, unzip, zip}
+use aiken/collection/list.{concat, foldl, foldl2, foldr2, is_empty, map, push, reverse, zip}
 use aiken/crypto/bitwise.{State}
 use aiken/crypto/bls12_381/g1.{add as add_g1, decompress, scale, zero}
 use aiken/crypto/bls12_381/scalar.{Scalar, add, from_int, mul, sub}
@@ -25,7 +25,7 @@ pub fn build_msm(
   commitmentMap: List<List<(ByteArray, List<State<Scalar>>)>>,
   pointSets: List<List<State<Scalar>>>,
 ) -> MSM {
-  let (q_commitments, q_eval_sets) = unzip(build_q(commitmentMap, x1Powers))
+  let (q_commitments, q_eval_sets) = build_q(commitmentMap, x1Powers)
   let f_eval = compute_f_eval(pointSets, q_eval_sets, x2, x3, proofX3QEvals)
   let final_com = final_commitment(q_commitments, f_commitment, x4Powers)
   let v = compute_v(f_eval, x4Powers, proofX3QEvals)
@@ -43,33 +43,39 @@ pub fn build_msm(
 fn build_q(
   commitmentMap: List<List<(ByteArray, List<State<Scalar>>)>>,
   x1Powers: List<State<Scalar>>,
-) -> List<(MSM, List<State<Scalar>>)> {
-  map(
-    commitmentMap,
-    fn(commitments_for_set) {
-      // TODO: accumulate commitments and eval sets into different lists with foldl2
-      let commitments, eval_set <- 
-        foldl2(
-          zip(x1Powers, commitments_for_set), 
-          MSM { elements: [] }, 
-          [],
-          fn((x1Power, (commitment, es)), acc1, acc2, return) {
-            let acc1 = append_term(acc1, MSMElement { scalar: x1Power, g1: commitment }) // TODO: calculate in-place
-            let acc2 = {
-              let scaled = map(es, fn(e) { mul(e, x1Power) })
-              if is_empty(acc2) {
-                scaled
-              } else {
-                map(zip(acc2, scaled), fn((a, b)) { add(a, b) })
+) -> (List<MSM>, List<List<State<Scalar>>>) {
+  let commitments, eval_sets <- 
+    foldr2(
+      commitmentMap,
+      [], 
+      [],
+      fn(commitments_for_set, acc1, acc2, return) {
+        let commitments, eval_set <- 
+          foldl2(
+            zip(x1Powers, commitments_for_set), 
+            MSM { elements: [] }, 
+            [],
+            fn((x1Power, (commitment, es)), acc1, acc2, return) {
+              let acc1 = append_term(acc1, MSMElement { scalar: x1Power, g1: commitment }) // TODO: calculate in-place
+              let acc2 = {
+                let scaled = map(es, fn(e) { mul(e, x1Power) })
+                if is_empty(acc2) {
+                  scaled
+                } else {
+                  map(zip(acc2, scaled), fn((a, b)) { add(a, b) })
+                }
               }
-            }
-            return (acc1, acc2)
-          } 
-        )
-      
-      (commitments, eval_set)
-    },
-  )
+              return (acc1, acc2)
+            } 
+          )
+
+        let acc1 = push(acc1, commitments)
+        let acc2 = push(acc2, eval_set)
+        return (acc1, acc2)
+      }
+    )
+
+  (commitments, eval_sets)
 }
 
 // TODO: Revert to this version of `compute_f_eval` when CIP-109 with built-in inverse is available, 
