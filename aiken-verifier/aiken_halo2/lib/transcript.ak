@@ -34,7 +34,6 @@ pub fn read_scalar(transcript: Transcript) -> (State<Scalar>, Transcript) {
   let bytes_to_append = bytearray.concat(prefix_common, scalar_bytes)
   let new_bytes_for_hash =
     bytearray.concat(transcript.accumulated_for_hash, bytes_to_append)
-  
   (
     scalar,
     Transcript {

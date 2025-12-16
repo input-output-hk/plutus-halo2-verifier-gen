@@ -1,9 +1,9 @@
-use aiken/collection/list.{all, foldl, map, range, zip, push, concat}
+use aiken/collection/list.{all, concat, foldl, map, push, range, zip}
 use aiken/crypto/bitwise.{State}
+use aiken/crypto/bls12_381/g1.{add as add_g1, decompress, scale, zero}
 use aiken/crypto/bls12_381/scalar.{
   Scalar, add, field_prime, from_int, mul, recip, to_int,
 }
-use aiken/crypto/bls12_381/g1.{zero, add as add_g1, decompress, scale}
 use aiken/fuzz
 use aiken/option.{is_some}
 

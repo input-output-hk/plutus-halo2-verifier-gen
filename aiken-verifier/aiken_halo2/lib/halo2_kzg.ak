@@ -1,4 +1,6 @@
-use aiken/collection/list.{concat, foldl, foldl2, foldr2, is_empty, map, push, reverse, zip, last}
+use aiken/collection/list.{
+  concat, foldl, foldl2, foldr2, is_empty, last, map, push, reverse, zip,
+}
 use aiken/crypto/bitwise.{State}
 use aiken/crypto/bls12_381/g1.{add as add_g1, decompress, scale, zero}
 use aiken/crypto/bls12_381/scalar.{Scalar, add, from_int, mul, sub}
@@ -69,14 +71,14 @@ fn compute_q_evals_and_final_comm(
                   map(zip(acc2, scaled), fn((a, b)) { add(a, b) })
                 }
               }
-              return (acc1, acc2)
+              return(acc1, acc2)
             }
           )
 
         // scale Q commitments by x4Powers and accumulate them in final commitment
         let acc1 = add_g1(acc1, scale(q_comms, x4Power))
         let acc2 = push(acc2, eval_set)
-        return (acc1, acc2)
+        return(acc1, acc2)
       }
     )
 
@@ -166,4 +168,3 @@ fn compute_v(
     fn((point, eval), acc) { add(acc, mul(point, eval)) },
   )
 }
-
