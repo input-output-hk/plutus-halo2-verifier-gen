@@ -13,7 +13,7 @@ use transcript.{
   squeeze_challenge,
 }
 use verifier_key.{barycentric_weight, blinding_factors, omega, omega_inv, g2_const, {{{F_IMPORTS}}}, {{{P_IMPORTS}}} }
-use halo2_kzg.{build_msm, eval}
+use halo2_kzg.{compute_msm}
 use aiken/crypto/bls12_381/pairing.{miller_loop, final_exponentiation}
 
 pub fn verifier(proof: Data, transcript_rep: State<Scalar>, {{{PUBLIC_INPUTS_NAMES}}}) -> Bool {
@@ -114,8 +114,8 @@ pub fn verifier(proof: Data, transcript_rep: State<Scalar>, {{{PUBLIC_INPUTS_NAM
     let x1Powers = powers({{{HALO2_X1_POWERS_COUNT}}}, x1)
     let x4Powers = powers({{{HALO2_X4_POWERS_COUNT}}}, x4)
 
-    let alt_right =
-          build_msm(
+    let er =
+          compute_msm(
               x1Powers,
               x2,
               x3,
@@ -126,9 +126,7 @@ pub fn verifier(proof: Data, transcript_rep: State<Scalar>, {{{PUBLIC_INPUTS_NAM
               commitment_data,
               point_sets)
 
-
     let el = decompress(pi_term)
-    let er = eval(alt_right)
 
     let ml_l = miller_loop(el, g2_const)
     let ml_r = miller_loop(er, g2)

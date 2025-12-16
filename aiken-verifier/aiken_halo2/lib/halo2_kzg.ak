@@ -1,4 +1,4 @@
-use aiken/collection/list.{concat, foldl, foldl2, foldr2, is_empty, map, push, reverse, zip}
+use aiken/collection/list.{concat, foldl, foldl2, foldr2, is_empty, map, push, reverse, zip, last}
 use aiken/crypto/bitwise.{State}
 use aiken/crypto/bls12_381/g1.{add as add_g1, decompress, scale, zero}
 use aiken/crypto/bls12_381/scalar.{Scalar, add, from_int, mul, sub}
@@ -14,7 +14,7 @@ pub type MSM {
   elements: List<MSMElement>,
 }
 
-pub fn build_msm(
+pub fn compute_msm(
   x1Powers: List<State<Scalar>>,
   x2: State<Scalar>,
   x3: State<Scalar>,
@@ -24,39 +24,44 @@ pub fn build_msm(
   proofX3QEvals: List<State<Scalar>>,
   commitmentMap: List<List<(ByteArray, List<State<Scalar>>)>>,
   pointSets: List<List<State<Scalar>>>,
-) -> MSM {
-  let (q_commitments, q_eval_sets) = build_q(commitmentMap, x1Powers)
+) -> G1Element {
+  let (final_com, q_eval_sets) = compute_q_evals_and_final_comm(
+    commitmentMap,
+    x1Powers,
+    x4Powers,
+    f_commitment,
+  )
   let f_eval = compute_f_eval(pointSets, q_eval_sets, x2, x3, proofX3QEvals)
-  let final_com = final_commitment(q_commitments, f_commitment, x4Powers)
   let v = compute_v(f_eval, x4Powers, proofX3QEvals)
-  append_term(
-    append_term(
-      final_com,
-      // -vG1
-      MSMElement { scalar: v, g1: neg_g1_generator },
+
+  add_g1(
+    final_com,
+    add_g1(
+      scale(decompress(neg_g1_generator), v),
+      scale(decompress(pi_commitment), x3),
     ),
-    // scaled pi
-    MSMElement { scalar: x3, g1: pi_commitment },
   )
 }
 
-fn build_q(
+fn compute_q_evals_and_final_comm(
   commitmentMap: List<List<(ByteArray, List<State<Scalar>>)>>,
   x1Powers: List<State<Scalar>>,
-) -> (List<MSM>, List<List<State<Scalar>>>) {
-  let commitments, eval_sets <- 
+  x4Powers: List<State<Scalar>>,
+  f_commitment: ByteArray,
+) -> (G1Element, List<List<State<Scalar>>>) {
+  let final_comm, q_eval_sets <- 
     foldr2(
-      commitmentMap,
-      [], 
+      zip(commitmentMap, x4Powers),
+      zero, 
       [],
-      fn(commitments_for_set, acc1, acc2, return) {
-        let commitments, eval_set <- 
+      fn((commitments_for_set, x4Power), acc1, acc2, return) {
+        let q_comms, eval_set <- 
           foldl2(
             zip(x1Powers, commitments_for_set), 
-            MSM { elements: [] }, 
+            zero, 
             [],
             fn((x1Power, (commitment, es)), acc1, acc2, return) {
-              let acc1 = append_term(acc1, MSMElement { scalar: x1Power, g1: commitment }) // TODO: calculate in-place
+              let acc1 = add_g1(acc1, scale(decompress(commitment), x1Power))
               let acc2 = {
                 let scaled = map(es, fn(e) { mul(e, x1Power) })
                 if is_empty(acc2) {
@@ -69,13 +74,18 @@ fn build_q(
             } 
           )
 
-        let acc1 = push(acc1, commitments)
+        // scale Q commitments by x4Powers and accumulate them in final commitment
+        let acc1 = add_g1(acc1, scale(q_comms, x4Power))
         let acc2 = push(acc2, eval_set)
         return (acc1, acc2)
       }
     )
 
-  (commitments, eval_sets)
+  // We also need to add the f_commitment scaled by the last x4Power
+  expect Some(x4Power) = last(x4Powers)
+  let final_comm = add_g1(final_comm, scale(decompress(f_commitment), x4Power))
+
+  (final_comm, q_eval_sets)
 }
 
 // TODO: Revert to this version of `compute_f_eval` when CIP-109 with built-in inverse is available, 
@@ -143,28 +153,6 @@ pub fn compute_f_eval(
       let evaluation = mul(sub(proofQEval, r_eval), denom_inv)
       add(mul(acc_eval, x2), evaluation)
     },
-  )
-}
-
-fn final_commitment(
-  q_commitments: List<MSM>,
-  f_commitment: ByteArray,
-  x4Powers: List<State<Scalar>>,
-) -> MSM {
-  foldl(
-    zip(
-      x4Powers,
-      concat(
-        q_commitments,
-        [
-          MSM {
-            elements: [MSMElement { scalar: from_int(1), g1: f_commitment }],
-          },
-        ],
-      ),
-    ),
-    MSM { elements: [] },
-    fn((point, msm), acc) { add_msm(acc, scale_msm(point, msm)) },
   )
 }
 
