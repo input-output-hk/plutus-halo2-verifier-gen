@@ -5,14 +5,10 @@ use aiken/crypto/bls12_381/scalar.{Scalar, add, from_int, mul, sub}
 use lagrange.{batch_inverses, lagrange_evaluation}
 use verifier_key.{neg_g1_generator}
 
-pub type MSMElement {
-  scalar: State<Scalar>,
-  g1: ByteArray,
-}
-
-pub type MSM {
-  elements: List<MSMElement>,
-}
+// Computes MSM for verifying multiple openings in the KZG polynomial commitment scheme (the multi-open protocol from the Halo2 book).
+// It represents the `right` input to the pairing check equation: `e(left, sG2) == e(right, G2)`,
+// where `left` is PI commitment.
+// For reference implementation, see `https://github.com/input-output-hk/halo2/blob/plutus_verification/src/poly/kzg/mod.rs#L193`
 
 pub fn compute_msm(
   x1Powers: List<State<Scalar>>,
@@ -168,30 +164,3 @@ fn compute_v(
   )
 }
 
-fn append_term(msm: MSM, element: MSMElement) -> MSM {
-  MSM { elements: push(msm.elements, element) }
-}
-
-fn add_msm(a: MSM, b: MSM) -> MSM {
-  MSM { elements: concat(a.elements, b.elements) }
-}
-
-fn scale_msm(s: State<Scalar>, msm: MSM) -> MSM {
-  MSM {
-    elements: map(
-      msm.elements,
-      fn(e) { MSMElement { g1: e.g1, scalar: mul(s, e.scalar) } },
-    ),
-  }
-}
-
-pub fn eval(msm: MSM) -> G1Element {
-  foldl(
-    msm.elements,
-    zero,
-    fn(element, acc) {
-      let g1 = decompress(element.g1)
-      add_g1(acc, scale(g1, element.scalar))
-    },
-  )
-}

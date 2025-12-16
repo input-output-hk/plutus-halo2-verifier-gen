@@ -1,10 +1,48 @@
-use aiken/collection/list.{all, foldl, range, zip}
+use aiken/collection/list.{all, foldl, map, range, zip, push, concat}
 use aiken/crypto/bitwise.{State}
 use aiken/crypto/bls12_381/scalar.{
   Scalar, add, field_prime, from_int, mul, recip, to_int,
 }
+use aiken/crypto/bls12_381/g1.{zero, add as add_g1, decompress, scale}
 use aiken/fuzz
 use aiken/option.{is_some}
+
+pub type MSMElement {
+  scalar: State<Scalar>,
+  g1: ByteArray,
+}
+
+pub type MSM {
+  elements: List<MSMElement>,
+}
+
+pub fn append_term(msm: MSM, element: MSMElement) -> MSM {
+  MSM { elements: push(msm.elements, element) }
+}
+
+pub fn add_msm(a: MSM, b: MSM) -> MSM {
+  MSM { elements: concat(a.elements, b.elements) }
+}
+
+pub fn scale_msm(s: State<Scalar>, msm: MSM) -> MSM {
+  MSM {
+    elements: map(
+      msm.elements,
+      fn(e) { MSMElement { g1: e.g1, scalar: mul(s, e.scalar) } },
+    ),
+  }
+}
+
+pub fn eval(msm: MSM) -> G1Element {
+  foldl(
+    msm.elements,
+    zero,
+    fn(element, acc) {
+      let g1 = decompress(element.g1)
+      add_g1(acc, scale(g1, element.scalar))
+    },
+  )
+}
 
 pub fn inner_product(
   a: List<State<Scalar>>,
