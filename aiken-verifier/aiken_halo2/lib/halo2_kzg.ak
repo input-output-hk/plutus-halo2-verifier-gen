@@ -200,16 +200,13 @@ fn scale_msm(s: State<Scalar>, msm: MSM) -> MSM {
   }
 }
 
-pub fn eval(scalars: List<State<Scalar>>, g1s: ByteArray) -> G1Element {
+pub fn eval(msm: MSM) -> G1Element {
   foldl(
-    scalars,
+    msm.elements,
     zero,
     fn(element, acc) {
-      let g1 =
-        decompress(
-          #"ae1f8b60066bbbf836f5f952a0adad7c806653abf95af5ca459a925172beeaf6354c504ca9956dd93e6d3c800afa3df3",
-        )
-      add_g1(acc, scale(g1, from_int(42)))
+      let g1 = decompress(element.g1)
+      add_g1(acc, scale(g1, element.scalar))
     },
   )
 }
