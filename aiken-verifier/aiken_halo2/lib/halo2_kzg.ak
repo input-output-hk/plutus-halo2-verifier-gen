@@ -64,11 +64,10 @@ fn compute_q_evals_and_final_comm(
             fn((x1Power, (commitment, es)), acc1, acc2, return) {
               let acc1 = add_g1(acc1, scale(decompress(commitment), x1Power))
               let acc2 = {
-                let scaled = map(es, fn(e) { mul(e, x1Power) })
                 if is_empty(acc2) {
-                  scaled
+                  map(es, fn(e) { mul(e, x1Power) })
                 } else {
-                  map(zip(acc2, scaled), fn((a, b)) { add(a, b) })
+                  map(zip(acc2, es), fn((a, b)) { add(a, mul(b, x1Power)) })
                 }
               }
               return(acc1, acc2)
