@@ -21,12 +21,14 @@ pub fn compute_msm(
   commitmentMap: List<List<(ByteArray, List<State<Scalar>>)>>,
   pointSets: List<List<State<Scalar>>>,
 ) -> G1Element {
-  let (final_com, q_eval_sets) = compute_q_evals_and_final_comm(
-    commitmentMap,
-    x1Powers,
-    x4Powers,
-    f_commitment,
-  )
+  let final_com, q_eval_sets <-
+    compute_q_evals_and_final_comm(
+      commitmentMap,
+      x1Powers,
+      x4Powers,
+      f_commitment,
+    )
+
   let f_eval = compute_f_eval(pointSets, q_eval_sets, x2, x3, proofX3QEvals)
   let v = compute_v(f_eval, x4Powers, proofX3QEvals)
 
@@ -44,17 +46,18 @@ fn compute_q_evals_and_final_comm(
   x1Powers: List<State<Scalar>>,
   x4Powers: List<State<Scalar>>,
   f_commitment: ByteArray,
-) -> (G1Element, List<List<State<Scalar>>>) {
-  let final_comm, q_eval_sets <- 
+  continue: fn(G1Element, List<List<State<Scalar>>>) -> a,
+) -> a {
+  let final_comm, q_eval_sets <-
     foldr2(
       zip(commitmentMap, x4Powers),
-      zero, 
+      zero,
       [],
       fn((commitments_for_set, x4Power), acc1, acc2, return) {
-        let q_comms, eval_set <- 
+        let q_comms, eval_set <-
           foldl2(
-            zip(x1Powers, commitments_for_set), 
-            zero, 
+            zip(x1Powers, commitments_for_set),
+            zero,
             [],
             fn((x1Power, (commitment, es)), acc1, acc2, return) {
               let acc1 = add_g1(acc1, scale(decompress(commitment), x1Power))
@@ -67,7 +70,7 @@ fn compute_q_evals_and_final_comm(
                 }
               }
               return (acc1, acc2)
-            } 
+            }
           )
 
         // scale Q commitments by x4Powers and accumulate them in final commitment
@@ -81,7 +84,7 @@ fn compute_q_evals_and_final_comm(
   expect Some(x4Power) = last(x4Powers)
   let final_comm = add_g1(final_comm, scale(decompress(f_commitment), x4Power))
 
-  (final_comm, q_eval_sets)
+  continue(final_comm, q_eval_sets)
 }
 
 // TODO: Revert to this version of `compute_f_eval` when CIP-109 with built-in inverse is available, 
