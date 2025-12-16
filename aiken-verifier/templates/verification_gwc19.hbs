@@ -1,20 +1,24 @@
 use aiken/collection/list.{at, drop, foldl, head, take}
 use aiken/crypto/bitwise.{State}
-use aiken/crypto/bls12_381/g1.{add as addG1, scale as scaleG1, zero, decompress, compress}
-use aiken/crypto/bls12_381/g2.{generator as generatorG2}
-use aiken/crypto/bls12_381/scalar.{
-  Scalar, add, from_int, mul, neg, scale, sub
+use aiken/crypto/bls12_381/g1.{
+  add as addG1, compress, decompress, scale as scaleG1, zero,
 }
+use aiken/crypto/bls12_381/g2.{generator as generatorG2}
+use aiken/crypto/bls12_381/pairing.{final_exponentiation, miller_loop}
+use aiken/crypto/bls12_381/scalar.{
+  Scalar, add, from_int, mul, neg, scale, sub, to_int,
+}
+use aiken/primitive/bytearray
 use bls_utils.{inner_product, recip_eea}
+use halo2_kzg.{MSM, MSMElement, eval}
 use lagrange.{lagrange_polynomial_basis}
-use omega_rotations.{rotate_omegas, rotate_omega}
+use omega_rotations.{rotate_omega, rotate_omegas}
+use aiken/builtin.{bls12_381_g1_add, bls12_381_g1_scalar_mul, bls12_381_g1_uncompress}
 use transcript.{
   common_scalar, construct_transcript, read_point, read_scalar,
   squeeze_challenge,
 }
 use verifier_key.{barycentric_weight, blinding_factors, omega, omega_inv, g2_const, neg_g1_generator, {{{F_IMPORTS}}}, {{{P_IMPORTS}}} }
-use halo2_kzg.{eval, MSM, MSMElement}
-use aiken/crypto/bls12_381/pairing.{miller_loop, final_exponentiation}
 
 pub fn verifier(proof: Data, transcript_rep: State<Scalar>, {{{PUBLIC_INPUTS_NAMES}}}) -> Bool {
 

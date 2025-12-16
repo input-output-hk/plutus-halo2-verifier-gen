@@ -497,7 +497,7 @@ pub fn emit_verifier_code(
     let optimized_right = optimize_msm(&right);
 
     let kzg_gwc19_msm = format!(
-        "    let el = eval({})\n    let er = eval({})",
+        "    let el = {}\n    let er = {}",
         optimized_left.compile_expression(),
         optimized_right.compile_expression()
     );
@@ -712,14 +712,18 @@ pub fn emit_vk_code(
 
     let permutation_commitments = circuit.instantiation_data.permutation_commitments.len();
 
-    let fixed = (1..=fixed_commitments)
-        .map(|idx| format!(
+    let fixed = (1..=fixed_commitments).map(|idx| {
+        format!(
             "\tlet f{idx}_commitment = decompress(f{idx}_commitment)\n\
-            \texpect f{idx}_commitment == f{idx}_commitment"));
-    let permutations = (1..=permutation_commitments)
-        .map(|idx| format!(
+            \texpect f{idx}_commitment == f{idx}_commitment"
+        )
+    });
+    let permutations = (1..=permutation_commitments).map(|idx| {
+        format!(
             "\tlet p{idx}_commitment = decompress(p{idx}_commitment)\n\
-            \texpect p{idx}_commitment == p{idx}_commitment"));
+            \texpect p{idx}_commitment == p{idx}_commitment"
+        )
+    });
 
     let budget_check = fixed
         .chain(permutations)
@@ -927,29 +931,24 @@ fn optimize_msm(msm: &MsmOperations) -> OptimizedMSM {
 
 impl AikenExpression for OptimizedMSM {
     fn compile_expression(&self) -> String {
-        let elements = self
+        self
             .elements
             .iter()
             .map(|element| match element {
-                ElementMSM::Element(scalar, commitment) => format!(
-                    "MSMElement {{ scalar: {}, g1: {} }}",
-                    scalar.compile_expression(),
-                    commitment.compile_expression(),
-                ),
-                ElementMSM::ElementW(scalar, index) => format!(
-                    "MSMElement {{ scalar: {}, g1: w{} }}",
-                    scalar.compile_expression(),
-                    index + 1,
-                ),
+                ElementMSM::Element(scalar, commitment) => {
+                    (scalar.compile_expression(), commitment.compile_expression())
+                }
+                ElementMSM::ElementW(scalar, index) => {
+                    (scalar.compile_expression(), format!("w{}", index + 1,))
+                }
                 ElementMSM::ElementNegatedG1(scalar) => {
-                    format!(
-                        "MSMElement {{ scalar: {}, g1: neg_g1_generator }}",
-                        scalar.compile_expression(),
-                    )
+                    (scalar.compile_expression(), "neg_g1_generator".to_string())
                 }
             })
-            .join(", ");
-        format!("MSM{{elements: [ {} ]}}", elements)
+            .fold("zero".to_string(), |acc, (scalar, g1)| {
+                format!("addG1({}, scaleG1(decompress({}), {}))", acc, g1, scalar)
+                //format!("bls12_381_g1_add({}, bls12_381_g1_scalar_mul(to_int({}), bls12_381_g1_uncompress({})))", acc,  scalar,g1)
+            })
     }
 }
 
