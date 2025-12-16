@@ -1,5 +1,5 @@
 use aiken/collection/list.{
-  concat, foldl, foldl2, foldr2, is_empty, last, map, push, reverse, zip,
+  concat, foldl, foldl2, foldr2, is_empty, last, map, map2, map3, push, reverse, zip,
 }
 use aiken/crypto/bitwise.{State}
 use aiken/crypto/bls12_381/g1.{add as add_g1, decompress, scale, zero}
@@ -67,7 +67,7 @@ fn compute_q_evals_and_final_comm(
                 if is_empty(acc2) {
                   map(es, fn(e) { mul(e, x1Power) })
                 } else {
-                  map(zip(acc2, es), fn((a, b)) { add(a, mul(b, x1Power)) })
+                  map2(acc2, es, fn(a, b) { add(a, mul(b, x1Power)) })
                 }
               }
               return(acc1, acc2)
@@ -127,9 +127,11 @@ pub fn compute_f_eval(
 ) -> State<Scalar> {
   // Step 1: Compute r_evals and denominators for all point sets (no inversions yet)
   let data =
-    map(
-      zip(point_sets, zip(q_eval_sets, proof_X3_q_evals)),
-      fn((points, (evals, proofQEval))) {
+    map3(
+      point_sets,
+      q_eval_sets,
+      proof_X3_q_evals,
+      fn(points, evals, proofQEval) {
         let r_eval = lagrange_evaluation(zip(points, evals), x3)
         let denom =
           foldl(
