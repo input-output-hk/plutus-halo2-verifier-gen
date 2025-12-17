@@ -1,4 +1,4 @@
-use aiken/collection/list.{at, foldl, take}
+use aiken/collection/list.{last, foldl, take}
 use aiken/crypto/bitwise.{State}
 use aiken/crypto/bls12_381/g1.{add as addG1, scale as scaleG1, zero, decompress, compress}
 use aiken/crypto/bls12_381/g2.{generator as generatorG2}
@@ -52,14 +52,14 @@ pub fn verifier(proof: Data, transcript_rep: State<Scalar>, {{{PUBLIC_INPUTS_NAM
         )
     expect [last_evaluation, ..rest] = evaluations_of_lagrange_polynomial
     let evaluation_for_blinding_factors = take(rest, blinding_factors)
+    expect Some(evaluation_at_0) = last(rest)
+
     let sum_of_evaluation_for_blinding_factors =
         foldl(
         evaluation_for_blinding_factors,
         scalarZero,
         fn(e, acc) { add(e, acc) },
         )
-    expect Some(evaluation_at_0) =
-        at(evaluations_of_lagrange_polynomial, 1 + blinding_factors)
     let active_rows =
         sub(scalarOne, add(last_evaluation, sum_of_evaluation_for_blinding_factors))
     // -----------------------------------------------------------------------------------------------
