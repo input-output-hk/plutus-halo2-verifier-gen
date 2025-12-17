@@ -1,4 +1,4 @@
-use aiken/collection/list.{at, drop, foldl, head, take}
+use aiken/collection/list.{at, foldl, take}
 use aiken/crypto/bitwise.{State}
 use aiken/crypto/bls12_381/g1.{add as addG1, scale as scaleG1, zero, decompress, compress}
 use aiken/crypto/bls12_381/g2.{generator as generatorG2}
@@ -50,9 +50,8 @@ pub fn verifier(proof: Data, transcript_rep: State<Scalar>, {{{PUBLIC_INPUTS_NAM
         barycentric_weight,
         rotations_for_vanishing,
         )
-    expect Some(last_evaluation) = head(evaluations_of_lagrange_polynomial)
-    let evaluation_for_blinding_factors =
-        take(drop(evaluations_of_lagrange_polynomial, 1), blinding_factors)
+    expect [last_evaluation, ..rest] = evaluations_of_lagrange_polynomial
+    let evaluation_for_blinding_factors = take(rest, blinding_factors)
     let sum_of_evaluation_for_blinding_factors =
         foldl(
         evaluation_for_blinding_factors,
