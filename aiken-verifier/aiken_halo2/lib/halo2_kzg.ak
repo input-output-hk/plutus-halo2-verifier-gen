@@ -1,5 +1,5 @@
 use aiken/collection/list.{
-  concat, filter, foldl, is_empty, length, map, push, range, reverse, unzip, zip,
+  concat, foldl, foldl2, foldr2, is_empty, last, map, map2, map3, push, reverse, zip,
 }
 use aiken/crypto/bitwise.{State}
 use aiken/crypto/bls12_381/g1.{add as add_g1, decompress, scale, zero}
@@ -7,16 +7,12 @@ use aiken/crypto/bls12_381/scalar.{Scalar, add, from_int, mul, sub}
 use lagrange.{batch_inverses, lagrange_evaluation}
 use verifier_key.{neg_g1_generator}
 
-pub type MSMElement {
-  scalar: State<Scalar>,
-  g1: ByteArray,
-}
+// Computes MSM for verifying multiple openings in the KZG polynomial commitment scheme (the multi-open protocol from the Halo2 book).
+// It represents the `right` input to the pairing check equation: `e(left, sG2) == e(right, G2)`,
+// where `left` is PI commitment.
+// For reference implementation, see `https://github.com/input-output-hk/halo2/blob/plutus_verification/src/poly/kzg/mod.rs#L193`
 
-pub type MSM {
-  elements: List<MSMElement>,
-}
-
-pub fn build_msm(
+pub fn compute_msm(
   x1Powers: List<State<Scalar>>,
   x2: State<Scalar>,
   x3: State<Scalar>,
@@ -24,61 +20,72 @@ pub fn build_msm(
   f_commitment: ByteArray,
   pi_commitment: ByteArray,
   proofX3QEvals: List<State<Scalar>>,
-  commitmentMap: List<(ByteArray, Int, List<State<Scalar>>)>,
+  commitmentMap: List<List<(ByteArray, List<State<Scalar>>)>>,
   pointSets: List<List<State<Scalar>>>,
-) -> MSM {
-  let point_sets_indexes = range(0, length(pointSets) - 1)
-  let (q_commitments, q_eval_sets) =
-    unzip(build_q(commitmentMap, point_sets_indexes, x1Powers))
+) -> G1Element {
+  let final_com, q_eval_sets <-
+    compute_q_evals_and_final_comm(
+      commitmentMap,
+      x1Powers,
+      x4Powers,
+      f_commitment,
+    )
+
   let f_eval = compute_f_eval(pointSets, q_eval_sets, x2, x3, proofX3QEvals)
-  let final_com = final_commitment(q_commitments, f_commitment, x4Powers)
   let v = compute_v(f_eval, x4Powers, proofX3QEvals)
-  append_term(
-    append_term(
-      final_com,
-      // -vG1
-      MSMElement { scalar: v, g1: neg_g1_generator },
+
+  add_g1(
+    final_com,
+    add_g1(
+      scale(decompress(neg_g1_generator), v),
+      scale(decompress(pi_commitment), x3),
     ),
-    // scaled pi
-    MSMElement { scalar: x3, g1: pi_commitment },
   )
 }
 
-fn build_q(
-  commitmentMap: List<(ByteArray, Int, List<State<Scalar>>)>,
-  pointSetsIndexes: List<Int>,
+fn compute_q_evals_and_final_comm(
+  commitmentMap: List<List<(ByteArray, List<State<Scalar>>)>>,
   x1Powers: List<State<Scalar>>,
-) -> List<(MSM, List<State<Scalar>>)> {
-  map(
-    pointSetsIndexes,
-    fn(set_index) {
-      let commitments_for_index =
-        filter(commitmentMap, fn((_, idx, _)) { idx == set_index })
-      let commitments =
-        foldl(
-          zip(x1Powers, commitments_for_index),
-          MSM { elements: [] },
-          fn((x1Power, (commitment, _, _)), acc) {
-            append_term(acc, MSMElement { scalar: x1Power, g1: commitment })
-          },
-        )
-      let eval_set =
-        foldl(
-          zip(x1Powers, commitments_for_index),
-          [],
-          fn((x1Power, (_, _, es)), acc) {
-            let scaled = map(es, fn(e) { mul(e, x1Power) })
-
-            if is_empty(acc) {
-              scaled
-            } else {
-              map(zip(acc, scaled), fn((a, b)) { add(a, b) })
+  x4Powers: List<State<Scalar>>,
+  f_commitment: ByteArray,
+  continue: fn(G1Element, List<List<State<Scalar>>>) -> a,
+) -> a {
+  let final_comm, q_eval_sets <-
+    foldr2(
+      zip(commitmentMap, x4Powers),
+      zero,
+      [],
+      fn((commitments_for_set, x4Power), acc1, acc2, return) {
+        let q_comms, eval_set <-
+          foldl2(
+            zip(x1Powers, commitments_for_set),
+            zero,
+            [],
+            fn((x1Power, (commitment, es)), acc1, acc2, return) {
+              let acc1 = add_g1(acc1, scale(decompress(commitment), x1Power))
+              let acc2 = {
+                if is_empty(acc2) {
+                  map(es, fn(e) { mul(e, x1Power) })
+                } else {
+                  map2(acc2, es, fn(a, b) { add(a, mul(b, x1Power)) })
+                }
+              }
+              return(acc1, acc2)
             }
-          },
-        )
-      (commitments, eval_set)
-    },
-  )
+          )
+
+        // scale Q commitments by x4Powers and accumulate them in final commitment
+        let acc1 = add_g1(acc1, scale(q_comms, x4Power))
+        let acc2 = push(acc2, eval_set)
+        return(acc1, acc2)
+      }
+    )
+
+  // We also need to add the f_commitment scaled by the last x4Power
+  expect Some(x4Power) = last(x4Powers)
+  let final_comm = add_g1(final_comm, scale(decompress(f_commitment), x4Power))
+
+  continue(final_comm, q_eval_sets)
 }
 
 // TODO: Revert to this version of `compute_f_eval` when CIP-109 with built-in inverse is available, 
@@ -120,9 +127,11 @@ pub fn compute_f_eval(
 ) -> State<Scalar> {
   // Step 1: Compute r_evals and denominators for all point sets (no inversions yet)
   let data =
-    map(
-      zip(point_sets, zip(q_eval_sets, proof_X3_q_evals)),
-      fn((points, (evals, proofQEval))) {
+    map3(
+      point_sets,
+      q_eval_sets,
+      proof_X3_q_evals,
+      fn(points, evals, proofQEval) {
         let r_eval = lagrange_evaluation(zip(points, evals), x3)
         let denom =
           foldl(
@@ -149,28 +158,6 @@ pub fn compute_f_eval(
   )
 }
 
-fn final_commitment(
-  q_commitments: List<MSM>,
-  f_commitment: ByteArray,
-  x4Powers: List<State<Scalar>>,
-) -> MSM {
-  foldl(
-    zip(
-      x4Powers,
-      concat(
-        q_commitments,
-        [
-          MSM {
-            elements: [MSMElement { scalar: from_int(1), g1: f_commitment }],
-          },
-        ],
-      ),
-    ),
-    MSM { elements: [] },
-    fn((point, msm), acc) { add_msm(acc, scale_msm(point, msm)) },
-  )
-}
-
 fn compute_v(
   f_eval: State<Scalar>,
   x4Powers: List<State<Scalar>>,
@@ -180,33 +167,5 @@ fn compute_v(
     zip(x4Powers, concat(proofX3QEvals, [f_eval])),
     from_int(0),
     fn((point, eval), acc) { add(acc, mul(point, eval)) },
-  )
-}
-
-fn append_term(msm: MSM, element: MSMElement) -> MSM {
-  MSM { elements: push(msm.elements, element) }
-}
-
-fn add_msm(a: MSM, b: MSM) -> MSM {
-  MSM { elements: concat(a.elements, b.elements) }
-}
-
-fn scale_msm(s: State<Scalar>, msm: MSM) -> MSM {
-  MSM {
-    elements: map(
-      msm.elements,
-      fn(e) { MSMElement { g1: e.g1, scalar: mul(s, e.scalar) } },
-    ),
-  }
-}
-
-pub fn eval(msm: MSM) -> G1Element {
-  foldl(
-    msm.elements,
-    zero,
-    fn(element, acc) {
-      let g1 = decompress(element.g1)
-      add_g1(acc, scale(g1, element.scalar))
-    },
   )
 }

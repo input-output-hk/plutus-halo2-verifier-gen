@@ -31,13 +31,16 @@ pub fn read_scalar(transcript: Transcript) -> (State<Scalar>, Transcript) {
 
   let remaining_proof_data = bytearray.drop(transcript.remaining_proof, 32)
 
-  let new_transcript =
-    common_scalar(
-      scalar,
-      Transcript { ..transcript, remaining_proof: remaining_proof_data },
-    )
-
-  (scalar, new_transcript)
+  let bytes_to_append = bytearray.concat(prefix_common, scalar_bytes)
+  let new_bytes_for_hash =
+    bytearray.concat(transcript.accumulated_for_hash, bytes_to_append)
+  (
+    scalar,
+    Transcript {
+      remaining_proof: remaining_proof_data,
+      accumulated_for_hash: new_bytes_for_hash,
+    },
+  )
 }
 
 pub fn common_scalar(
