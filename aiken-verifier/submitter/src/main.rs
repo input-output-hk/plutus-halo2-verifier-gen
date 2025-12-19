@@ -4,20 +4,24 @@ mod utils;
 use crate::api::{BlockFrostNodeAPI, load_env_vars, to_config};
 use crate::utils::to_address;
 use anyhow::{Context as _, Result, anyhow};
+use blake2b_simd::Params;
 use cardano_serialization_lib::{
     Address, BigInt, CostModel, Costmdls, Credential, EnterpriseAddress, ExUnits, FixedTransaction,
-    Int, Language, MintBuilder, MintWitness, PlutusData, PlutusScript, PlutusScriptSource,
-    PlutusScripts, PolicyID, Redeemer, RedeemerTag, Redeemers, ScriptHash, TransactionBuilder,
-    TransactionOutputBuilder, TransactionWitnessSet, TxInputsBuilder, Value, Vkeywitnesses,
-    make_vkey_witness,
+    Int, Language, MintBuilder, MintWitness, PlutusData, PlutusList, PlutusScript,
+    PlutusScriptSource, PlutusScripts, PolicyID, Redeemer, RedeemerTag, Redeemers, ScriptHash,
+    TransactionBuilder, TransactionOutputBuilder, TransactionWitnessSet, TxInputsBuilder, Value,
+    Vkeywitnesses, make_vkey_witness,
 };
+use num_bigint::BigInt as NumBigInt;
+
 use cardano_serialization_lib::{
     AssetName, Assets, BigNum, MultiAsset, PrivateKey, Transaction, TransactionInput,
 };
 use log::info;
+use num_traits::Num;
 use serde::Deserialize;
 use std::fs::File;
-use std::io::BufReader;
+use std::io::{BufReader, Read};
 
 #[derive(Deserialize, Debug)]
 struct PlutusJson {
@@ -33,12 +37,12 @@ struct Validator {
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    env_logger::init_from_env(env_logger::Env::default().filter_or("RUST_LOG", "trace"));
+    env_logger::init_from_env(env_logger::Env::default().filter_or("RUST_LOG", "debug"));
 
     let (api_key, private_key) =
         load_env_vars().context("Failed to load necessary environment variables")?;
 
-    let file: File = File::open("aiken_halo2/plutus.json")?;
+    let file: File = File::open("../aiken_halo2/plutus.json")?;
     let reader: BufReader<File> = BufReader::new(file);
     let plutus_json: PlutusJson = serde_json::from_reader(reader)?;
 
@@ -71,11 +75,36 @@ async fn main() -> Result<()> {
     let for_mint = utxos.iter().take(1).cloned().collect();
     let for_collateral = utxos.iter().skip(1).take(3).cloned().collect();
 
+    let proof_file = "./serialized_proof.hex".to_string();
+    let mut proof_file = File::open(proof_file).context("failed to open proof file")?;
+    let mut proof = String::new();
+    proof_file.read_to_string(&mut proof)?;
+    let proof_bytes = hex::decode(&proof).context("failed to decode hex proof")?;
+
+    let instance_file = "./serialized_public_input.hex".to_string();
+    let mut instance_file = File::open(instance_file).context("failed to open instance file")?;
+    let mut instances = String::new();
+    instance_file.read_to_string(&mut instances)?;
+    let instances = instances.lines();
+
+    let instances_bytes: Vec<u8> = instances.clone().fold(vec![], |mut acc, instance| {
+        let mut i = hex::decode(instance).expect("");
+        acc.append(&mut i);
+        acc
+    });
+
+    let mut cardano_blake2b = Params::new().hash_length(32).to_state();
+    cardano_blake2b.update(&proof_bytes);
+    cardano_blake2b.update(&instances_bytes);
+    let nft_name = cardano_blake2b.finalize();
+
     let transaction = mint(
+        proof_bytes,
+        instances.map(|s| s.to_owned()).collect(),
         &node_client,
         &private_key,
         &smart_contract,
-        &AssetName::from_hex("4E466E6F544E466E6F544E466E6F5454")?,
+        &AssetName::new(nft_name.as_bytes().to_vec()).context("failed to create asset")?,
         &address,
         &for_mint,
         &for_collateral,
@@ -90,6 +119,8 @@ async fn main() -> Result<()> {
 }
 
 pub async fn mint(
+    proof: Vec<u8>,
+    instances: Vec<String>,
     node_client: &BlockFrostNodeAPI,
     private_key_paying_for_mint: &PrivateKey,
     script: &PlutusScript,
@@ -108,7 +139,7 @@ pub async fn mint(
     // Add inputs from fetched UTXOs
     let mut tx_input_builder = TxInputsBuilder::new();
     for (utxo, amount) in input_utxos {
-        tx_input_builder.add_regular_input(&address, &utxo, &amount)?;
+        tx_input_builder.add_regular_input(&address, utxo, amount)?;
     }
 
     let config = to_config(&protocol_params)?;
@@ -120,10 +151,21 @@ pub async fn mint(
     assets.insert(asset_name, &BigNum::from(1u32));
     multi_asset.insert(&policy_id, &assets);
 
+    let mut redeemer_data = PlutusList::new();
+    redeemer_data.add(&PlutusData::new_bytes(proof));
+
+    //this logic is to work around hex deserialization issue in cardano serialization lib
+    for instance in instances {
+        let rust_integer = NumBigInt::from_str_radix(&instance, 16)?;
+        let cardano_integer = BigInt::from_str(&rust_integer.to_string())
+            .context("instance should be encoded as hex integer")?;
+        redeemer_data.add(&PlutusData::new_integer(&cardano_integer));
+    }
+
     let redeemer = Redeemer::new(
         &RedeemerTag::new_mint(),
         &BigNum::zero(),
-        &PlutusData::new_integer(&BigInt::from_str("42")?),
+        &PlutusData::new_list(&redeemer_data),
         &ExUnits::new(
             &BigNum::from(14_000_000u64),
             &BigNum::from(10_000_000_000u64),
@@ -155,7 +197,7 @@ pub async fn mint(
 
     let mut tx_input_builder = TxInputsBuilder::new();
     for (utxo, amount) in collateral_utxos {
-        tx_input_builder.add_regular_input(&address, &utxo, &amount)?;
+        tx_input_builder.add_regular_input(&address, utxo, amount)?;
     }
 
     tx_builder.calc_script_data_hash(&res)?;

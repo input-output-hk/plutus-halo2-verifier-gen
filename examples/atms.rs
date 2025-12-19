@@ -13,6 +13,7 @@ use halo2_proofs::{
 use log::info;
 use plutus_halo2_verifier_gen::plutus_gen::extraction::ExtractKZG;
 use plutus_halo2_verifier_gen::plutus_gen::generate_aiken_verifier;
+use plutus_halo2_verifier_gen::plutus_gen::proof_serialization::export_proof;
 use plutus_halo2_verifier_gen::{
     circuits::atms_circuit::{AtmsSignatureCircuit, prepare_test_signatures},
     plutus_gen::{
@@ -137,8 +138,22 @@ pub fn compile_atms_circuit<
     generate_plinth_verifier(&kzg_params, &vk, instances)
         .context("Plinth verifier generation failed")?;
 
-    generate_aiken_verifier(&kzg_params, &vk, instances, Some((proof, invalid_proof)))
-        .context("Aiken verifier generation failed")?;
+    generate_aiken_verifier(
+        &kzg_params,
+        &vk,
+        instances,
+        Some((proof.clone(), invalid_proof)),
+    )
+    .context("Aiken verifier generation failed")?;
+    export_proof(
+        "./aiken-verifier/submitter/serialized_proof.hex".to_string(),
+        proof,
+    )
+    .context("hex proof serialization failed")?;
+
+    let instances_file = "./aiken-verifier/submitter/serialized_public_input.hex".to_string();
+    let mut output = File::create(instances_file).context("failed to create instances file")?;
+    export_public_inputs(instances, &mut output).context("Failed to export the public inputs")?;
 
     Ok(())
 }

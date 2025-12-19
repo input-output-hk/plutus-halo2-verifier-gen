@@ -97,7 +97,7 @@ where
         Path::new("aiken-verifier/aiken_halo2/lib/proof_verifier.ak"),
         &circuit_representation,
         test_proofs
-            .map(|(p, invalid_p)| (p, invalid_p, vk.transcript_repr(), instances[0][0].to_vec())),
+            .map(|(p, invalid_p)| (p, invalid_p, instances[0][0].to_vec())),
     )
     .context("Failed to emit the verifier code for aiken")?;
     emit_vk_code_aiken(

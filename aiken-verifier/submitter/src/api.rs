@@ -5,7 +5,7 @@ use cardano_serialization_lib::{
     Value as CardanoValue,
 };
 use dotenvy::dotenv;
-use log::trace;
+use log::{debug, trace};
 use reqwest::Client;
 use serde::Deserialize;
 use std::env;
@@ -77,7 +77,7 @@ impl BlockFrostNodeAPI {
             || self.get_ada_utxos(address).await?.is_empty()
         {
             sleep(Duration::from_millis(5000)).await;
-            trace!("still waiting for {:?}", tx_hash);
+            debug!("still waiting for transaction {:?}", tx_hash);
         }
         Ok(())
     }

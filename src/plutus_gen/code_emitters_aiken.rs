@@ -22,7 +22,7 @@ pub fn emit_verifier_code(
     template_file: &Path, // aiken mustashe template
     aiken_file: &Path,    // generated aiken file, output
     circuit: &CircuitRepresentation,
-    test_data: Option<(Vec<u8>, Vec<u8>, Scalar, Vec<Scalar>)>,
+    test_data: Option<(Vec<u8>, Vec<u8>, Vec<Scalar>)>,
 ) -> Result<String, RenderError> {
     let letters = 'a'..='z';
     let proof_extraction: Vec<_> = circuit
@@ -551,11 +551,10 @@ pub fn emit_verifier_code(
                 "False".to_string(),
             );
         }
-        Some((proof, invalid_proof, transcript_rep, public_inputs)) => {
+        Some((proof, invalid_proof, public_inputs)) => {
             let test_valid_proof_valid_inputs = format!(
-                "verifier(#\"{}\", from_int(0x{}), {})",
+                "verifier(#\"{}\", {})",
                 hex::encode(proof.clone()),
-                hex::encode(transcript_rep.to_bytes_be()),
                 public_inputs
                     .iter()
                     .map(|e| format!("from_int(0x{})", hex::encode(e.to_bytes_be())))
@@ -568,9 +567,8 @@ pub fn emit_verifier_code(
             );
 
             let test_valid_proof_invalid_inputs = format!(
-                "verifier(#\"{}\", from_int(0x{}), {})",
+                "verifier(#\"{}\", {})",
                 hex::encode(proof.clone()),
-                hex::encode(transcript_rep.to_bytes_be()),
                 public_inputs
                     .iter()
                     .map(|e| {
@@ -586,9 +584,8 @@ pub fn emit_verifier_code(
             );
 
             let test_invalid_proof_invalid_inputs = format!(
-                "verifier(#\"{}\", from_int(0x{}), {})",
+                "verifier(#\"{}\", {})",
                 hex::encode(invalid_proof),
-                hex::encode(transcript_rep.to_bytes_be()),
                 public_inputs
                     .iter()
                     .map(|e| {
@@ -604,9 +601,8 @@ pub fn emit_verifier_code(
             );
 
             let test_valid_proof_trivial_inputs = format!(
-                "verifier(#\"{}\", from_int(0x{}), {})",
+                "verifier(#\"{}\", {})",
                 hex::encode(proof.clone()),
-                hex::encode(transcript_rep.to_bytes_be()),
                 public_inputs
                     .iter()
                     .map(|_e| format!("from_int(0x{})", hex::encode(Scalar::ONE.to_bytes_be())))
@@ -615,20 +611,6 @@ pub fn emit_verifier_code(
             data.insert(
                 "TEST_VALID_PROOF_TRIVIAL_INPUTS".to_string(),
                 test_valid_proof_trivial_inputs,
-            );
-
-            let test_valid_proof_invalid_transcript_rep = format!(
-                "verifier(#\"{}\", from_int(0x{}), {})",
-                hex::encode(proof),
-                hex::encode(transcript_rep.neg().to_bytes_be()),
-                public_inputs
-                    .iter()
-                    .map(|e| format!("from_int(0x{})", hex::encode(e.to_bytes_be())))
-                    .join(", ")
-            );
-            data.insert(
-                "TEST_VALID_PROOF_INVALID_TRANSCRIPT_REP".to_string(),
-                test_valid_proof_invalid_transcript_rep,
             );
         }
     }
