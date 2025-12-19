@@ -87,7 +87,7 @@ async fn main() -> Result<()> {
     instance_file.read_to_string(&mut instances)?;
     let instances = instances.lines();
 
-    let foo: Vec<u8> = instances.clone().fold(vec![], |mut acc, instance| {
+    let instances_bytes: Vec<u8> = instances.clone().fold(vec![], |mut acc, instance| {
         let mut i = hex::decode(instance).expect("");
         acc.append(&mut i);
         acc
@@ -95,7 +95,7 @@ async fn main() -> Result<()> {
 
     let mut cardano_blake2b = Params::new().hash_length(32).to_state();
     cardano_blake2b.update(&proof_bytes);
-    cardano_blake2b.update(&foo);
+    cardano_blake2b.update(&instances_bytes);
     let nft_name = cardano_blake2b.finalize();
 
     let transaction = mint(
@@ -154,11 +154,12 @@ pub async fn mint(
     let mut redeemer_data = PlutusList::new();
     redeemer_data.add(&PlutusData::new_bytes(proof));
 
+    //this logic is to work around hex deserialization issue in carano serialization lib
     for instance in instances {
-        let foo = NumBigInt::from_str_radix(&instance, 16)?;
-        let bar = BigInt::from_str(&foo.to_string())
+        let rust_integer = NumBigInt::from_str_radix(&instance, 16)?;
+        let cardano_integer = BigInt::from_str(&rust_integer.to_string())
             .context("instance should be encoded as hex integer")?;
-        redeemer_data.add(&PlutusData::new_integer(&bar));
+        redeemer_data.add(&PlutusData::new_integer(&cardano_integer));
     }
 
     let redeemer = Redeemer::new(
