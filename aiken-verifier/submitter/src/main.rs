@@ -42,7 +42,7 @@ async fn main() -> Result<()> {
     let (api_key, private_key) =
         load_env_vars().context("Failed to load necessary environment variables")?;
 
-    let file: File = File::open("aiken_halo2/plutus.json")?;
+    let file: File = File::open("../aiken_halo2/plutus.json")?;
     let reader: BufReader<File> = BufReader::new(file);
     let plutus_json: PlutusJson = serde_json::from_reader(reader)?;
 
@@ -75,13 +75,13 @@ async fn main() -> Result<()> {
     let for_mint = utxos.iter().take(1).cloned().collect();
     let for_collateral = utxos.iter().skip(1).take(3).cloned().collect();
 
-    let proof_file = "./aiken_halo2/serialized_proof.hex".to_string();
+    let proof_file = "./serialized_proof.hex".to_string();
     let mut proof_file = File::open(proof_file).context("failed to open proof file")?;
     let mut proof = String::new();
     proof_file.read_to_string(&mut proof)?;
     let proof_bytes = hex::decode(&proof).context("failed to decode hex proof")?;
 
-    let instance_file = "./aiken_halo2/serialized_public_input.hex".to_string();
+    let instance_file = "./serialized_public_input.hex".to_string();
     let mut instance_file = File::open(instance_file).context("failed to open instance file")?;
     let mut instances = String::new();
     instance_file.read_to_string(&mut instances)?;
@@ -139,7 +139,7 @@ pub async fn mint(
     // Add inputs from fetched UTXOs
     let mut tx_input_builder = TxInputsBuilder::new();
     for (utxo, amount) in input_utxos {
-        tx_input_builder.add_regular_input(&address, &utxo, &amount)?;
+        tx_input_builder.add_regular_input(&address, utxo, amount)?;
     }
 
     let config = to_config(&protocol_params)?;
@@ -154,7 +154,7 @@ pub async fn mint(
     let mut redeemer_data = PlutusList::new();
     redeemer_data.add(&PlutusData::new_bytes(proof));
 
-    //this logic is to work around hex deserialization issue in carano serialization lib
+    //this logic is to work around hex deserialization issue in cardano serialization lib
     for instance in instances {
         let rust_integer = NumBigInt::from_str_radix(&instance, 16)?;
         let cardano_integer = BigInt::from_str(&rust_integer.to_string())
@@ -197,7 +197,7 @@ pub async fn mint(
 
     let mut tx_input_builder = TxInputsBuilder::new();
     for (utxo, amount) in collateral_utxos {
-        tx_input_builder.add_regular_input(&address, &utxo, &amount)?;
+        tx_input_builder.add_regular_input(&address, utxo, amount)?;
     }
 
     tx_builder.calc_script_data_hash(&res)?;

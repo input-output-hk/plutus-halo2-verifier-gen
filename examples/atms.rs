@@ -146,12 +146,12 @@ pub fn compile_atms_circuit<
     )
     .context("Aiken verifier generation failed")?;
     export_proof(
-        "./aiken-verifier/aiken_halo2/serialized_proof.hex".to_string(),
+        "./aiken-verifier/submitter/serialized_proof.hex".to_string(),
         proof,
     )
     .context("hex proof serialization failed")?;
 
-    let instances_file = "./aiken-verifier/aiken_halo2/serialized_public_input.hex".to_string();
+    let instances_file = "./aiken-verifier/submitter/serialized_public_input.hex".to_string();
     let mut output = File::create(instances_file).context("failed to create instances file")?;
     export_public_inputs(instances, &mut output).context("Failed to export the public inputs")?;
 
