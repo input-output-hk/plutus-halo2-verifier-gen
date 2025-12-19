@@ -106,6 +106,12 @@ pub fn verifier(proof: Data, {{{PUBLIC_INPUTS_NAMES}}}) -> Bool {
     // g2 is not negated as final_exponentiation is doing negation
     let g2 = generatorG2
 
+    let v1 = v
+{{{GWC19_V_POWERS}}}
+
+    let u1 = u
+{{{GWC19_U_POWERS}}}
+
 {{{GWC19_MSM}}}
 
     let ml_l = miller_loop(el, g2_const)

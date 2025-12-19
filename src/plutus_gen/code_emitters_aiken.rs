@@ -17,6 +17,7 @@ use itertools::Itertools;
 use log::debug;
 use std::ops::Neg;
 use std::{collections::HashMap, fs::File, iter::once, path::Path};
+use regex::Regex;
 
 pub fn emit_verifier_code(
     template_file: &Path, // aiken mustashe template
@@ -515,7 +516,26 @@ pub fn emit_verifier_code(
         optimized_left.compile_expression(),
         optimized_right.compile_expression()
     );
-    data.insert("GWC19_MSM".to_string(), kzg_gwc19_msm);
+    data.insert("GWC19_MSM".to_string(), kzg_gwc19_msm.clone());
+
+    // Prepare v and u powers used in GWC19 KZG verifier
+    // To extract max needed power, we parse the msm string
+    let prepare_powers = |var_name: &str| -> String {
+        let pattern = format!(r"scalar: {}(\d+)", var_name);
+        let pattern = Regex::new(&pattern).unwrap();
+
+        let max_power = pattern
+            .captures_iter(&kzg_gwc19_msm)
+            .filter_map(|cap| cap.get(1).and_then(|m| m.as_str().parse().ok()))
+            .max()
+            .unwrap_or(0);
+
+        (2..=max_power)
+            .map(|i| format!("\tlet {}{} = mul({}{}, {})", var_name, i, var_name, i - 1, var_name))
+            .join("\n")
+    };
+    data.insert("GWC19_V_POWERS".to_string(), prepare_powers("v"));
+    data.insert("GWC19_U_POWERS".to_string(), prepare_powers("u"));
 
     let fixed_commitments_imports = (1..=circuit.instantiation_data.fixed_commitments.len())
         .map(|id| format!("f{}_commitment", id))
@@ -932,18 +952,18 @@ impl AikenExpression for OptimizedMSM {
             .iter()
             .map(|element| match element {
                 ElementMSM::Element(scalar, commitment) => format!(
-                    "MSMElement {{ scalar: {}, g1: {} }}",
+                    "\n\t\t\t\tMSMElement {{ scalar: {}, g1: {} }}",
                     scalar.compile_expression(),
                     commitment.compile_expression(),
                 ),
                 ElementMSM::ElementW(scalar, index) => format!(
-                    "MSMElement {{ scalar: {}, g1: w{} }}",
+                    "\n\t\t\t\tMSMElement {{ scalar: {}, g1: w{} }}",
                     scalar.compile_expression(),
                     index + 1,
                 ),
                 ElementMSM::ElementNegatedG1(scalar) => {
                     format!(
-                        "MSMElement {{ scalar: {}, g1: neg_g1_generator }}",
+                        "\n\t\t\t\tMSMElement {{ scalar: {}, g1: neg_g1_generator }}",
                         scalar.compile_expression(),
                     )
                 }
@@ -987,7 +1007,10 @@ impl AikenExpression for ScalarOperation {
                 )
             }
             Power(name, exponent) => {
-                format!("scale({}, {})", name, exponent)
+                // All powers of `v` and `u` are pre-computed to avoid duplication
+                // so here instead of calling `scale(v, X)` we just refer to `vX` variable
+                // format!("scale({}, {})", name, exponent)
+                format!("{}{}", name, exponent)
             }
             ScalarOperation::Add(scalar_a, scalar_b) => {
                 format!(
