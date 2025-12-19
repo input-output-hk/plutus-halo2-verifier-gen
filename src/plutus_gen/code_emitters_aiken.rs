@@ -17,7 +17,6 @@ use itertools::Itertools;
 use log::debug;
 use std::ops::Neg;
 use std::{collections::HashMap, fs::File, iter::once, path::Path};
-use regex::Regex;
 
 pub fn emit_verifier_code(
     template_file: &Path, // aiken mustashe template
@@ -518,24 +517,20 @@ pub fn emit_verifier_code(
     );
     data.insert("GWC19_MSM".to_string(), kzg_gwc19_msm.clone());
 
-    // Prepare v and u powers used in GWC19 KZG verifier
-    // To extract max needed power, we parse the msm string
-    let prepare_powers = |var_name: &str| -> String {
-        let pattern = format!(r"scalar: {}(\d+)", var_name);
-        let pattern = Regex::new(&pattern).unwrap();
+    // Extract max powers of v and u by traversing scalar operations in optimized MSMs
+    let max_v_power = optimized_left.find_max_power('v')
+        .max(optimized_right.find_max_power('v'));
+    let max_u_power = optimized_left.find_max_power('u')
+        .max(optimized_right.find_max_power('u'));
 
-        let max_power = pattern
-            .captures_iter(&kzg_gwc19_msm)
-            .filter_map(|cap| cap.get(1).and_then(|m| m.as_str().parse().ok()))
-            .max()
-            .unwrap_or(0);
-
+    let generate_powers = |var_name: char, max_power: i32| -> String {
         (2..=max_power)
             .map(|i| format!("\tlet {}{} = mul({}{}, {})", var_name, i, var_name, i - 1, var_name))
             .join("\n")
     };
-    data.insert("GWC19_V_POWERS".to_string(), prepare_powers("v"));
-    data.insert("GWC19_U_POWERS".to_string(), prepare_powers("u"));
+
+    data.insert("GWC19_V_POWERS".to_string(), generate_powers('v', max_v_power));
+    data.insert("GWC19_U_POWERS".to_string(), generate_powers('u', max_u_power));
 
     let fixed_commitments_imports = (1..=circuit.instantiation_data.fixed_commitments.len())
         .map(|id| format!("f{}_commitment", id))
@@ -1007,6 +1002,38 @@ impl OptimizedMSM {
 
         OptimizedMSM {
             elements: optimized_elements,
+        }
+    }
+
+    /// Finds the maximum power exponent for a given variable in an MSM.
+    /// Recursively traverses all scalar operations to find Power(var_name, exponent).
+    fn find_max_power(&self, var_name: char) -> i32 {
+        (*self).elements
+            .iter()
+            .map(|element| {
+                let scalar = match element {
+                    ElementMSM::Element(s, _) => s,
+                    ElementMSM::ElementW(s, _) => s,
+                    ElementMSM::ElementNegatedG1(s) => s,
+                };
+                Self::find_max_power_in_scalar(scalar, var_name)
+            })
+            .max()
+            .unwrap_or(0)
+    }
+
+    /// Recursively finds max power exponent in a scalar operation tree
+    fn find_max_power_in_scalar(scalar: &ScalarOperation, var_name: char) -> i32 {
+        match scalar {
+            ScalarOperation::Power(name, exponent) if *name == var_name => *exponent,
+            ScalarOperation::Mul(s, _) => Self::find_max_power_in_scalar(s, var_name),
+            ScalarOperation::MulS(s1, s2) => {
+                Self::find_max_power_in_scalar(s1, var_name).max(Self::find_max_power_in_scalar(s2, var_name))
+            }
+            ScalarOperation::Add(s1, s2) => {
+                Self::find_max_power_in_scalar(s1, var_name).max(Self::find_max_power_in_scalar(s2, var_name))
+            }
+            _ => 0,
         }
     }
 }
