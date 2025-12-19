@@ -508,8 +508,8 @@ pub fn emit_verifier_code(
     let kzg_gwc19_intermediate_sets = construct_intermediate_sets(circuit.all_queries_ordered());
     let (left, right) = construct_msm(kzg_gwc19_intermediate_sets);
 
-    let optimized_left = optimize_msm(&left);
-    let optimized_right = optimize_msm(&right);
+    let optimized_left = flatten_msm(&left).optimize_msm();
+    let optimized_right = flatten_msm(&right).optimize_msm();
 
     let kzg_gwc19_msm = format!(
         "    let el = eval({})\n    let er = eval({})",
@@ -903,44 +903,110 @@ impl ElementMSM {
     }
 }
 
-// this function moves all MSM building functions execution from on-chain runtime to code generation stage
-fn optimize_msm(msm: &MsmOperations) -> OptimizedMSM {
+/// Flattens the recursive MSM operations tree into a linear list of elements,
+/// producing an optimized flat structure ready for Aiken code generation.
+fn flatten_msm(msm: &MsmOperations) -> OptimizedMSM {
     match msm {
         MsmOperations::Empty => OptimizedMSM { elements: vec![] },
         MsmOperations::Append(msm, scalar, commitment) => {
-            let mut optimized = optimize_msm(msm);
-            optimized
+            let mut flattened = flatten_msm(msm);
+            flattened
                 .elements
                 .push(ElementMSM::Element(scalar.clone(), *commitment));
-            optimized
+            flattened
         }
         MsmOperations::AppendW(msm, scalar, index) => {
-            let mut optimized = optimize_msm(msm);
-            optimized
+            let mut flattened = flatten_msm(msm);
+            flattened
                 .elements
                 .push(ElementMSM::ElementW(scalar.clone(), *index));
-            optimized
+            flattened
         }
         MsmOperations::AppendNegatedG1(msm, scalar) => {
-            let mut optimized = optimize_msm(msm);
-            optimized
+            let mut flattened = flatten_msm(msm);
+            flattened
                 .elements
                 .push(ElementMSM::ElementNegatedG1(scalar.clone()));
-            optimized
+            flattened
         }
         MsmOperations::Add(msm_a, msm_b) => {
-            let mut optimized_a = optimize_msm(msm_a);
-            let mut optimized_b = optimize_msm(msm_b);
-            optimized_a.elements.append(&mut optimized_b.elements);
-            optimized_a
+            let mut flattened_a = flatten_msm(msm_a);
+            let mut flattened_b = flatten_msm(msm_b);
+            flattened_a.elements.append(&mut flattened_b.elements);
+            flattened_a
         }
         MsmOperations::Scale(msm, scalar) => {
-            let mut optimized = optimize_msm(msm);
-            optimized.elements.iter_mut().for_each(|e| {
+            let mut flattened = flatten_msm(msm);
+            flattened.elements.iter_mut().for_each(|e| {
                 let s = e.get_scalar();
                 *s = ScalarOperation::MulS(Box::new(scalar.clone()), Box::new(s.clone()))
             });
-            optimized
+            flattened
+        }
+    }
+}
+
+impl OptimizedMSM {
+
+    /// Optimizes MSM by combining elements with the same G1 point.
+    /// Elements sharing the same point have their scalars added together,
+    /// reducing the number of point operations.
+    fn optimize_msm(self) -> OptimizedMSM {
+        // Key to identify unique G1 points
+        #[derive(Clone, Eq, PartialEq, Hash)]
+        enum G1PointKey {
+            Commitment(Commitments),
+            W(usize),
+            NegatedG1,
+        }
+
+        let mut groups: HashMap<G1PointKey, Vec<ScalarOperation>> = HashMap::new();
+        let mut insertion_order: Vec<G1PointKey> = Vec::new();
+
+        // Group elements by their G1 point
+        for element in self.elements {
+            let (key, scalar) = match element {
+                ElementMSM::Element(scalar, commitment) => (G1PointKey::Commitment(commitment), scalar),
+                ElementMSM::ElementW(scalar, index) => (G1PointKey::W(index), scalar),
+                ElementMSM::ElementNegatedG1(scalar) => (G1PointKey::NegatedG1, scalar),
+            };
+
+            // Track insertion order for deterministic output
+            if !groups.contains_key(&key) {
+                insertion_order.push(key.clone());
+            }
+
+            groups.entry(key).or_insert_with(Vec::new).push(scalar);
+        }
+
+        // Combine scalars for each G1 point
+        let optimized_elements: Vec<ElementMSM> = insertion_order
+            .into_iter()
+            .map(|key| {
+                let scalars = groups.remove(&key).unwrap();
+
+                // Combine all scalars by adding them together
+                let combined_scalar = scalars.into_iter().reduce(|acc, scalar| {
+                    ScalarOperation::Add(Box::new(acc), Box::new(scalar))
+                }).unwrap();
+
+                // Reconstruct the element with combined scalar
+                match key {
+                    G1PointKey::Commitment(commitment) => {
+                        ElementMSM::Element(combined_scalar, commitment)
+                    }
+                    G1PointKey::W(index) => {
+                        ElementMSM::ElementW(combined_scalar, index)
+                    }
+                    G1PointKey::NegatedG1 => {
+                        ElementMSM::ElementNegatedG1(combined_scalar)
+                    }
+                }
+            })
+            .collect();
+
+        OptimizedMSM {
+            elements: optimized_elements,
         }
     }
 }
