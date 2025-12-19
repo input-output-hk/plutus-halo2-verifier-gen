@@ -12,11 +12,11 @@ use transcript.{
   common_scalar, construct_transcript, read_point, read_scalar,
   squeeze_challenge,
 }
-use verifier_key.{barycentric_weight, blinding_factors, omega, omega_inv, g2_const, neg_g1_generator, {{{F_IMPORTS}}}, {{{P_IMPORTS}}} }
+use verifier_key.{barycentric_weight, blinding_factors, omega, omega_inv, g2_const, neg_g1_generator, transcript_rep, {{{F_IMPORTS}}}, {{{P_IMPORTS}}} }
 use bls_utils.{eval, MSM, MSMElement}
 use aiken/crypto/bls12_381/pairing.{miller_loop, final_exponentiation}
 
-pub fn verifier(proof: Data, transcript_rep: State<Scalar>, {{{PUBLIC_INPUTS_NAMES}}}) -> Bool {
+pub fn verifier(proof: Data, {{{PUBLIC_INPUTS_NAMES}}}) -> Bool {
 
     let rotations_for_vanishing =
         rotate_omegas(omega, omega_inv, -(blinding_factors + 1), 0)
@@ -129,8 +129,4 @@ test check_invalid_proof_invalid_publuc_inputs(){
 
 test check_valid_proof_tricvial_public_inputs() {
     expect {{{TEST_VALID_PROOF_TRIVIAL_INPUTS}}} == False
-}
-
-test check_valid_proof_invalid_transcript_rep() {
-    expect {{{TEST_VALID_PROOF_INVALID_TRANSCRIPT_REP}}} == False
 }

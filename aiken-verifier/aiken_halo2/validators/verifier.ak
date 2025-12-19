@@ -2,7 +2,6 @@ use aiken/crypto/bls12_381/scalar.{from_int}
 use cardano/assets.{PolicyId}
 use cardano/transaction.{Transaction}
 use proof_verifier.{verifier}
-use verifier_key.{transcript_rep}
 
 type Redeemer =
   (ByteArray, Int, Int, Int)
@@ -13,7 +12,6 @@ validator halo2 {
 
     verifier(
       proof,
-      transcript_rep,
       from_int(instance_1),
       from_int(instance_2),
       from_int(instance_3),
