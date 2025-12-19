@@ -1,5 +1,6 @@
 use aiken/collection/list.{
-  concat, foldl, foldl2, foldr2, is_empty, last, map, map2, map3, push, reverse, zip,
+  concat, foldl, foldl2, foldr2, is_empty, last, map, map2, map3, push, reverse,
+  zip,
 }
 use aiken/crypto/bitwise.{State}
 use aiken/crypto/bls12_381/g1.{add as add_g1, decompress, scale, zero}
@@ -23,7 +24,10 @@ pub fn compute_msm(
   commitmentMap: List<List<(ByteArray, List<State<Scalar>>)>>,
   pointSets: List<List<State<Scalar>>>,
 ) -> G1Element {
-  let final_com, q_eval_sets <-
+  let
+    final_com,
+    q_eval_sets,
+  <-
     compute_q_evals_and_final_comm(
       commitmentMap,
       x1Powers,
@@ -50,35 +54,40 @@ fn compute_q_evals_and_final_comm(
   f_commitment: ByteArray,
   continue: fn(G1Element, List<List<State<Scalar>>>) -> a,
 ) -> a {
-  let final_comm, q_eval_sets <-
+  let
+    final_comm,
+    q_eval_sets,
+  <-
     foldr2(
       zip(commitmentMap, x4Powers),
       zero,
       [],
       fn((commitments_for_set, x4Power), acc1, acc2, return) {
-        let q_comms, eval_set <-
+        let
+          q_comms,
+          eval_set,
+        <-
           foldl2(
             zip(x1Powers, commitments_for_set),
             zero,
             [],
             fn((x1Power, (commitment, es)), acc1, acc2, return) {
               let acc1 = add_g1(acc1, scale(decompress(commitment), x1Power))
-              let acc2 = {
+              let acc2 =
                 if is_empty(acc2) {
                   map(es, fn(e) { mul(e, x1Power) })
                 } else {
                   map2(acc2, es, fn(a, b) { add(a, mul(b, x1Power)) })
                 }
-              }
               return(acc1, acc2)
-            }
+            },
           )
 
         // scale Q commitments by x4Powers and accumulate them in final commitment
         let acc1 = add_g1(acc1, scale(q_comms, x4Power))
         let acc2 = push(acc2, eval_set)
         return(acc1, acc2)
-      }
+      },
     )
 
   // We also need to add the f_commitment scaled by the last x4Power

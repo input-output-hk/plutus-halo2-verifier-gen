@@ -85,18 +85,26 @@ async fn main() -> Result<()> {
     let mut instance_file = File::open(instance_file).context("failed to open instance file")?;
     let mut instances = String::new();
     instance_file.read_to_string(&mut instances)?;
+    let instances = instances.lines();
+
+    let foo: Vec<u8> = instances.clone().fold(vec![], |mut acc, instance| {
+        let mut i = hex::decode(instance).expect("");
+        acc.append(&mut i);
+        acc
+    });
 
     let mut cardano_blake2b = Params::new().hash_length(32).to_state();
     cardano_blake2b.update(&proof_bytes);
+    cardano_blake2b.update(&foo);
     let nft_name = cardano_blake2b.finalize();
 
     let transaction = mint(
         proof_bytes,
-        instances.lines().map(|s| s.to_owned()).collect(),
+        instances.map(|s| s.to_owned()).collect(),
         &node_client,
         &private_key,
         &smart_contract,
-        &AssetName::from_hex("4E466E6F544E466E6F544E466E6F5454")?,
+        &AssetName::new(nft_name.as_bytes().to_vec()).context("failed to create asset")?,
         &address,
         &for_mint,
         &for_collateral,
