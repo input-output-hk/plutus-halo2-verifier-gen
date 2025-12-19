@@ -37,7 +37,7 @@ struct Validator {
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    env_logger::init_from_env(env_logger::Env::default().filter_or("RUST_LOG", "trace"));
+    env_logger::init_from_env(env_logger::Env::default().filter_or("RUST_LOG", "debug"));
 
     let (api_key, private_key) =
         load_env_vars().context("Failed to load necessary environment variables")?;

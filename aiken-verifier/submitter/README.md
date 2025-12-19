@@ -20,7 +20,7 @@ BLOCK_FROST_API_KEY=blockfrost_key_goes_here
 
 ## submit transaction
 
-- run `aiken-verifier/submitter/src/main.rs` this will pick all the data from setup stage, combine it with compiled uplc
+- run `cargo run --bin submitter` in `aiken-verifier/submitter` this will pick all the data from setup stage, combine it with compiled uplc
   and inputs to the verifier. Then it will construct transaction with Cardano serialization lib and send it with
   Blockfrost API. Then it waits for the transaction to be confirmed on chain.
 - get the transaction hash from the logs and check it with blockchain explorer for pre prod network

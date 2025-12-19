@@ -9,5 +9,5 @@ fn main() {
         .to_bech32(None)
         .expect("failed to convert address to bech32");
     println!("PrivateKey: {}", private_key);
-    println!("PrivateKey: {}", address);
+    println!("PublicKey address: {}", address);
 }
