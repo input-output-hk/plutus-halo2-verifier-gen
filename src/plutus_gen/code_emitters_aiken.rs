@@ -21,6 +21,7 @@ use std::{collections::HashMap, fs::File, iter::once, path::Path};
 pub fn emit_verifier_code(
     template_file: &Path, // aiken mustashe template
     aiken_file: &Path,    // generated aiken file, output
+    profiler_file: Option<&Path>,
     circuit: &CircuitRepresentation,
     test_data: Option<(Vec<u8>, Vec<u8>, Vec<Scalar>)>,
 ) -> Result<String, RenderError> {
@@ -580,6 +581,15 @@ pub fn emit_verifier_code(
                 "TEST_VALID_PROOF_VALID_INPUTS".to_string(),
                 test_valid_proof_valid_inputs,
             );
+
+            if let Some(template) = profiler_file {
+                let mut handlebars = Handlebars::new();
+                handlebars.set_strict_mode(true);
+                handlebars.register_template_file("profiler_template", template)?;
+                let mut output_file = File::create("aiken-verifier/aiken_halo2/validators/profiler.ak")?;
+                handlebars.render_to_write("profiler_template", &data, &mut output_file)?;
+                handlebars.render("profiler_template", &data)?;
+            }
 
             let test_valid_proof_invalid_inputs = format!(
                 "verifier(#\"{}\", {})",

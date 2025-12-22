@@ -1,0 +1,14 @@
+use aiken/builtin.{append_bytearray}
+use aiken/crypto.{blake2b_256}
+use aiken/crypto/bls12_381/scalar.{from_int}
+use aiken/primitive/bytearray.{from_int_big_endian}
+use cardano/assets.{PolicyId, has_nft_strict}
+use cardano/transaction.{Transaction}
+use proof_verifier.{verifier}
+
+// this validator is fo profiling only
+validator halo2_profiler {
+    else(_) {
+        {{{TEST_VALID_PROOF_VALID_INPUTS}}}
+    }
+}

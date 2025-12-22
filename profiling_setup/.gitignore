@@ -1,0 +1,5 @@
+contract.*
+*.svg
+logs
+script.flat
+script2.flat

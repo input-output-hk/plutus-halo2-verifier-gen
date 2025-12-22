@@ -156,10 +156,8 @@ pub async fn mint(
 
     //this logic is to work around hex deserialization issue in cardano serialization lib
     for instance in instances {
-        let rust_integer = NumBigInt::from_str_radix(&instance, 16)?;
-        let cardano_integer = BigInt::from_str(&rust_integer.to_string())
-            .context("instance should be encoded as hex integer")?;
-        redeemer_data.add(&PlutusData::new_integer(&cardano_integer));
+        let instance_bytes = hex::decode(instance)?;
+        redeemer_data.add(&PlutusData::new_bytes(instance_bytes));
     }
 
     let redeemer = Redeemer::new(

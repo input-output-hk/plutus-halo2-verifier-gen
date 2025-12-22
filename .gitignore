@@ -23,3 +23,4 @@ plutus.json
 gates_test.ak
 proof_verifier.ak
 verifier_key.ak
+profiler.ak
