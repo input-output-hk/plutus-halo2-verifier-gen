@@ -101,13 +101,21 @@ pub fn verifier(proof: Data, {{{PUBLIC_INPUTS_NAMES}}}) -> Bool {
 {{{H_COMMITMENTS}}}
     let vanishing_g = compress(vanishing_g) // we need to compress it back to pass it forward
 
-    // left and s_g2
-    // right and g2
-    // g2 is not negated as final_exponentiation is doing negation
-    let g2 = generatorG2
+    // Pre-compute powers of `v` and `u` for MSM
+    // Note that `v^0` and `u^0` are directly substituted with `scalarOne` in MSM
+    let v1 = v
+{{{GWC19_V_POWERS}}}
+
+    let u1 = u
+{{{GWC19_U_POWERS}}}
 
 {{{GWC19_MSM}}}
 
+    // g2 is not negated as final_exponentiation is doing negation
+    let g2 = generatorG2
+
+    // left and s_g2
+    // right and g2
     let ml_l = miller_loop(el, g2_const)
     let ml_r = miller_loop(er, g2)
 

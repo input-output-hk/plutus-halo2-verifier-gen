@@ -507,15 +507,30 @@ pub fn emit_verifier_code(
     let kzg_gwc19_intermediate_sets = construct_intermediate_sets(circuit.all_queries_ordered());
     let (left, right) = construct_msm(kzg_gwc19_intermediate_sets);
 
-    let optimized_left = optimize_msm(&left);
-    let optimized_right = optimize_msm(&right);
+    let optimized_left = flatten_msm(&left).optimize_msm();
+    let optimized_right = flatten_msm(&right).optimize_msm();
 
     let kzg_gwc19_msm = format!(
         "    let el = eval({})\n    let er = eval({})",
         optimized_left.compile_expression(),
         optimized_right.compile_expression()
     );
-    data.insert("GWC19_MSM".to_string(), kzg_gwc19_msm);
+    data.insert("GWC19_MSM".to_string(), kzg_gwc19_msm.clone());
+
+    // Extract max powers of v and u by traversing scalar operations in optimized MSMs
+    let max_v_power = optimized_left.find_max_power('v')
+        .max(optimized_right.find_max_power('v'));
+    let max_u_power = optimized_left.find_max_power('u')
+        .max(optimized_right.find_max_power('u'));
+
+    let generate_powers = |var_name: char, max_power: i32| -> String {
+        (2..=max_power)
+            .map(|i| format!("\tlet {}{} = mul({}{}, {})", var_name, i, var_name, i - 1, var_name))
+            .join("\n")
+    };
+
+    data.insert("GWC19_V_POWERS".to_string(), generate_powers('v', max_v_power));
+    data.insert("GWC19_U_POWERS".to_string(), generate_powers('u', max_u_power));
 
     let fixed_commitments_imports = (1..=circuit.instantiation_data.fixed_commitments.len())
         .map(|id| format!("f{}_commitment", id))
@@ -883,44 +898,142 @@ impl ElementMSM {
     }
 }
 
-// this function moves all MSM building functions execution from on-chain runtime to code generation stage
-fn optimize_msm(msm: &MsmOperations) -> OptimizedMSM {
+/// Flattens the recursive MSM operations tree into a linear list of elements,
+/// producing an optimized flat structure ready for Aiken code generation.
+fn flatten_msm(msm: &MsmOperations) -> OptimizedMSM {
     match msm {
         MsmOperations::Empty => OptimizedMSM { elements: vec![] },
         MsmOperations::Append(msm, scalar, commitment) => {
-            let mut optimized = optimize_msm(msm);
-            optimized
+            let mut flattened = flatten_msm(msm);
+            flattened
                 .elements
                 .push(ElementMSM::Element(scalar.clone(), *commitment));
-            optimized
+            flattened
         }
         MsmOperations::AppendW(msm, scalar, index) => {
-            let mut optimized = optimize_msm(msm);
-            optimized
+            let mut flattened = flatten_msm(msm);
+            flattened
                 .elements
                 .push(ElementMSM::ElementW(scalar.clone(), *index));
-            optimized
+            flattened
         }
         MsmOperations::AppendNegatedG1(msm, scalar) => {
-            let mut optimized = optimize_msm(msm);
-            optimized
+            let mut flattened = flatten_msm(msm);
+            flattened
                 .elements
                 .push(ElementMSM::ElementNegatedG1(scalar.clone()));
-            optimized
+            flattened
         }
         MsmOperations::Add(msm_a, msm_b) => {
-            let mut optimized_a = optimize_msm(msm_a);
-            let mut optimized_b = optimize_msm(msm_b);
-            optimized_a.elements.append(&mut optimized_b.elements);
-            optimized_a
+            let mut flattened_a = flatten_msm(msm_a);
+            let mut flattened_b = flatten_msm(msm_b);
+            flattened_a.elements.append(&mut flattened_b.elements);
+            flattened_a
         }
         MsmOperations::Scale(msm, scalar) => {
-            let mut optimized = optimize_msm(msm);
-            optimized.elements.iter_mut().for_each(|e| {
+            let mut flattened = flatten_msm(msm);
+            flattened.elements.iter_mut().for_each(|e| {
                 let s = e.get_scalar();
                 *s = ScalarOperation::MulS(Box::new(scalar.clone()), Box::new(s.clone()))
             });
-            optimized
+            flattened
+        }
+    }
+}
+
+impl OptimizedMSM {
+
+    /// Optimizes MSM by combining elements with the same G1 point.
+    /// Elements sharing the same point have their scalars added together,
+    /// reducing the number of point operations.
+    fn optimize_msm(self) -> OptimizedMSM {
+        // Key to identify unique G1 points
+        #[derive(Clone, Eq, PartialEq, Hash)]
+        enum G1PointKey {
+            Commitment(Commitments),
+            W(usize),
+            NegatedG1,
+        }
+
+        let mut groups: HashMap<G1PointKey, Vec<ScalarOperation>> = HashMap::new();
+        let mut insertion_order: Vec<G1PointKey> = Vec::new();
+
+        // Group elements by their G1 point
+        for element in self.elements {
+            let (key, scalar) = match element {
+                ElementMSM::Element(scalar, commitment) => (G1PointKey::Commitment(commitment), scalar),
+                ElementMSM::ElementW(scalar, index) => (G1PointKey::W(index), scalar),
+                ElementMSM::ElementNegatedG1(scalar) => (G1PointKey::NegatedG1, scalar),
+            };
+
+            // Track insertion order for deterministic output
+            if !groups.contains_key(&key) {
+                insertion_order.push(key.clone());
+            }
+
+            groups.entry(key).or_insert_with(Vec::new).push(scalar);
+        }
+
+        // Combine scalars for each G1 point
+        let optimized_elements: Vec<ElementMSM> = insertion_order
+            .into_iter()
+            .map(|key| {
+                let scalars = groups.remove(&key).unwrap();
+
+                // Combine all scalars by adding them together
+                let combined_scalar = scalars.into_iter().reduce(|acc, scalar| {
+                    ScalarOperation::Add(Box::new(acc), Box::new(scalar))
+                }).unwrap();
+
+                // Reconstruct the element with combined scalar
+                match key {
+                    G1PointKey::Commitment(commitment) => {
+                        ElementMSM::Element(combined_scalar, commitment)
+                    }
+                    G1PointKey::W(index) => {
+                        ElementMSM::ElementW(combined_scalar, index)
+                    }
+                    G1PointKey::NegatedG1 => {
+                        ElementMSM::ElementNegatedG1(combined_scalar)
+                    }
+                }
+            })
+            .collect();
+
+        OptimizedMSM {
+            elements: optimized_elements,
+        }
+    }
+
+    /// Finds the maximum power exponent for a given variable in an MSM.
+    /// Recursively traverses all scalar operations to find Power(var_name, exponent).
+    fn find_max_power(&self, var_name: char) -> i32 {
+        (*self).elements
+            .iter()
+            .map(|element| {
+                let scalar = match element {
+                    ElementMSM::Element(s, _) => s,
+                    ElementMSM::ElementW(s, _) => s,
+                    ElementMSM::ElementNegatedG1(s) => s,
+                };
+                Self::find_max_power_in_scalar(scalar, var_name)
+            })
+            .max()
+            .unwrap_or(0)
+    }
+
+    /// Recursively finds max power exponent in a scalar operation tree
+    fn find_max_power_in_scalar(scalar: &ScalarOperation, var_name: char) -> i32 {
+        match scalar {
+            ScalarOperation::Power(name, exponent) if *name == var_name => *exponent,
+            ScalarOperation::Mul(s, _) => Self::find_max_power_in_scalar(s, var_name),
+            ScalarOperation::MulS(s1, s2) => {
+                Self::find_max_power_in_scalar(s1, var_name).max(Self::find_max_power_in_scalar(s2, var_name))
+            }
+            ScalarOperation::Add(s1, s2) => {
+                Self::find_max_power_in_scalar(s1, var_name).max(Self::find_max_power_in_scalar(s2, var_name))
+            }
+            _ => 0,
         }
     }
 }
@@ -932,18 +1045,18 @@ impl AikenExpression for OptimizedMSM {
             .iter()
             .map(|element| match element {
                 ElementMSM::Element(scalar, commitment) => format!(
-                    "MSMElement {{ scalar: {}, g1: {} }}",
+                    "\n\t\t\t\tMSMElement {{ scalar: {}, g1: {} }}",
                     scalar.compile_expression(),
                     commitment.compile_expression(),
                 ),
                 ElementMSM::ElementW(scalar, index) => format!(
-                    "MSMElement {{ scalar: {}, g1: w{} }}",
+                    "\n\t\t\t\tMSMElement {{ scalar: {}, g1: w{} }}",
                     scalar.compile_expression(),
                     index + 1,
                 ),
                 ElementMSM::ElementNegatedG1(scalar) => {
                     format!(
-                        "MSMElement {{ scalar: {}, g1: neg_g1_generator }}",
+                        "\n\t\t\t\tMSMElement {{ scalar: {}, g1: neg_g1_generator }}",
                         scalar.compile_expression(),
                     )
                 }
@@ -987,7 +1100,10 @@ impl AikenExpression for ScalarOperation {
                 )
             }
             Power(name, exponent) => {
-                format!("scale({}, {})", name, exponent)
+                // All powers of `v` and `u` are pre-computed to avoid duplication
+                // so here instead of calling `scale(v, X)` we just refer to `vX` variable
+                // format!("scale({}, {})", name, exponent)
+                format!("{}{}", name, exponent)
             }
             ScalarOperation::Add(scalar_a, scalar_b) => {
                 format!(
