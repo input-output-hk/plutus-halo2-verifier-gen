@@ -1,8 +1,13 @@
 # how to use profiler
 
-- build plutus project such that you have `plutus-verifier/plutus-halo2/VerifierScript.flat`
-- build aiken project such that you have `aiken-verifier/aiken_halo2/plutus.json` and first element of validators is
+- generate aiken and plinth code with `cargo run --example`, for example with `cargo run --example atms gwc_kzg`, this
+  will
+  also generate `aiken-verifier/aiken_halo2/validators/profiler.ak`
+- build aiken project with `aiken build` such that you have `aiken-verifier/aiken_halo2/plutus.json` and first element
+  of validators is
   `profiler.halo2_profiler.else`
+- build plinth project such that you have `plutus-verifier/plutus-halo2/VerifierScript.flat` with `cabal test all`
+  inside nix shell ` nix develop github:input-output-hk/devx#ghc96-iog`
 - run `profiling_setup/profiling.sh`
 
 # how it works?
