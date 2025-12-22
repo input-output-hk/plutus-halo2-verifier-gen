@@ -6,7 +6,7 @@ use cardano/assets.{PolicyId, has_nft_strict}
 use cardano/transaction.{Transaction}
 use proof_verifier.{verifier}
 
-// this validator is fo profiling only
+// this validator is for profiling only
 validator halo2_profiler {
     else(_) {
         {{{TEST_VALID_PROOF_VALID_INPUTS}}}
