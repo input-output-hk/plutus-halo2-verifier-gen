@@ -139,7 +139,7 @@ cargo run --example atms_with_lookups gwc_kzg
 RUST_LOG=debug cargo run --example simple_mul
 
 # With Plutus traces (note that Plutus traces will increase contract cost!)
-RUST_LOG=debug cargo run --example simple_mul --feature plutus_debug
+RUST_LOG=debug cargo run --example simple_mul --features plutus_debug
 ```
 
 Running an example will generate the verification and proving keys for the circuit, create a proof using test public
