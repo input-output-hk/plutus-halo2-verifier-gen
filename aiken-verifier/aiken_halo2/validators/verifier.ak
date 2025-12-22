@@ -1,7 +1,6 @@
 use aiken/builtin.{append_bytearray}
 use aiken/crypto.{blake2b_256}
-use aiken/crypto/bls12_381/scalar.{from_bytes, from_int}
-use aiken/primitive/bytearray.{from_int_big_endian}
+use aiken/crypto/bls12_381/scalar.{from_bytes}
 use cardano/assets.{PolicyId, has_nft_strict}
 use cardano/transaction.{Transaction}
 use proof_verifier.{verifier}
