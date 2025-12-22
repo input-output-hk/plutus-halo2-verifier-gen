@@ -93,8 +93,6 @@ expand :: [(a, [b])] -> [(a, b)]
 expand [] = []
 expand ((a, bs) : r) = ((a,) <$> bs) ++ expand r
 
--- todo queries processing
-
 buildMSMTH :: (Eq a) => Name -> Name -> [NameAnn a] -> [Name] -> [Name] -> Q Exp
 buildMSMTH v u queries ws rotated = do
     when (null queries) $ fail "Empty queries list"

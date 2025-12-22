@@ -6,7 +6,9 @@ pub use atms_halo2::{
     signatures::{primitive::schnorr::Schnorr, schnorr::SchnorrSig},
 };
 pub use halo2_proofs::{
-    plonk::{ProvingKey, VerifyingKey, create_proof, k_from_circuit, keygen_pk, keygen_vk,prepare},
-    poly::{gwc_kzg::GwcKZGCommitmentScheme, kzg::params::ParamsKZG, commitment::Guard},
+    plonk::{
+        ProvingKey, VerifyingKey, create_proof, k_from_circuit, keygen_pk, keygen_vk, prepare,
+    },
+    poly::{commitment::Guard, gwc_kzg::GwcKZGCommitmentScheme, kzg::params::ParamsKZG},
     transcript::{CircuitTranscript, Transcript},
 };

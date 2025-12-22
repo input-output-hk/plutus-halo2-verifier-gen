@@ -1,15 +1,13 @@
-use crate::plutus_gen::extraction::data::{
-    CircuitRepresentation, ProofExtractionSteps, RotationDescription,
+use crate::plutus_gen::decode_rotation;
+use crate::plutus_gen::extraction::data::{CircuitRepresentation, ProofExtractionSteps};
+use crate::plutus_gen::extraction::{
+    PlinthExpression, combine_plinth_expressions, precompute_intermediate_sets,
 };
-use crate::plutus_gen::extraction::precompute_intermediate_sets;
-use blstrs::G2Affine;
-use halo2_proofs::halo2curves::group::prime::PrimeCurveAffine;
+use halo2_proofs::halo2curves::group::{GroupEncoding, prime::PrimeCurveAffine};
 use handlebars::{Handlebars, RenderError};
 use itertools::Itertools;
 use log::debug;
-use std::collections::HashMap;
-use std::fs::File;
-use std::path::Path;
+use std::{collections::HashMap, fs::File, path::Path};
 
 pub fn emit_verifier_code(
     template_file: &Path, // haskell mustashe template
@@ -41,7 +39,7 @@ pub fn emit_verifier_code(
             ProofExtractionSteps::VanishingSplit => section
                 .enumerate()
                 .map(|(number, _vanishing_split)| {
-                    format!("  !vanishingSplit{} <- M.readPoint\n", number + 1)
+                    format!("  !vanishingSplit_{} <- M.readPoint\n", number + 1)
                 })
                 .join(""),
             ProofExtractionSteps::XCoordinate => "  !x <- M.squeezeChallange\n".to_string(),
@@ -144,7 +142,13 @@ pub fn emit_verifier_code(
         .compiled_gate_equations
         .iter()
         .enumerate()
-        .map(|(id, gate)| format!("      !gate_eq{:?} = {}\n", id + 1, gate))
+        .map(|(id, gate)| {
+            format!(
+                "      !gate_eq{:?} = {}\n",
+                id + 1,
+                gate.compile_expression()
+            )
+        })
         .join("");
     data.insert("GATES".to_string(), gates);
 
@@ -153,7 +157,13 @@ pub fn emit_verifier_code(
         .1
         .iter()
         .enumerate()
-        .map(|(id, gate)| format!("      !lookup_table_eq{:?} = {}\n", id + 1, gate))
+        .map(|(id, gate)| {
+            format!(
+                "      !lookup_table_eq{:?} = {}\n",
+                id + 1,
+                combine_plinth_expressions(gate.clone())
+            )
+        })
         .join("");
     data.insert("LOOKUP_TABLES_EXPRESSIONS".to_string(), lookup_tables);
 
@@ -162,7 +172,13 @@ pub fn emit_verifier_code(
         .0
         .iter()
         .enumerate()
-        .map(|(id, gate)| format!("      !lookup_input_eq{:?} = {}\n", id + 1, gate))
+        .map(|(id, gate)| {
+            format!(
+                "      !lookup_input_eq{:?} = {}\n",
+                id + 1,
+                combine_plinth_expressions(gate.clone())
+            )
+        })
         .join("");
     data.insert("LOOKUP_INPUTS_EXPRESSIONS".to_string(), lookup_inputs);
 
@@ -204,7 +220,10 @@ pub fn emit_verifier_code(
         .permutations_evaluated_terms
         .iter()
         .enumerate()
-        .map(|(id, term)| format!("      !term{:?} = {}\n", id + 1, term))
+        .map(|(id, expression)| {
+            let term = expression.compile_expression();
+            format!("      !term{:?} = {}\n", id + 1, term)
+        })
         .join("");
     data.insert("PERMUTATIONS_EVALS".to_string(), permutation_evals);
 
@@ -215,13 +234,16 @@ pub fn emit_verifier_code(
         .permutation_terms_left
         .iter()
         .enumerate()
-        .map(|(id, (set, term))| {
+        .map(|(id, (set, expression))| {
             if sets_lhs.contains_key(set) {
-                let existing = sets_lhs.get(set).unwrap();
+                let existing = sets_lhs
+                    .get(set)
+                    .unwrap_or_else(|| panic!("set {} not found", set));
                 sets_lhs.insert(*set, format!("{} * left{:?}", existing, id + 1));
             } else {
                 sets_lhs.insert(*set, format!("left{:?}", id + 1));
             };
+            let term = expression.compile_expression();
             format!("      !left{:?} = {} --part of set {}\n", id + 1, term, set)
         })
         .join("");
@@ -246,13 +268,16 @@ pub fn emit_verifier_code(
         .permutation_terms_right
         .iter()
         .enumerate()
-        .map(|(id, (set, term))| {
+        .map(|(id, (set, expression))| {
             if sets_rhs.contains_key(set) {
-                let existing = sets_rhs.get(set).unwrap();
+                let existing = sets_rhs
+                    .get(set)
+                    .unwrap_or_else(|| panic!("set {} not found", set));
                 sets_rhs.insert(*set, format!("{} * right{:?}", existing, id + 1));
             } else {
                 sets_rhs.insert(*set, format!("right{:?}", id + 1));
             };
+            let term = expression.compile_expression();
             format!(
                 "      !right{:?} = {} --part of set {}\n",
                 id + 1,
@@ -364,7 +389,10 @@ pub fn emit_verifier_code(
     let h_commitments = circuit
         .h_commitments
         .iter()
-        .map(|term| format!("      {}\n", term))
+        .map(|(variable_name, expression)| {
+            let term = expression.compile_expression();
+            format!("      !{} = {}\n", variable_name, term)
+        })
         .join("");
     data.insert("H_COMMITMENTS".to_string(), h_commitments);
 
@@ -376,8 +404,8 @@ pub fn emit_verifier_code(
             format!(
                 "      !a{}_query = MinimalVerifierQuery {} {}\n",
                 number + 1,
-                query.commitment,
-                query.evaluation
+                query.commitment.compile_expression(),
+                query.evaluation.compile_expression()
             )
         })
         .join("");
@@ -391,8 +419,8 @@ pub fn emit_verifier_code(
             format!(
                 "      !f{}_query = MinimalVerifierQuery {} {}\n",
                 number + 1,
-                query.commitment,
-                query.evaluation
+                query.commitment.compile_expression(),
+                query.evaluation.compile_expression()
             )
         })
         .join("");
@@ -406,8 +434,8 @@ pub fn emit_verifier_code(
             format!(
                 "      !permutations_query{} = MinimalVerifierQuery {} {}\n",
                 number + 1,
-                query.commitment,
-                query.evaluation
+                query.commitment.compile_expression(),
+                query.evaluation.compile_expression()
             )
         })
         .join("");
@@ -421,8 +449,8 @@ pub fn emit_verifier_code(
             format!(
                 "      !p{}_query = MinimalVerifierQuery {} {}\n",
                 number + 1,
-                query.commitment,
-                query.evaluation
+                query.commitment.compile_expression(),
+                query.evaluation.compile_expression()
             )
         })
         .join("");
@@ -458,10 +486,14 @@ pub fn emit_verifier_code(
         .map(|commitment_data| {
             format!(
                 "{}, {}, [{}], [{}]",
-                commitment_data.commitment,
+                commitment_data.commitment.compile_expression(),
                 commitment_data.point_set_index,
                 commitment_data.points.iter().map(decode_rotation).join(","),
-                commitment_data.evaluations.join(",")
+                commitment_data
+                    .evaluations
+                    .iter()
+                    .map(PlinthExpression::compile_expression)
+                    .join(",")
             )
         })
         .join("),(");
@@ -485,21 +517,12 @@ pub fn emit_verifier_code(
             format!(
                 "      !l{}_query = MinimalVerifierQuery {} {}\n",
                 number + 1,
-                query.commitment,
-                query.evaluation
+                query.commitment.compile_expression(),
+                query.evaluation.compile_expression()
             )
         })
         .join("");
     data.insert("LOOKUP_QUERIES".to_string(), common_queries);
-
-    fn decode_rotation(rotation: &RotationDescription) -> String {
-        match rotation {
-            RotationDescription::Last => "x_last".to_string(),
-            RotationDescription::Previous => "x_prev".to_string(),
-            RotationDescription::Current => "x_current".to_string(),
-            RotationDescription::Next => "x_next".to_string(),
-        }
-    }
 
     //  NameAnn 'x_current 'a1_query
     let msm_advice_queries = circuit
@@ -608,7 +631,7 @@ pub fn emit_verifier_code(
             Some(s.clone())
         })
         .last()
-        .unwrap();
+        .expect("There should be at least one query");
 
     let rotation_order: Vec<_> = rotation_order.iter().map(decode_rotation).collect();
 
@@ -764,7 +787,6 @@ pub fn emit_vk_code(
     template_file: &Path, // haskell mustashe template
     haskell_file: &Path,  // generated haskell file, output
     circuit: &CircuitRepresentation,
-    g2_encoder: fn(G2Affine) -> String,
 ) -> Result<String, RenderError> {
     let mut data: HashMap<String, String> = HashMap::new(); // data to bind to mustache template
 
@@ -823,7 +845,7 @@ pub fn emit_vk_code(
     data.insert("PERMUTATION_COMMITMENTS".to_string(), points);
     data.insert("PERMUTATION_COMMITMENTS_EXPORTS".to_string(), exports);
     data.insert("PERMUTATION_COMMITMENT_G1".to_string(), assignment);
-    let compressed_sg2 = g2_encoder(circuit.instantiation_data.s_g2);
+    let compressed_sg2 = hex::encode(circuit.instantiation_data.s_g2.to_bytes());
 
     debug!("compressed_sg2: {}", compressed_sg2);
 
