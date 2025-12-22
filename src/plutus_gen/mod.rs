@@ -95,6 +95,7 @@ where
     emit_verifier_code_aiken(
         verifier_template_file,
         Path::new("aiken-verifier/aiken_halo2/lib/proof_verifier.ak"),
+        Some(Path::new("aiken-verifier/templates/profiler.hbs")),
         &circuit_representation,
         test_proofs
             .map(|(p, invalid_p)| (p, invalid_p, instances[0][0].to_vec())),
