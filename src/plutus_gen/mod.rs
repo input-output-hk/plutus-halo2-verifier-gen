@@ -2,7 +2,7 @@ pub use crate::plutus_gen::code_emitters_aiken::{
     emit_verifier_code as emit_verifier_code_aiken, emit_vk_code as emit_vk_code_aiken,
 };
 use crate::plutus_gen::code_emitters_plinth::{
-    emit_verifier_code as emit_verifier_code_plutus, emit_vk_code,
+    emit_verifier_code as emit_verifier_code_plinth, emit_vk_code,
 };
 use crate::plutus_gen::extraction::data::RotationDescription;
 use crate::plutus_gen::extraction::{ExtractKZG, KzgType, extract_circuit};
@@ -40,17 +40,17 @@ where
 {
     // static locations of files in plutus directory
     let verifier_template_file = match S::kzg_type() {
-        KzgType::GWC19 => Path::new("plutus-verifier/templates/verification_gwc19_kzg.hbs"),
+        KzgType::GWC19 => Path::new("plinth-verifier/templates/verification_gwc19_kzg.hbs"),
         KzgType::Halo2MultiOpen => {
-            Path::new("plutus-verifier/templates/verification_halo2_kzg.hbs")
+            Path::new("plinth-verifier/templates/verification_halo2_kzg.hbs")
         }
     };
 
-    let vk_template_file = Path::new("plutus-verifier/templates/vk_constants.hbs");
+    let vk_template_file = Path::new("plinth-verifier/templates/vk_constants.hbs");
     let verifier_generated_file =
-        Path::new("plutus-verifier/plutus-halo2/src/Plutus/Crypto/Halo2/Generic/Verifier.hs");
+        Path::new("plinth-verifier/plutus-halo2/src/Plutus/Crypto/Halo2/Generic/Verifier.hs");
     let vk_generated_file =
-        Path::new("plutus-verifier/plutus-halo2/src/Plutus/Crypto/Halo2/Generic/VKConstants.hs");
+        Path::new("plinth-verifier/plutus-halo2/src/Plutus/Crypto/Halo2/Generic/VKConstants.hs");
 
     // Step 1: extract circuit representation
     let circuit_representation = extract_circuit(params, vk, instances)
@@ -61,7 +61,7 @@ where
 
     // Step 3: Based on the circuit repr generate Plinth verifier and verification key constants
     // using Handlebars templates
-    emit_verifier_code_plutus(
+    emit_verifier_code_plinth(
         verifier_template_file,
         verifier_generated_file,
         &circuit_representation,

@@ -73,7 +73,7 @@ pub fn compile_lookup_table_circuit<
     info!("Public inputs: {:?}", instances);
 
     let instances_file =
-        "./plutus-verifier/plutus-halo2/test/Generic/serialized_public_input.hex".to_string();
+        "./plinth-verifier/plutus-halo2/test/Generic/serialized_public_input.hex".to_string();
     let mut output = File::create(instances_file).context("failed to create instances file")?;
     export_public_inputs(instances, &mut output).context("Failed to export public inputs")?;
 
@@ -110,7 +110,7 @@ pub fn compile_lookup_table_circuit<
         .context("verify failed")?;
 
     serialize_proof(
-        "./plutus-verifier/plutus-halo2/test/Generic/serialized_proof.json".to_string(),
+        "./plinth-verifier/plutus-halo2/test/Generic/serialized_proof.json".to_string(),
         proof,
     )
     .context("json proof serialization failed")?;
