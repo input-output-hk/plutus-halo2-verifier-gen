@@ -1,7 +1,7 @@
 pub use crate::plutus_gen::code_emitters_aiken::{
     emit_verifier_code as emit_verifier_code_aiken, emit_vk_code as emit_vk_code_aiken,
 };
-use crate::plutus_gen::code_emitters_plutus::{
+use crate::plutus_gen::code_emitters_plinth::{
     emit_verifier_code as emit_verifier_code_plutus, emit_vk_code,
 };
 use crate::plutus_gen::extraction::data::RotationDescription;
@@ -15,7 +15,7 @@ use std::path::Path;
 
 pub mod adjusted_types;
 mod code_emitters_aiken;
-mod code_emitters_plutus;
+mod code_emitters_plinth;
 pub mod extraction;
 pub mod proof_serialization;
 
