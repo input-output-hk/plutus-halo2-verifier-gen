@@ -11,6 +11,8 @@ use halo2_proofs::{
     transcript::{CircuitTranscript, Transcript},
 };
 use log::info;
+use plutus_halo2_verifier_gen::plutus_gen::generate_aiken_verifier;
+use plutus_halo2_verifier_gen::plutus_gen::proof_serialization::export_proof;
 use plutus_halo2_verifier_gen::{
     circuits::lookup_table_circuit::LookupTest,
     plutus_gen::{
@@ -73,7 +75,7 @@ pub fn compile_lookup_table_circuit<
     info!("Public inputs: {:?}", instances);
 
     let instances_file =
-        "./plutus-verifier/plutus-halo2/test/Generic/serialized_public_input.hex".to_string();
+        "./plinth-verifier/plutus-halo2/test/Generic/serialized_public_input.hex".to_string();
     let mut output = File::create(instances_file).context("failed to create instances file")?;
     export_public_inputs(instances, &mut output).context("Failed to export public inputs")?;
 
@@ -83,7 +85,7 @@ pub fn compile_lookup_table_circuit<
     create_proof(
         &kzg_params,
         &pk,
-        &[circuit],
+        &[circuit.clone()],
         instances,
         &mut rng,
         &mut transcript,
@@ -110,13 +112,44 @@ pub fn compile_lookup_table_circuit<
         .context("verify failed")?;
 
     serialize_proof(
-        "./plutus-verifier/plutus-halo2/test/Generic/serialized_proof.json".to_string(),
-        proof,
+        "./plinth-verifier/plutus-halo2/test/Generic/serialized_proof.json".to_string(),
+        proof.clone(),
     )
     .context("json proof serialization failed")?;
 
     generate_plinth_verifier(&kzg_params, &vk, instances)
         .context("Plinth verifier generation failed")?;
+
+    // Create invalid proof inputs for testing (with wrong public inputs)
+    let mut transcript: CircuitTranscript<CardanoFriendlyState> =
+        CircuitTranscript::<CardanoFriendlyState>::init();
+    create_proof(
+        &kzg_params,
+        &pk,
+        &[circuit.clone()],
+        &[&[&[Base::from(1u64), Base::from(1u64), Base::from(1u64)]]],
+        &mut rng,
+        &mut transcript,
+    )
+        .context("proof generation should not fail")?;
+    let invalid_proof = transcript.finalize();
+
+    generate_aiken_verifier(
+        &kzg_params,
+        &vk,
+        instances,
+        Some((proof.clone(), invalid_proof)),
+    )
+    .context("Aiken verifier generation failed")?;
+    export_proof(
+        "./aiken-verifier/submitter/serialized_proof.hex".to_string(),
+        proof,
+    )
+    .context("hex proof serialization failed")?;
+
+    let instances_file = "./aiken-verifier/submitter/serialized_public_input.hex".to_string();
+    let mut output = File::create(instances_file).context("failed to create instances file")?;
+    export_public_inputs(instances, &mut output).context("Failed to export the public inputs")?;
 
     Ok(())
 }

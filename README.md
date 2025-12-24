@@ -1,7 +1,7 @@
 # Plutus Halo2 Verifier
 
-A Rust tool that generates Plutus verifiers for Halo2 circuits, enabling verification of proofs on the Cardano
-blockchain.
+A Rust tool that generates Plutus verifiers for Halo2 circuits in both **Plinth** and **Aiken** smart contract
+languages, enabling verification of proofs on the Cardano blockchain.
 
 > ### ⚠️ Important Disclaimer & Acceptance of Risk
 >
@@ -13,14 +13,9 @@ blockchain.
 ## Overview
 
 This project bridges Rust-based Halo2 implementations with Plutus smart contracts on Cardano. It
-extracts verification keys and circuit structures from Halo2 circuits and generates corresponding Plinth verifier code
-that can validate proofs on-chain.
-
-## Features
-
-- **Circuit-Agnostic Generation**: Automatically generates Plinth verifiers for various Halo2 circuits
-- **Template-Based Code Generation**: Uses Handlebars templates for flexible verifier generation
-- **Multiple Circuit Types**: Supports basic Halo2 circuits, lookup tables, and custom gates
+extracts verification keys and circuit structures from Halo2 circuits and generates corresponding verifier code
+in either **Plinth** (Haskell-based) or **Aiken** (Rust-like functional smart contract language) that can validate
+proofs on-chain.
 
 ## Architecture
 
@@ -32,31 +27,40 @@ that can validate proofs on-chain.
 
 2. **Plutus Generation Pipeline** (`src/plutus_gen/`)
     - `extraction/`: Extracts circuit data from Halo2 structures
-    - `code_emitters.rs`: Generates Plinth code from templates that is optimized to verify a particular circuit
+    - `code_emitters_plinth.rs`: Generates Plinth code from Handlebars templates optimized for specific circuits
+    - `code_emitters_aiken.rs`: Generates Aiken code from Handlebars templates optimized for specific circuits
 
-3. **Plutus Verifier** (`plutus-verifier/`)
+3. **Plinth Verifier** (`plinth-verifier/`)
     - Common Plinth code for Halo2 verification
-    - Template files for circuit-tailored code generation
+    - Handlebars template files for circuit-tailored code generation
+
+4. **Aiken Verifier** (`aiken-verifier/`)
+    - Common Aiken code for Halo2 verification (BLS12-381 operations, MSM, KZG commitments)
+    - Handlebars template files for circuit-tailored code generation
+    - Submitter for on-chain testing
 
 ### Workflow
 
 1. Define Halo2 circuit in Rust
 2. Generate proving/verifying keys
 3. Extract circuit structure and constraints
-4. Generate Plinth verifier code using templates
-5. Integrate verifier into Plinth smart-contract to be deployed on Cardano
+4. Generate optimized verifier code in target language (either Plinth or Aiken)
+5. Integrate verifier into smart contract to be deployed on Cardano
 
 ## Build prerequisites
 
-The prototype consists of two main parts:
+The prototype consists of three main parts:
 
-1. The Rust component generates a Halo2 proof and produces the corresponding Plinth verifier code.
-    - it can be build using the standard `cargo` tooling from the root of the repository.
-2. The Plinth component contains template files and serves as the target location for inserting the generated Plinth
-   verifier.
-    - Plinth smart contract can be build using `cabal` in `nix` environment.
+1. **Rust component**: Generates Halo2 proofs and produces verifier code for either Plinth or Aiken
+    - Built using standard `cargo` tooling from the root of the repository
 
-#### How to install and use nix
+2. **Plinth component** (`plinth-verifier/`): Haskell-based smart contract verifier
+    - Built using `cabal` in `nix` environment
+
+3. **Aiken component** (`aiken-verifier/aiken_halo2/`): Aiken smart contract verifier
+    - Built using `aiken` toolchain
+
+#### How to install and use nix (necessary only for Plinth part)
 
 1. Install `nix` - the package manager
 
@@ -77,7 +81,7 @@ allow-import-from-derivation = "true"
 
 ```bash
 nix develop github:input-output-hk/devx#ghc96-iog
-cd plutus-verifier
+cd plinth-verifier
 cabal build -j all
 cabal test all
 ```
@@ -95,9 +99,23 @@ configure step.
 
 just try to re-run the build (may require several re-runs).
 
+#### How to install and use Aiken
+
+1. Install `aiken` - the Aiken smart contract language toolchain
+
+Follow the installation instructions at https://aiken-lang.org/installation-instructions
+
+2. The Aiken verifier can be built from the aiken-verifier directory:
+
+```bash
+cd aiken-verifier/aiken_halo2
+aiken check
+aiken build
+```
+
 ## Running Examples
 
-### Rust part
+### Rust part (generating verifiers)
 
 The repository includes several example circuits:
 
@@ -143,45 +161,76 @@ RUST_LOG=debug cargo run --example simple_mul --features plutus_debug
 ```
 
 Running an example will generate the verification and proving keys for the circuit, create a proof using test public
-inputs, and produce the corresponding Plinth verifier code. The generated files will be saved in their respective
-locations within the plutus-verifier folder:
+inputs, and produce verifier code for **both Plinth and Aiken**. The generated files will be saved in their respective
+locations:
 
-* The generated proof is saved in `./plutus-verifier/plutus-halo2/test/Generic/serialized_proof.json`.
-* The public inputs are saved in `./plutus-verifier/plutus-halo2/test/Generic/serialized_public_inputs.hex`.
-* The generated Plinth code is saved in:
+**Plinth verifier:**
+
+* The generated proof is saved in `./plinth-verifier/plutus-halo2/test/Generic/serialized_proof.json`.
+* The public inputs are saved in `./plinth-verifier/plutus-halo2/test/Generic/serialized_public_inputs.hex`.
+* The generated Plinth verifier code is saved in:
 
 ```
-./plutus-verifier/plutus-halo2/src/Plutus/Crypto/Halo2/Generic/Verifier.hs
-./plutus-verifier/plutus-halo2/src/Plutus/Crypto/Halo2/Generic/VKConstants.hs
+./plinth-verifier/plutus-halo2/src/Plutus/Crypto/Halo2/Generic/Verifier.hs
+./plinth-verifier/plutus-halo2/src/Plutus/Crypto/Halo2/Generic/VKConstants.hs
 ```
 
-### Plutus part
+**Aiken verifier:**
 
-After the Rust part is executed you can test Plutus verifier as follows:
+* The generated proof is saved in `./aiken-verifier/submitter/serialized_proof.json`.
+* The public inputs are saved in `./aiken-verifier/submitter/serialized_public_inputs.hex`.
+* The generated Aiken verifier code is saved in:
+
+```
+./aiken-verifier/aiken_halo2/lib/proof_verifier.ak
+./aiken-verifier/aiken_halo2/lib/vk.ak
+```
+
+### Plinth part (running generated Plinth verifier)
+
+After the Rust part is executed you can test the Plinth verifier as follows:
 
 ```bash
 nix develop github:input-output-hk/devx#ghc96-iog
-cd plutus-verifier
+cd plinth-verifier
 cabal build -j all
 cabal test all
 ```
 
+### Aiken part (running generated Aiken verifier)
+
+After the Rust part is executed you can test the Aiken verifier as follows:
+
+```bash
+cd aiken-verifier/aiken_halo2
+aiken check
+aiken build
+```
+
 ## Benchmarks
 
-Below are the execution costs of Plutus scripts running the Halo2 verifier for various circuits (with multiopen KZG
-variant from Halo2 book):
+Below are the execution costs of both Plinth and Aiken scripts running the Halo2 verifier for various circuits (with
+multiopen
+KZG variant from GWC19):
 
-| Circuit description             | Script size<br/>(% of script limit 14kb) | CPU usage               | Mem usage         |
-|---------------------------------|------------------------------------------|-------------------------|-------------------|
-| **Simple mul**                  | 6434  (44.8%)                            | 3,729,441,762  (37.29%) | 1,549,444 (11.0%) |
-| **Lookup table**                | 11250 (78.4%)                            | 6,490,814,414  (64.91%) | 2,915,417 (20.8%) |
-| **ATMS (50 out of 90)**         | 11838 (82.5%)                            | 7,624,238,863  (76.24%) | 2,974,279 (21.2%) |
-| **ATMS (228 out of 408)**       | 11838 (82.5%)                            | 7,624,238,863  (76.24%) | 2,974,279 (21.2%) |
-| **ATMS (50/90) + lookup table** | 14128 (98.5%)                            | 9,043,652,303  (90.44%) | 3,877,297 (27.7%) |
+| Circuit description             | Script size*</br>Plinth | Script size*</br>Aiken | CPU usage</br>Plinth | CPU usage</br>Aiken | Mem usage</br>Plinth | Mem usage</br>Aiken | 
+|---------------------------------|-------------------------|------------------------|----------------------|---------------------|----------------------|---------------------|
+| **Simple mul**                  | 6465  (39.5%)           | 5543  (33.8%)          | 5,1 B  (51%)         | 4,9 B  (49%)        | 3,3 M (23.6%)        | 3,9 M (24.9%)       |
+| **Lookup table**                | 12013 (73.3%)           | 9667  (59.0%)          | 8,3 B  (83%)         | 7,9 B  (79%)        | 3,9 M (27.9%)        | 4,5 M (32.1%)       |
+| **ATMS (50 out of 90)**         | 12465 (76.1%)           | 10597 (64.7%)          | 8,9 B  (89%)         | 8,8 B  (88%)        | 3,9 M (27.9%)        | 4,5 M (32.1%)       |
+| **ATMS (228 out of 408)**       | 12465 (76.1%)           | 10597 (64.7%)          | 8,9 B  (89%)         | 8,8 B  (88%)        | 3,9 M (27.9%)        | 4,5 M (32.1%)       |
+| **ATMS (50/90) + lookup table** | 15172 (92.6%)           | 12534 (76.5%)          | 10,6 B (106%)        | 10,4 B (104%)       | 4,3 M (30.7%)        | 5,1 M (36.4%)       |
 
-**Note that the benchmark numbers are approximate.** Even for the same circuit, the verifier’s execution cost may vary
+\* Script size % is taken as a percentage of the 16kb script limit
+
+**Note that the benchmark numbers are approximate.** Even for the same circuit, the verifier's execution cost may vary
 slightly depending on the specific proof being verified. This variation stems from the randomness used during proof
 generation, which can be influenced by the initial seed or the platform on which the prover runs.
+
+### Further improvements
+
+The upcoming CIP-109 (built-in modular inversion) and CIP-133 (built-in multi-scalar multiplication) are expected to
+significantly reduce the on-chain costs of the verifiers.
 
 ## License
 

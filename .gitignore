@@ -14,7 +14,7 @@ Verifier.hs
 VKConstants.hs
 VerifierScript.flat
 benchmark.json
-plutus-verifier/dist-newstyle
+plinth-verifier/dist-newstyle
 Cargo.lock
 plutus.json
 .env
