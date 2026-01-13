@@ -13,4 +13,4 @@ cat logs | nix run github:IntersectMBO/plutus/1.30.0.0#traceToStacks | nix run n
 cat logs | nix run github:IntersectMBO/plutus/1.30.0.0#traceToStacks -- --column 2 | nix run nixpkgs#flamegraph > mem.svg``
 
 
-nix run github:IntersectMBO/plutus/1.55.0.0#uplc -- evaluate -t -i ../plutus-verifier/plutus-halo2/VerifierScript.flat --if flat-namedDeBruijn --trace-mode LogsWithBudgets -o logs
+nix run github:IntersectMBO/plutus/1.55.0.0#uplc -- evaluate -t -i ../plinth-verifier/plutus-halo2/VerifierScript.flat --if flat-namedDeBruijn --trace-mode LogsWithBudgets -o logs
