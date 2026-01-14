@@ -1,16 +1,21 @@
 use anyhow::{Context as _, Result, anyhow, bail};
-use blstrs::{Base, Bls12, G1Projective, Scalar};
 use ff::Field;
-use halo2_proofs::{
+use midnight_curves::{Base, Bls12, BlsScalar as Scalar, G1Projective};
+
+use midnight_proofs::{
     plonk::{
         ProvingKey, VerifyingKey, create_proof, k_from_circuit, keygen_pk, keygen_vk, prepare,
     },
     poly::{
-        commitment::Guard, commitment::PolynomialCommitmentScheme, gwc_kzg::GwcKZGCommitmentScheme,
-        kzg::KZGCommitmentScheme, kzg::params::ParamsKZG, kzg::params::ParamsVerifierKZG,
+        commitment::{Guard, PolynomialCommitmentScheme},
+        kzg::{
+            KZGCommitmentScheme,
+            params::{ParamsKZG, ParamsVerifierKZG},
+        },
     },
     transcript::{CircuitTranscript, Transcript},
 };
+
 use log::{debug, info};
 use plutus_halo2_verifier_gen::plutus_gen::generate_aiken_verifier;
 use plutus_halo2_verifier_gen::plutus_gen::proof_serialization::export_proof;
@@ -24,29 +29,10 @@ use plutus_halo2_verifier_gen::{
 };
 use rand::rngs::StdRng;
 use rand_core::SeedableRng;
-use std::env;
 use std::fs::File;
 
 fn main() -> Result<()> {
-    env_logger::init_from_env(env_logger::Env::default().filter_or("RUST_LOG", "info"));
-
-    let args: Vec<String> = env::args().collect();
-
-    match &args[1..] {
-        [] => compile_simple_mul_circuit::<KZGCommitmentScheme<Bls12>>(),
-        [command] if command == "gwc_kzg" => {
-            compile_simple_mul_circuit::<GwcKZGCommitmentScheme<Bls12>>()
-        }
-        _ => {
-            println!("Usage:");
-            println!("- to run the example: `cargo run --example example_name`");
-            println!(
-                "- to run the example using the GWC19 version of multi-open KZG, run: `cargo run --example example_name gwc_kzg`"
-            );
-
-            bail!("Invalid command line arguments")
-        }
-    }
+    compile_simple_mul_circuit::<KZGCommitmentScheme<Bls12>>()
 }
 
 fn compile_simple_mul_circuit<
@@ -97,10 +83,12 @@ fn compile_simple_mul_circuit<
     let mut output = File::create(instances_file).context("failed to create instances file")?;
     export_public_inputs(instances, &mut output).context("faield to export public inputs")?;
 
+    let nb_committed_instances = 0;
     create_proof(
         &params,
         &pk,
         &[circuit],
+        nb_committed_instances,
         instances,
         &mut rng,
         &mut transcript,
@@ -125,6 +113,7 @@ fn compile_simple_mul_circuit<
         CircuitTranscript::<CardanoFriendlyBlake2b>::init_from_bytes(&proof);
     let verifier = prepare::<_, _, CircuitTranscript<CardanoFriendlyBlake2b>>(
         &vk,
+        &[&[]],
         instances,
         &mut transcript_verifier,
     )

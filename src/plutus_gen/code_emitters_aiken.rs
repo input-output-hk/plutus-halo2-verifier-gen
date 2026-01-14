@@ -8,9 +8,10 @@ use crate::plutus_gen::extraction::{
     data::{CircuitRepresentation, ProofExtractionSteps},
     precompute_intermediate_sets,
 };
-use blstrs::Scalar;
+use midnight_curves::BlsScalar as Scalar;
+
 use ff::Field;
-use halo2_proofs::halo2curves::group::GroupEncoding;
+use group::GroupEncoding;
 
 use handlebars::{Handlebars, RenderError};
 use itertools::Itertools;
@@ -125,14 +126,6 @@ pub fn emit_verifier_code(
                 .map(|(number, _permutation_common)| {
                     format!("    let (q_eval_on_x3_{}, transcript) = read_scalar(transcript)\n", number + 1)
                 })
-                .join(""),
-
-            // section for GWC19 version of KZG
-            ProofExtractionSteps::V => "    let (v, transcript) = squeeze_challenge(transcript)\n".to_string(),
-            ProofExtractionSteps::U => "    let (u, _) = squeeze_challenge(transcript)\n".to_string(),
-            ProofExtractionSteps::Witnesses => section
-                .enumerate()
-                .map(|(number, _permutation_common)| format!("    let (w{}, transcript) =  read_point(transcript)\n", number + 1))
                 .join(""),
         })
         .collect();
@@ -434,11 +427,6 @@ pub fn emit_verifier_code(
 
     let (unique_grouped_points, commitment_data) = precompute_intermediate_sets(circuit);
 
-    // below there are computations for both cases HALO2 and GWC19, but not all of them are used
-    // specific values are picked based on what is used in .hbs template
-    // elements are separated by prefix HALO2_ elements are related to halo2 version of KZG
-    // prefix GEC19_ is for elements related to gwc19 version of KZG
-
     let point_sets_indexes: Vec<usize> = (0..unique_grouped_points.len()).collect();
     let max_commitments_per_points_set = point_sets_indexes
         .iter()
@@ -493,8 +481,7 @@ pub fn emit_verifier_code(
         })
         .join(",");
 
-    let kzg_halo2_commitment_map =
-        format!("\tlet commitment_data = [{}]", halo2_commitment_data);
+    let kzg_halo2_commitment_map = format!("\tlet commitment_data = [{}]", halo2_commitment_data);
     data.insert("HALO2_COMMITMENT_MAP".to_string(), kzg_halo2_commitment_map);
 
     let kzg_halo2_point_sets = unique_grouped_points
@@ -504,34 +491,6 @@ pub fn emit_verifier_code(
 
     let kzg_halo2_point_sets = format!("     let point_sets = [[{}]]", kzg_halo2_point_sets);
     data.insert("HALO2_POINT_SETS".to_string(), kzg_halo2_point_sets);
-
-    let kzg_gwc19_intermediate_sets = construct_intermediate_sets(circuit.all_queries_ordered());
-    let (left, right) = construct_msm(kzg_gwc19_intermediate_sets);
-
-    let optimized_left = flatten_msm(&left).optimize_msm();
-    let optimized_right = flatten_msm(&right).optimize_msm();
-
-    let kzg_gwc19_msm = format!(
-        "    let el = eval({})\n    let er = eval({})",
-        optimized_left.compile_expression(),
-        optimized_right.compile_expression()
-    );
-    data.insert("GWC19_MSM".to_string(), kzg_gwc19_msm.clone());
-
-    // Extract max powers of v and u by traversing scalar operations in optimized MSMs
-    let max_v_power = optimized_left.find_max_power('v')
-        .max(optimized_right.find_max_power('v'));
-    let max_u_power = optimized_left.find_max_power('u')
-        .max(optimized_right.find_max_power('u'));
-
-    let generate_powers = |var_name: char, max_power: i32| -> String {
-        (2..=max_power)
-            .map(|i| format!("\tlet {}{} = mul({}{}, {})", var_name, i, var_name, i - 1, var_name))
-            .join("\n")
-    };
-
-    data.insert("GWC19_V_POWERS".to_string(), generate_powers('v', max_v_power));
-    data.insert("GWC19_U_POWERS".to_string(), generate_powers('u', max_u_power));
 
     let fixed_commitments_imports = (1..=circuit.instantiation_data.fixed_commitments.len())
         .map(|id| format!("f{}_commitment", id))
@@ -586,7 +545,8 @@ pub fn emit_verifier_code(
                 let mut handlebars = Handlebars::new();
                 handlebars.set_strict_mode(true);
                 handlebars.register_template_file("profiler_template", template)?;
-                let mut output_file = File::create("aiken-verifier/aiken_halo2/validators/profiler.ak")?;
+                let mut output_file =
+                    File::create("aiken-verifier/aiken_halo2/validators/profiler.ak")?;
                 handlebars.render_to_write("profiler_template", &data, &mut output_file)?;
                 handlebars.render("profiler_template", &data)?;
             }
@@ -952,7 +912,6 @@ fn flatten_msm(msm: &MsmOperations) -> OptimizedMSM {
 }
 
 impl OptimizedMSM {
-
     /// Optimizes MSM by combining elements with the same G1 point.
     /// Elements sharing the same point have their scalars added together,
     /// reducing the number of point operations.
@@ -971,7 +930,9 @@ impl OptimizedMSM {
         // Group elements by their G1 point
         for element in self.elements {
             let (key, scalar) = match element {
-                ElementMSM::Element(scalar, commitment) => (G1PointKey::Commitment(commitment), scalar),
+                ElementMSM::Element(scalar, commitment) => {
+                    (G1PointKey::Commitment(commitment), scalar)
+                }
                 ElementMSM::ElementW(scalar, index) => (G1PointKey::W(index), scalar),
                 ElementMSM::ElementNegatedG1(scalar) => (G1PointKey::NegatedG1, scalar),
             };
@@ -991,21 +952,18 @@ impl OptimizedMSM {
                 let scalars = groups.remove(&key).unwrap();
 
                 // Combine all scalars by adding them together
-                let combined_scalar = scalars.into_iter().reduce(|acc, scalar| {
-                    ScalarOperation::Add(Box::new(acc), Box::new(scalar))
-                }).unwrap();
+                let combined_scalar = scalars
+                    .into_iter()
+                    .reduce(|acc, scalar| ScalarOperation::Add(Box::new(acc), Box::new(scalar)))
+                    .unwrap();
 
                 // Reconstruct the element with combined scalar
                 match key {
                     G1PointKey::Commitment(commitment) => {
                         ElementMSM::Element(combined_scalar, commitment)
                     }
-                    G1PointKey::W(index) => {
-                        ElementMSM::ElementW(combined_scalar, index)
-                    }
-                    G1PointKey::NegatedG1 => {
-                        ElementMSM::ElementNegatedG1(combined_scalar)
-                    }
+                    G1PointKey::W(index) => ElementMSM::ElementW(combined_scalar, index),
+                    G1PointKey::NegatedG1 => ElementMSM::ElementNegatedG1(combined_scalar),
                 }
             })
             .collect();
@@ -1018,7 +976,8 @@ impl OptimizedMSM {
     /// Finds the maximum power exponent for a given variable in an MSM.
     /// Recursively traverses all scalar operations to find Power(var_name, exponent).
     fn find_max_power(&self, var_name: char) -> i32 {
-        (*self).elements
+        (*self)
+            .elements
             .iter()
             .map(|element| {
                 let scalar = match element {
@@ -1037,12 +996,10 @@ impl OptimizedMSM {
         match scalar {
             ScalarOperation::Power(name, exponent) if *name == var_name => *exponent,
             ScalarOperation::Mul(s, _) => Self::find_max_power_in_scalar(s, var_name),
-            ScalarOperation::MulS(s1, s2) => {
-                Self::find_max_power_in_scalar(s1, var_name).max(Self::find_max_power_in_scalar(s2, var_name))
-            }
-            ScalarOperation::Add(s1, s2) => {
-                Self::find_max_power_in_scalar(s1, var_name).max(Self::find_max_power_in_scalar(s2, var_name))
-            }
+            ScalarOperation::MulS(s1, s2) => Self::find_max_power_in_scalar(s1, var_name)
+                .max(Self::find_max_power_in_scalar(s2, var_name)),
+            ScalarOperation::Add(s1, s2) => Self::find_max_power_in_scalar(s1, var_name)
+                .max(Self::find_max_power_in_scalar(s2, var_name)),
             _ => 0,
         }
     }

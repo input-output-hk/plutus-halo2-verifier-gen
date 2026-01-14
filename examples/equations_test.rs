@@ -1,8 +1,8 @@
 use anyhow::{Context as _, Result, anyhow};
-use blstrs::{Base, Bls12, Scalar};
-use halo2_proofs::plonk::{VerifyingKey, k_from_circuit, keygen_vk};
-use halo2_proofs::poly::kzg::KZGCommitmentScheme;
-use halo2_proofs::poly::kzg::params::ParamsKZG;
+use midnight_curves::{Base, Bls12, BlsScalar as Scalar};
+use midnight_proofs::plonk::{VerifyingKey, k_from_circuit, keygen_vk};
+use midnight_proofs::poly::kzg::KZGCommitmentScheme;
+use midnight_proofs::poly::kzg::params::ParamsKZG;
 use plutus_halo2_verifier_gen::circuits::atms_circuit::prepare_test_signatures;
 use plutus_halo2_verifier_gen::circuits::atms_with_lookups_circuit::AtmsLookupCircuit;
 use plutus_halo2_verifier_gen::kzg_params::get_or_create_kzg_params;

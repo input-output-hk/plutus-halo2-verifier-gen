@@ -1,16 +1,16 @@
 use anyhow::{Context as _, Result, anyhow, bail};
-use blstrs::{Base, Bls12, G1Projective, Scalar};
-use halo2_proofs::{
+use log::info;
+use midnight_curves::{Base, Bls12, BlsScalar as Scalar, G1Projective};
+use midnight_proofs::{
     plonk::{
         ProvingKey, VerifyingKey, create_proof, k_from_circuit, keygen_pk, keygen_vk, prepare,
     },
     poly::{
-        commitment::Guard, commitment::PolynomialCommitmentScheme, gwc_kzg::GwcKZGCommitmentScheme,
-        kzg::KZGCommitmentScheme, kzg::params::ParamsKZG, kzg::params::ParamsVerifierKZG,
+        commitment::Guard, commitment::PolynomialCommitmentScheme, kzg::KZGCommitmentScheme,
+        kzg::params::ParamsKZG, kzg::params::ParamsVerifierKZG,
     },
     transcript::{CircuitTranscript, Transcript},
 };
-use log::info;
 use plutus_halo2_verifier_gen::kzg_params::get_or_create_kzg_params;
 use plutus_halo2_verifier_gen::plutus_gen::extraction::ExtractKZG;
 use plutus_halo2_verifier_gen::plutus_gen::generate_aiken_verifier;
@@ -24,28 +24,10 @@ use plutus_halo2_verifier_gen::{
 };
 use rand::prelude::StdRng;
 use rand_core::SeedableRng;
-use std::env;
 use std::fs::File;
 
 fn main() -> Result<()> {
-    env_logger::init_from_env(env_logger::Env::default().filter_or("RUST_LOG", "info"));
-    let args: Vec<String> = env::args().collect();
-
-    match &args[1..] {
-        [] => compile_atms_circuit::<KZGCommitmentScheme<Bls12>>(),
-        [command] if command == "gwc_kzg" => {
-            compile_atms_circuit::<GwcKZGCommitmentScheme<Bls12>>()
-        }
-        _ => {
-            println!("Usage:");
-            println!("- to run the example: `cargo run --example example_name`");
-            println!(
-                "- to run the example using the GWC19 version of multi-open KZG, run: `cargo run --example example_name gwc_kzg`"
-            );
-
-            bail!("Invalid command line arguments")
-        }
-    }
+    compile_atms_circuit::<KZGCommitmentScheme<Bls12>>()
 }
 
 pub fn compile_atms_circuit<
@@ -91,10 +73,12 @@ pub fn compile_atms_circuit<
     let mut transcript: CircuitTranscript<CardanoFriendlyBlake2b> =
         CircuitTranscript::<CardanoFriendlyBlake2b>::init();
 
+    let nb_committed_instances = 0;
     create_proof(
         &kzg_params,
         &pk,
         &[circuit],
+        nb_committed_instances,
         instances,
         &mut rng,
         &mut transcript,
@@ -120,6 +104,7 @@ pub fn compile_atms_circuit<
 
     let verifier = prepare::<_, S, CircuitTranscript<CardanoFriendlyBlake2b>>(
         &vk,
+        &[&[]],
         instances,
         &mut transcript_verifier,
     )

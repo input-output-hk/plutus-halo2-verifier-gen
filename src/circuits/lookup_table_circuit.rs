@@ -1,9 +1,9 @@
 use ff::PrimeField;
-use halo2_proofs::circuit::{Layouter, SimpleFloorPlanner, Value};
-use halo2_proofs::plonk::{
+use midnight_proofs::circuit::{Layouter, SimpleFloorPlanner, Value};
+use midnight_proofs::plonk::{
     Advice, Circuit, Column, ConstraintSystem, Error, Fixed, Instance, Selector, TableColumn,
 };
-use halo2_proofs::poly::Rotation;
+use midnight_proofs::poly::Rotation;
 use std::convert::TryInto;
 use std::marker::PhantomData;
 
@@ -155,9 +155,10 @@ impl<F: PrimeField> Circuit<F> for LookupTest<F> {
 #[cfg(test)]
 mod tests {
     use crate::circuits::lookup_table_circuit::LookupTest;
-    use blstrs::{Base, Scalar};
-    use halo2_proofs::dev::MockProver;
-    use halo2_proofs::plonk::k_from_circuit;
+    use midnight_curves::{Base, BlsScalar as Scalar};
+
+    use midnight_proofs::dev::MockProver;
+    use midnight_proofs::plonk::k_from_circuit;
     use std::marker::PhantomData;
 
     #[test]

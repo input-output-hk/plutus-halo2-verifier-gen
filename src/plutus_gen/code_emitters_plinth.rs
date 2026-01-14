@@ -3,7 +3,7 @@ use crate::plutus_gen::extraction::data::{CircuitRepresentation, ProofExtraction
 use crate::plutus_gen::extraction::{
     PlinthExpression, combine_plinth_expressions, precompute_intermediate_sets,
 };
-use halo2_proofs::halo2curves::group::{GroupEncoding, prime::PrimeCurveAffine};
+use group::{GroupEncoding, prime::PrimeCurveAffine};
 use handlebars::{Handlebars, RenderError};
 use itertools::Itertools;
 use log::debug;
@@ -111,14 +111,6 @@ pub fn emit_verifier_code(
                 .map(|(number, _permutation_common)| {
                     format!("  !q_eval_on_x3_{} <- M.readScalar\n", number + 1)
                 })
-                .join(""),
-
-            // section for GWC19 version of KZG
-            ProofExtractionSteps::V => "  !v <- M.squeezeChallenge\n".to_string(),
-            ProofExtractionSteps::U => "  !u <- M.squeezeChallenge\n".to_string(),
-            ProofExtractionSteps::Witnesses => section
-                .enumerate()
-                .map(|(number, _permutation_common)| format!("  !w{} <- M.readPoint\n", number + 1))
                 .join(""),
         })
         .collect();
@@ -605,11 +597,6 @@ pub fn emit_verifier_code(
 
     data.insert("MSM_LOOKUP_QUERIES".to_string(), msm_lookup_queries);
 
-    // case for GWC19 version of KZG
-    let w_values = (1..=circuit.instantiation_data.w_values_count)
-        .map(|n| format!("              'w{}", n))
-        .join(" ,\n");
-    data.insert("W_VALUES".to_string(), w_values);
     // ------
     // case for halo2 multi open version of KZG
     let q_evaluations = (1..=circuit.instantiation_data.q_evaluations_count)

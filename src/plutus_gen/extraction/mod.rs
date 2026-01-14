@@ -3,17 +3,16 @@ use crate::plutus_gen::extraction::data::{
     ProofExtractionSteps, Query, RotationDescription, ScalarExpression,
 };
 use crate::plutus_gen::extraction::utils::get_any_query_index;
-use blstrs::{Bls12, G1Affine, G1Projective, Scalar};
+use midnight_curves::{Bls12, BlsScalar as Scalar, G1Affine, G1Projective};
+
 use ff::Field;
-use halo2_proofs::halo2curves::group::Curve;
-use halo2_proofs::halo2curves::group::prime::PrimeCurveAffine;
-use halo2_proofs::plonk::{Any, Error, Expression, VerifyingKey};
-use halo2_proofs::poly::commitment::PolynomialCommitmentScheme;
-use halo2_proofs::poly::{
-    Rotation, gwc_kzg::GwcKZGCommitmentScheme, kzg::KZGCommitmentScheme, kzg::params::ParamsKZG,
-};
+use group::Curve;
+use group::prime::PrimeCurveAffine;
 use itertools::Itertools;
 use log::debug;
+use midnight_proofs::plonk::{Any, Error, Expression, VerifyingKey};
+use midnight_proofs::poly::commitment::PolynomialCommitmentScheme;
+use midnight_proofs::poly::{Rotation, kzg::KZGCommitmentScheme, kzg::params::ParamsKZG};
 use std::collections::HashMap;
 pub use utils::{
     AikenExpression, PlinthExpression, combine_aiken_expressions, combine_plinth_expressions,
@@ -22,53 +21,10 @@ pub use utils::{
 pub mod data;
 mod utils;
 
-type GWC19Scheme = GwcKZGCommitmentScheme<Bls12>;
 type Halo2MultiOpenScheme = KZGCommitmentScheme<Bls12>;
-
-pub enum KzgType {
-    GWC19,
-    Halo2MultiOpen,
-}
 
 pub trait ExtractKZG {
     fn extract_kzg_steps(circuit_representation: CircuitRepresentation) -> CircuitRepresentation;
-    fn kzg_type() -> KzgType;
-}
-
-impl ExtractKZG for GWC19Scheme {
-    fn extract_kzg_steps(
-        mut circuit_representation: CircuitRepresentation,
-    ) -> CircuitRepresentation {
-        circuit_representation
-            .proof_extraction_steps
-            .push(ProofExtractionSteps::V);
-
-        // todo double check if number of final witnesses is equal to number of different X rotations
-        let number_of_witnesses = circuit_representation
-            .all_queries_ordered()
-            .iter()
-            .flatten()
-            .map(|q| q.point.clone())
-            .unique()
-            .count();
-
-        circuit_representation.instantiation_data.w_values_count = number_of_witnesses;
-        // witnesses
-        for _ in 0..number_of_witnesses {
-            circuit_representation
-                .proof_extraction_steps
-                .push(ProofExtractionSteps::Witnesses);
-        }
-
-        circuit_representation
-            .proof_extraction_steps
-            .push(ProofExtractionSteps::U);
-        circuit_representation
-    }
-
-    fn kzg_type() -> KzgType {
-        KzgType::GWC19
-    }
 }
 
 impl ExtractKZG for Halo2MultiOpenScheme {
@@ -121,10 +77,6 @@ impl ExtractKZG for Halo2MultiOpenScheme {
             .push(ProofExtractionSteps::PI);
 
         circuit_representation
-    }
-
-    fn kzg_type() -> KzgType {
-        KzgType::Halo2MultiOpen
     }
 }
 
@@ -400,11 +352,11 @@ where
     let first_set = sets
         .first()
         .ok_or("unable to get first element of the set")
-        .map_err(|_e| Error::Synthesis)?;
+        .map_err(|e| Error::Synthesis(e.to_string()))?;
     let last_set = sets
         .last()
         .ok_or("unable to get last element of the set")
-        .map_err(|_e| Error::Synthesis)?;
+        .map_err(|e| Error::Synthesis(e.to_string()))?;
     let shifted_sets: Vec<_> = sets.iter().skip(1).zip(sets.iter()).collect();
 
     let mut terms: Vec<ScalarExpression<Scalar>> = Vec::new();

@@ -5,12 +5,14 @@ use crate::plutus_gen::code_emitters_plinth::{
     emit_verifier_code as emit_verifier_code_plinth, emit_vk_code,
 };
 use crate::plutus_gen::extraction::data::RotationDescription;
-use crate::plutus_gen::extraction::{ExtractKZG, KzgType, extract_circuit};
+use crate::plutus_gen::extraction::{ExtractKZG, extract_circuit};
 use anyhow::{Context as _, Result};
-use blstrs::{Bls12, G1Projective, Scalar};
-use halo2_proofs::plonk::VerifyingKey;
-use halo2_proofs::poly::commitment::PolynomialCommitmentScheme;
-use halo2_proofs::poly::kzg::params::ParamsKZG;
+use midnight_curves::{Bls12, BlsScalar as Scalar, G1Projective};
+
+use midnight_proofs::plonk::VerifyingKey;
+use midnight_proofs::poly::commitment::PolynomialCommitmentScheme;
+use midnight_proofs::poly::kzg::KZGCommitmentScheme;
+use midnight_proofs::poly::kzg::params::ParamsKZG;
 use std::path::Path;
 
 pub mod adjusted_types;
@@ -24,7 +26,7 @@ pub mod proof_serialization;
 ///
 /// # Arguments
 /// * `params` - Parameters for the KZG polynomial commitment scheme
-/// * `vk` - Verifying key for the circuit, it can have either GWC19, or halo2 based KZG
+/// * `vk` - Verifying key for the circuit
 /// * `instances` - Public inputs to the circuit
 /// * `g2_encoder` - Encoding function for G2Affine points
 ///
@@ -39,12 +41,7 @@ where
     S: PolynomialCommitmentScheme<Scalar, Commitment = G1Projective> + ExtractKZG,
 {
     // static locations of files in plutus directory
-    let verifier_template_file = match S::kzg_type() {
-        KzgType::GWC19 => Path::new("plinth-verifier/templates/verification_gwc19_kzg.hbs"),
-        KzgType::Halo2MultiOpen => {
-            Path::new("plinth-verifier/templates/verification_halo2_kzg.hbs")
-        }
-    };
+    let verifier_template_file = Path::new("plinth-verifier/templates/verification_halo2_kzg.hbs");
 
     let vk_template_file = Path::new("plinth-verifier/templates/vk_constants.hbs");
     let verifier_generated_file =
@@ -57,7 +54,7 @@ where
         .context("Failed to extract the circuit representation")?;
 
     // Step 2: extract KZG steps specific to used commitment scheme
-    let circuit_representation = S::extract_kzg_steps(circuit_representation);
+    let circuit_representation = KZGCommitmentScheme::extract_kzg_steps(circuit_representation);
 
     // Step 3: Based on the circuit repr generate Plinth verifier and verification key constants
     // using Handlebars templates
@@ -84,21 +81,17 @@ where
 {
     let circuit_representation = extract_circuit(params, vk, instances)
         .context("Failed to extract the circuit representation")?;
-    let circuit_representation = S::extract_kzg_steps(circuit_representation);
+    let circuit_representation = KZGCommitmentScheme::extract_kzg_steps(circuit_representation);
 
     // static locations of files in aiken directory
-    let verifier_template_file = match S::kzg_type() {
-        KzgType::GWC19 => Path::new("aiken-verifier/templates/verification_gwc19.hbs"),
-        KzgType::Halo2MultiOpen => Path::new("aiken-verifier/templates/verification_h2.hbs"),
-    };
+    let verifier_template_file = Path::new("aiken-verifier/templates/verification_h2.hbs");
 
     emit_verifier_code_aiken(
         verifier_template_file,
         Path::new("aiken-verifier/aiken_halo2/lib/proof_verifier.ak"),
         Some(Path::new("aiken-verifier/templates/profiler.hbs")),
         &circuit_representation,
-        test_proofs
-            .map(|(p, invalid_p)| (p, invalid_p, instances[0][0].to_vec())),
+        test_proofs.map(|(p, invalid_p)| (p, invalid_p, instances[0][0].to_vec())),
     )
     .context("Failed to emit the verifier code for aiken")?;
     emit_vk_code_aiken(
