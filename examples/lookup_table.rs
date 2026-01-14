@@ -1,15 +1,20 @@
 use anyhow::{Context as _, Result, anyhow, bail};
-use blstrs::{Base, Bls12, G1Projective, Scalar};
-use halo2_proofs::{
+use midnight_curves::{Base, Bls12, BlsScalar as Scalar, G1Projective};
+
+use midnight_proofs::{
     plonk::{
         ProvingKey, VerifyingKey, create_proof, k_from_circuit, keygen_pk, keygen_vk, prepare,
     },
     poly::{
-        commitment::Guard, commitment::PolynomialCommitmentScheme, gwc_kzg::GwcKZGCommitmentScheme,
-        kzg::KZGCommitmentScheme, kzg::params::ParamsKZG, kzg::params::ParamsVerifierKZG,
+        commitment::{Guard, PolynomialCommitmentScheme},
+        kzg::{
+            KZGCommitmentScheme,
+            params::{ParamsKZG, ParamsVerifierKZG},
+        },
     },
     transcript::{CircuitTranscript, Transcript},
 };
+
 use log::info;
 use plutus_halo2_verifier_gen::plutus_gen::generate_aiken_verifier;
 use plutus_halo2_verifier_gen::plutus_gen::proof_serialization::export_proof;
@@ -32,15 +37,9 @@ fn main() -> Result<()> {
 
     match &args[1..] {
         [] => compile_lookup_table_circuit::<KZGCommitmentScheme<Bls12>>(),
-        [command] if command == "gwc_kzg" => {
-            compile_lookup_table_circuit::<GwcKZGCommitmentScheme<Bls12>>()
-        }
         _ => {
             println!("Usage:");
             println!("- to run the example: `cargo run --example example_name`");
-            println!(
-                "- to run the example using the GWC19 version of multi-open KZG, run: `cargo run --example example_name gwc_kzg`"
-            );
 
             bail!("Invalid command line arguments")
         }
@@ -82,10 +81,12 @@ pub fn compile_lookup_table_circuit<
     let mut transcript: CircuitTranscript<CardanoFriendlyState> =
         CircuitTranscript::<CardanoFriendlyState>::init();
 
+    let nb_committed_instances = 0;
     create_proof(
         &kzg_params,
         &pk,
         &[circuit.clone()],
+        nb_committed_instances,
         instances,
         &mut rng,
         &mut transcript,
@@ -99,8 +100,10 @@ pub fn compile_lookup_table_circuit<
     let mut transcript_verifier: CircuitTranscript<CardanoFriendlyState> =
         CircuitTranscript::<CardanoFriendlyState>::init_from_bytes(&proof);
 
+    let committed_instances = [];
     let verifier = prepare::<_, _, CircuitTranscript<CardanoFriendlyState>>(
         &vk,
+        &committed_instances,
         instances,
         &mut transcript_verifier,
     )
@@ -127,11 +130,12 @@ pub fn compile_lookup_table_circuit<
         &kzg_params,
         &pk,
         &[circuit.clone()],
+        nb_committed_instances,
         &[&[&[Base::from(1u64), Base::from(1u64), Base::from(1u64)]]],
         &mut rng,
         &mut transcript,
     )
-        .context("proof generation should not fail")?;
+    .context("proof generation should not fail")?;
     let invalid_proof = transcript.finalize();
 
     generate_aiken_verifier(

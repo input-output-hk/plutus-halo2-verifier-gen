@@ -7,12 +7,11 @@ use atms_halo2::{
     signatures::schnorr::SchnorrSig,
     util::RegionCtx,
 };
-use blstrs::{Base, JubjubAffine};
-use halo2_proofs::{
-    circuit::{Layouter, SimpleFloorPlanner, Value},
-    plonk::{Circuit, ConstraintSystem, Error},
-};
+use midnight_curves::{Base, JubjubAffine};
+
 use rand::prelude::{IteratorRandom, StdRng};
+
+use midnight_proofs::{circuit::{Layouter,SimpleFloorPlanner,Value}, plonk::{Circuit,ConstraintSystem,Error}};
 
 #[derive(Clone)]
 pub struct AtmsConfig {
@@ -159,16 +158,17 @@ pub fn prepare_test_signatures(
 mod tests {
     use super::*;
     use crate::plutus_gen::adjusted_types::CardanoFriendlyState;
-    use blstrs::{Base, Bls12, Scalar};
+    use midnight_curves::{Bls12, BlsScalar as Scalar, Base};
+
     use ff::Field;
-    use halo2_proofs::dev::MockProver;
-    use halo2_proofs::plonk::{
+    use midnight_proofs::poly::kzg::KZGCommitmentScheme;
+    use midnight_proofs::dev::MockProver;
+    use midnight_proofs::plonk::{
         ProvingKey, VerifyingKey, create_proof, k_from_circuit, keygen_pk, keygen_vk, prepare,
     };
-    use halo2_proofs::poly::commitment::Guard;
-    use halo2_proofs::poly::gwc_kzg::GwcKZGCommitmentScheme;
-    use halo2_proofs::poly::kzg::params::ParamsKZG;
-    use halo2_proofs::transcript::{CircuitTranscript, Transcript};
+    use midnight_proofs::poly::commitment::Guard;
+    use midnight_proofs::poly::kzg::params::ParamsKZG;
+    use midnight_proofs::transcript::{CircuitTranscript, Transcript};
     use log::info;
     use rand::SeedableRng;
 
@@ -204,7 +204,7 @@ mod tests {
 
     #[test]
     fn test_atms_circuit_for_different_proofs() {
-        type PCS = GwcKZGCommitmentScheme<Bls12>;
+        type PCS = KZGCommitmentScheme<Bls12>;
 
         let seed = [0u8; 32];
         let mut rng: StdRng = SeedableRng::from_seed(seed);

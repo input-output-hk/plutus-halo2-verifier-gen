@@ -1,6 +1,7 @@
 use crate::plutus_gen::extraction::{AikenExpression, PlinthExpression};
-use blstrs::{G1Affine, G2Affine, Scalar};
-use halo2_proofs::plonk::Expression;
+use midnight_curves::{BlsScalar as Scalar, G1Affine, G2Affine};
+
+use midnight_proofs::plonk::Expression;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
@@ -23,11 +24,6 @@ pub enum ProofExtractionSteps {
 
     XCoordinate,
     YCoordinate,
-
-    // elements specific to GWC19 version of multiopen KZG
-    V,
-    U,
-    Witnesses,
 
     //elements related to Halo2 version of multiopen KZG
     X1,

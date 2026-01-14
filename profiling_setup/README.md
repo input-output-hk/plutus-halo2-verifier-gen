@@ -28,7 +28,7 @@ Generate both Aiken and Plinth verifier code by running a Rust example circuit:
 
 ```bash
 # From the repository root
-cargo run --example atms gwc_kzg
+cargo run --example atms
 ```
 
 This generates:

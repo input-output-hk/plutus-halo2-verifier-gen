@@ -1,7 +1,8 @@
 use crate::plutus_gen::extraction::data::{ExpressionG1, ScalarExpression};
-use blstrs::Scalar;
-use halo2_proofs::{
-    halo2curves::group::Curve,
+use midnight_curves::BlsScalar as Scalar;
+
+use group::Curve;
+use midnight_proofs::{
     plonk::{Advice, Any, Column, Expression, Fixed, Instance, VerifyingKey},
     poly::{Rotation, commitment::PolynomialCommitmentScheme},
 };
