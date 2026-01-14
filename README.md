@@ -125,33 +125,18 @@ The repository includes several example circuits:
 * `atms_with_lookups` - A circuit that verifies ATMS signature and lookup argument
 * `lookup_table` - A circuit with lookup argument
 
-These circuits can be run in two versions: one using the GWC19 flavor of multi-open KZG, and the other using the
-multi-open protocol described in Halo2 book.
-
 ```bash
 # Simple multiplication circuit (Halo2 KZG)
 cargo run --example simple_mul
 
-# Simple multiplication circuit (GWC19 KZG)
-cargo run --example simple_mul gwc_kzg
-
 # ATMS (Aggregate Threshold Multisignature) circuit Halo2 KZG
 cargo run --example atms
-
-# ATMS (Aggregate Threshold Multisignature) circuit GWC19 KZG
-cargo run --example atms gwc_kzg
 
 # ATMS with dummy lookup tables (Halo2 KZG)
 cargo run --example atms_with_lookups
 
-# ATMS with dummy lookup tables (GWC19 KZG)
-cargo run --example atms_with_lookups gwc_kzg
-
 # Lookup table circuit (Halo2 KZG)
 cargo run --example lookup_table
-
-# Simple multiplication circuit (GWC19 KZG)
-cargo run --example atms_with_lookups gwc_kzg
 
 # With detailed logging
 RUST_LOG=debug cargo run --example simple_mul
@@ -209,17 +194,15 @@ aiken build
 
 ## Benchmarks
 
-Below are the execution costs of both Plinth and Aiken scripts running the Halo2 verifier for various circuits (with
-multiopen
-KZG variant from GWC19):
+Below are the execution costs of both Plinth and Aiken scripts running the Halo2 verifier for various circuits:
 
 | Circuit description             | Script size*</br>Plinth | Script size*</br>Aiken | CPU usage</br>Plinth | CPU usage</br>Aiken | Mem usage</br>Plinth | Mem usage</br>Aiken | 
 |---------------------------------|-------------------------|------------------------|----------------------|---------------------|----------------------|---------------------|
-| **Simple mul**                  | 6465  (39.5%)           | 5543  (33.8%)          | 5,1 B  (51%)         | 4,9 B  (49%)        | 3,3 M (23.6%)        | 3,9 M (24.9%)       |
-| **Lookup table**                | 12013 (73.3%)           | 9667  (59.0%)          | 8,3 B  (83%)         | 7,9 B  (79%)        | 3,9 M (27.9%)        | 4,5 M (32.1%)       |
-| **ATMS (50 out of 90)**         | 12465 (76.1%)           | 10597 (64.7%)          | 8,9 B  (89%)         | 8,8 B  (88%)        | 3,9 M (27.9%)        | 4,5 M (32.1%)       |
-| **ATMS (228 out of 408)**       | 12465 (76.1%)           | 10597 (64.7%)          | 8,9 B  (89%)         | 8,8 B  (88%)        | 3,9 M (27.9%)        | 4,5 M (32.1%)       |
-| **ATMS (50/90) + lookup table** | 15172 (92.6%)           | 12534 (76.5%)          | 10,6 B (106%)        | 10,4 B (104%)       | 4,3 M (30.7%)        | 5,1 M (36.4%)       |
+| **Simple mul**                  |                         |                        |                      |                     |                      |                     |
+| **Lookup table**                |                         |                        |                      |                     |                      |                     |
+| **ATMS (50 out of 90)**         |                         |                        |                      |                     |                      |                     |
+| **ATMS (228 out of 408)**       |                         |                        |                      |                     |                      |                     |
+| **ATMS (50/90) + lookup table** |                         |                        |                      |                     |                      |                     |
 
 \* Script size % is taken as a percentage of the 16kb script limit
 

@@ -17,5 +17,5 @@ jobs:
       - run: cargo run --example atms_with_lookups
       - run: cd aiken-verifier/aiken_halo2 && aiken check
       - run: cd aiken-verifier/aiken_halo2 && aiken build
-      - run: cargo run --example atms_with_lookups gwc_kzg
+      - run: cargo run --example atms_with_lookups
       - run: cd aiken-verifier/aiken_halo2 && aiken check
