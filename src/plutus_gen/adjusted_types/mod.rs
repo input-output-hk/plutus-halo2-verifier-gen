@@ -42,6 +42,8 @@ impl TranscriptHash for CardanoFriendlyBlake2b {
         self.state.update(&[BLAKE2B_PREFIX_CHALLENGE]);
         let result = self.state.finalize();
         let result = result.as_bytes();
+        // TODO: consider to use double-hashing to expand to 64 bytes instead of zero-padding,
+        //       although this might increase on-chain cost.
         let mut padded_result: [u8; 64] = [0; 64];
         padded_result[..32].copy_from_slice(result);
         padded_result.to_vec()
