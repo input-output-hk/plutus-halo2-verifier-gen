@@ -161,7 +161,7 @@ pub fn prepare_test_signatures(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::plutus_gen::adjusted_types::CardanoFriendlyState;
+    use crate::plutus_gen::adjusted_types::CardanoFriendlyBlake2b;
     use blstrs::{Base, Bls12, Scalar};
     use ff::Field;
     use halo2_proofs::dev::MockProver;
@@ -235,8 +235,8 @@ mod tests {
         let instances: &[&[&[Scalar]]] = &[&[&[pks_comm, msg, Base::from(threshold as u64)]]];
         info!("Public inputs: {:?}", instances);
 
-        let mut transcript: CircuitTranscript<CardanoFriendlyState> =
-            CircuitTranscript::<CardanoFriendlyState>::init();
+        let mut transcript: CircuitTranscript<CardanoFriendlyBlake2b> =
+            CircuitTranscript::<CardanoFriendlyBlake2b>::init();
 
         create_proof(
             &kzg_params,
@@ -251,10 +251,10 @@ mod tests {
         let proof = transcript.finalize();
         info!("proof size {:?}", proof.len());
 
-        let mut transcript_verifier: CircuitTranscript<CardanoFriendlyState> =
-            CircuitTranscript::<CardanoFriendlyState>::init_from_bytes(&proof);
+        let mut transcript_verifier: CircuitTranscript<CardanoFriendlyBlake2b> =
+            CircuitTranscript::<CardanoFriendlyBlake2b>::init_from_bytes(&proof);
 
-        let verifier = prepare::<_, PCS, CircuitTranscript<CardanoFriendlyState>>(
+        let verifier = prepare::<_, PCS, CircuitTranscript<CardanoFriendlyBlake2b>>(
             &vk,
             instances,
             &mut transcript_verifier,
@@ -282,8 +282,8 @@ mod tests {
         let instances: &[&[&[Scalar]]] = &[&[&[pks_comm, msg, Base::from(threshold as u64)]]];
         info!("Public inputs: {:?}", instances);
 
-        let mut transcript: CircuitTranscript<CardanoFriendlyState> =
-            CircuitTranscript::<CardanoFriendlyState>::init();
+        let mut transcript: CircuitTranscript<CardanoFriendlyBlake2b> =
+            CircuitTranscript::<CardanoFriendlyBlake2b>::init();
 
         create_proof(
             &kzg_params,
@@ -298,10 +298,10 @@ mod tests {
         let proof = transcript.finalize();
         info!("proof size {:?}", proof.len());
 
-        let mut transcript_verifier: CircuitTranscript<CardanoFriendlyState> =
-            CircuitTranscript::<CardanoFriendlyState>::init_from_bytes(&proof);
+        let mut transcript_verifier: CircuitTranscript<CardanoFriendlyBlake2b> =
+            CircuitTranscript::<CardanoFriendlyBlake2b>::init_from_bytes(&proof);
 
-        let verifier = prepare::<_, PCS, CircuitTranscript<CardanoFriendlyState>>(
+        let verifier = prepare::<_, PCS, CircuitTranscript<CardanoFriendlyBlake2b>>(
             &vk,
             instances,
             &mut transcript_verifier,

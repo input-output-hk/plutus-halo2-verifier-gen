@@ -34,7 +34,7 @@ use plutus_halo2_verifier_gen::{
     },
     kzg_params::get_or_create_kzg_params,
     plutus_gen::{
-        adjusted_types::CardanoFriendlyState, extraction::ExtractKZG, generate_plinth_verifier,
+        adjusted_types::CardanoFriendlyBlake2b, extraction::ExtractKZG, generate_plinth_verifier,
         proof_serialization::export_public_inputs, proof_serialization::serialize_proof,
     },
 };
@@ -111,8 +111,8 @@ pub fn compile_atms_lookup_circuit<
     let mut output = File::create(instances_file).context("failed to create instances file")?;
     export_public_inputs(instances, &mut output).context("Failed to export the public input")?;
 
-    let mut transcript: CircuitTranscript<CardanoFriendlyState> =
-        CircuitTranscript::<CardanoFriendlyState>::init();
+    let mut transcript: CircuitTranscript<CardanoFriendlyBlake2b> =
+        CircuitTranscript::<CardanoFriendlyBlake2b>::init();
 
     create_proof(
         &kzg_params,
@@ -137,10 +137,10 @@ pub fn compile_atms_lookup_circuit<
     let negated_firs_byte = !firs_byte;
     invalid_proof[index] = negated_firs_byte;
 
-    let mut transcript_verifier: CircuitTranscript<CardanoFriendlyState> =
-        CircuitTranscript::<CardanoFriendlyState>::init_from_bytes(&proof);
+    let mut transcript_verifier: CircuitTranscript<CardanoFriendlyBlake2b> =
+        CircuitTranscript::<CardanoFriendlyBlake2b>::init_from_bytes(&proof);
 
-    let verifier = prepare::<_, _, CircuitTranscript<CardanoFriendlyState>>(
+    let verifier = prepare::<_, _, CircuitTranscript<CardanoFriendlyBlake2b>>(
         &vk,
         instances,
         &mut transcript_verifier,

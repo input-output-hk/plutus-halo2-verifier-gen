@@ -11,12 +11,19 @@ const BLAKE2B_PREFIX_CHALLENGE: u8 = 0;
 const BLAKE2B_PREFIX_COMMON: u8 = 1;
 
 #[derive(Debug)]
-pub struct CardanoFriendlyState {
+pub struct CardanoFriendlyBlake2b {
     state: State,
 }
 
-/// this setup is due to Cardano proving blake2b 256 as builtin
-impl TranscriptHash for CardanoFriendlyState {
+/// Cardano-compatible transcript hash for Fiat-Shamir transformation.
+///
+/// This differs from halo2's default `blake2b_simd::State` implementation:
+/// - Uses 32-byte output (blake2b-256) instead of 64-byte, since Plutus only exposes `blake2b_256` builtin
+/// - Unkeyed hash (no domain separator key), as Plutus doesn't support keyed blake2b
+/// - Output is zero-padded to 64 bytes to satisfy `Sampleable` requirements for field element sampling
+///
+/// The prefix bytes (0x00 for squeeze, 0x01 for absorb) match halo2's domain separation scheme.
+impl TranscriptHash for CardanoFriendlyBlake2b {
     type Input = Vec<u8>;
     type Output = Vec<u8>;
 
@@ -41,9 +48,9 @@ impl TranscriptHash for CardanoFriendlyState {
     }
 }
 
-/// standard implementation for Scalar is used as only thing I had to changes was hash setup
-impl Hashable<CardanoFriendlyState> for Scalar {
-    fn to_input(&self) -> <CardanoFriendlyState as TranscriptHash>::Input {
+/// Standard implementation for Scalar as in halo2
+impl Hashable<CardanoFriendlyBlake2b> for Scalar {
+    fn to_input(&self) -> <CardanoFriendlyBlake2b as TranscriptHash>::Input {
         <Scalar as Hashable<State>>::to_input(self)
     }
 
@@ -56,16 +63,16 @@ impl Hashable<CardanoFriendlyState> for Scalar {
     }
 }
 
-/// standard implementation for Scalar is used as only thing I had to changes was hash setup
-impl Sampleable<CardanoFriendlyState> for Scalar {
-    fn sample(hash_output: <CardanoFriendlyState as TranscriptHash>::Output) -> Self {
+/// Standard implementation for Scalar as in halo2
+impl Sampleable<CardanoFriendlyBlake2b> for Scalar {
+    fn sample(hash_output: <CardanoFriendlyBlake2b as TranscriptHash>::Output) -> Self {
         <Scalar as Sampleable<State>>::sample(hash_output)
     }
 }
 
-/// standard implementation for Scalar is used as only thing I had to changes was hash setup
-impl Hashable<CardanoFriendlyState> for G1Projective {
-    fn to_input(&self) -> <CardanoFriendlyState as TranscriptHash>::Input {
+/// Standard implementation for G1Projective as in halo2
+impl Hashable<CardanoFriendlyBlake2b> for G1Projective {
+    fn to_input(&self) -> <CardanoFriendlyBlake2b as TranscriptHash>::Input {
         <G1Projective as Hashable<State>>::to_input(self)
     }
 
