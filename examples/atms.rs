@@ -11,6 +11,7 @@ use halo2_proofs::{
     transcript::{CircuitTranscript, Transcript},
 };
 use log::info;
+use plutus_halo2_verifier_gen::kzg_params::get_or_create_kzg_params;
 use plutus_halo2_verifier_gen::plutus_gen::extraction::ExtractKZG;
 use plutus_halo2_verifier_gen::plutus_gen::generate_aiken_verifier;
 use plutus_halo2_verifier_gen::plutus_gen::proof_serialization::export_proof;
@@ -74,9 +75,9 @@ pub fn compile_atms_circuit<
     };
 
     let k: u32 = k_from_circuit(&circuit);
-    let kzg_params: ParamsKZG<Bls12> = ParamsKZG::<Bls12>::unsafe_setup(k, rng.clone());
-    let vk: VerifyingKey<Scalar, S> = keygen_vk(&kzg_params, &circuit).unwrap();
-    let pk: ProvingKey<Scalar, S> = keygen_pk(vk.clone(), &circuit).unwrap();
+    let kzg_params: ParamsKZG<Bls12> = get_or_create_kzg_params(k, rng.clone())?;
+    let vk: VerifyingKey<Scalar, S> = keygen_vk(&kzg_params, &circuit)?;
+    let pk: ProvingKey<Scalar, S> = keygen_pk(vk.clone(), &circuit)?;
 
     // no instances, just dummy 42 to make prover and verifier happy
     let instances: &[&[&[Scalar]]] = &[&[&[pks_comm, msg, Base::from(threshold as u64)]]];

@@ -16,6 +16,7 @@ use plutus_halo2_verifier_gen::plutus_gen::generate_aiken_verifier;
 use plutus_halo2_verifier_gen::plutus_gen::proof_serialization::export_proof;
 use plutus_halo2_verifier_gen::{
     circuits::simple_mul_circuit::SimpleMulCircuit,
+    kzg_params::get_or_create_kzg_params,
     plutus_gen::{
         adjusted_types::CardanoFriendlyState, extraction::ExtractKZG, generate_plinth_verifier,
         proof_serialization::export_public_inputs, proof_serialization::serialize_proof,
@@ -76,7 +77,7 @@ fn compile_simple_mul_circuit<
     let mut rng: StdRng = SeedableRng::from_seed(seed);
 
     let k: u32 = k_from_circuit(&circuit);
-    let params: ParamsKZG<Bls12> = ParamsKZG::<Bls12>::unsafe_setup(k, rng.clone());
+    let params: ParamsKZG<Bls12> = get_or_create_kzg_params(k, rng.clone())?;
     let vk: VerifyingKey<_, S> =
         keygen_vk(&params, &circuit).context("keygen_vk should not fail")?;
     let pk: ProvingKey<_, S> =

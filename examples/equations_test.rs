@@ -5,6 +5,7 @@ use halo2_proofs::poly::kzg::KZGCommitmentScheme;
 use halo2_proofs::poly::kzg::params::ParamsKZG;
 use plutus_halo2_verifier_gen::circuits::atms_circuit::prepare_test_signatures;
 use plutus_halo2_verifier_gen::circuits::atms_with_lookups_circuit::AtmsLookupCircuit;
+use plutus_halo2_verifier_gen::kzg_params::get_or_create_kzg_params;
 use plutus_halo2_verifier_gen::plutus_gen::emit_verifier_code_aiken;
 use plutus_halo2_verifier_gen::plutus_gen::extraction::{ExtractKZG, extract_circuit};
 use rand::prelude::StdRng;
@@ -34,8 +35,8 @@ fn main() -> Result<()> {
     };
 
     let k: u32 = k_from_circuit(&circuit);
-    let kzg_params: ParamsKZG<Bls12> = ParamsKZG::<Bls12>::unsafe_setup(k, rng.clone());
-    let vk: VerifyingKey<Scalar, KZG> = keygen_vk(&kzg_params, &circuit).unwrap();
+    let kzg_params: ParamsKZG<Bls12> = get_or_create_kzg_params(k, rng.clone())?;
+    let vk: VerifyingKey<Scalar, KZG> = keygen_vk(&kzg_params, &circuit)?;
 
     let instances: &[&[&[Scalar]]] = &[&[&[pks_comm, msg, Base::from(THRESHOLD as u64)]]];
 

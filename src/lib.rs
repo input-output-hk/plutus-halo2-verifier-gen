@@ -1,4 +1,5 @@
 pub mod circuits;
+pub mod kzg_params;
 pub mod plutus_gen;
 
 pub use atms_halo2::{
