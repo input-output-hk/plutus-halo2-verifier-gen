@@ -1,4 +1,4 @@
-use atms_halo2::rescue::{RescueParametersBls, RescueSponge};
+use atms_halo2::rescue::{RescueParametersBls, RescueSponge, default_padding};
 use atms_halo2::signatures::primitive::schnorr::Schnorr;
 use atms_halo2::{
     ecc::chip::EccInstructions,
@@ -139,7 +139,10 @@ pub fn prepare_test_signatures(
         flattened_pks.push(pk.get_u());
     }
 
-    let pks_comm = RescueSponge::<Base, RescueParametersBls>::hash(&flattened_pks, None);
+    let pks_comm = RescueSponge::<Base, RescueParametersBls>::hash(
+        &flattened_pks,
+        Some(default_padding::<Base, RescueParametersBls>),
+    );
 
     let signing_parties = (0..num_parties).choose_multiple(rng, threshold);
     let signatures = (0..num_parties)
