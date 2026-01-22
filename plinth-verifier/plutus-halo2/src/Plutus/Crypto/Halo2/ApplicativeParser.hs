@@ -5,7 +5,7 @@ module Plutus.Crypto.Halo2.ApplicativeParser (
     readPoint,
     readScalar,
     commonScalar,
-    squeezeChallange,
+    squeezeChallenge,
     Parser (runParser),
     State,
     run,
@@ -52,10 +52,10 @@ readScalar = Parser $ \(proof, transcript) ->
         transcript' = Transcript.addScalarToTranscript transcript scalar
      in (scalar, (proof', transcript'))
 
-{-# INLINE squeezeChallange #-}
-squeezeChallange :: Parser Scalar
-squeezeChallange = Parser $ \(proof, transcript) ->
-    let (scalar, transcript') = Transcript.squeezeChallange transcript
+{-# INLINE squeezeChallenge #-}
+squeezeChallenge :: Parser Scalar
+squeezeChallenge = Parser $ \(proof, transcript) ->
+    let (scalar, transcript') = Transcript.squeezeChallenge transcript
      in (scalar, (proof, transcript'))
 
 -- handle public inputs

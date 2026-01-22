@@ -25,9 +25,9 @@ pub fn emit_verifier_code(
                 .enumerate()
                 .map(|(number, _advice)| format!("  !a{} <- M.readPoint\n", number + 1))
                 .join(""),
-            ProofExtractionSteps::Theta => "  !theta <- M.squeezeChallange\n".to_string(),
-            ProofExtractionSteps::Beta => "  !beta <- M.squeezeChallange\n".to_string(),
-            ProofExtractionSteps::Gamma => "  !gamma <- M.squeezeChallange\n".to_string(),
+            ProofExtractionSteps::Theta => "  !theta <- M.squeezeChallenge\n".to_string(),
+            ProofExtractionSteps::Beta => "  !beta <- M.squeezeChallenge\n".to_string(),
+            ProofExtractionSteps::Gamma => "  !gamma <- M.squeezeChallenge\n".to_string(),
             ProofExtractionSteps::PermutationsCommited => section
                 .zip(letters.clone())
                 .map(|(_permutation, letter)| {
@@ -35,14 +35,14 @@ pub fn emit_verifier_code(
                 })
                 .join(""),
             ProofExtractionSteps::VanishingRand => "  !vanishingRand <- M.readPoint\n".to_string(),
-            ProofExtractionSteps::YCoordinate => "  !y <- M.squeezeChallange\n".to_string(),
+            ProofExtractionSteps::YCoordinate => "  !y <- M.squeezeChallenge\n".to_string(),
             ProofExtractionSteps::VanishingSplit => section
                 .enumerate()
                 .map(|(number, _vanishing_split)| {
                     format!("  !vanishingSplit_{} <- M.readPoint\n", number + 1)
                 })
                 .join(""),
-            ProofExtractionSteps::XCoordinate => "  !x <- M.squeezeChallange\n".to_string(),
+            ProofExtractionSteps::XCoordinate => "  !x <- M.squeezeChallenge\n".to_string(),
             ProofExtractionSteps::AdviceEval => section
                 .enumerate()
                 .map(|(number, _advice_eval)| {
@@ -72,7 +72,7 @@ pub fn emit_verifier_code(
                     )
                 })
                 .join(""),
-            ProofExtractionSteps::SqueezeChallenge => panic!("not SqueezeChallange supported"),
+            ProofExtractionSteps::SqueezeChallenge => panic!("not squeezeChallenge supported"),
             ProofExtractionSteps::LookupPermuted => section
                 .enumerate()
                 .map(|(number, _lookup_permuted)| {
@@ -100,10 +100,10 @@ pub fn emit_verifier_code(
                 })
                 .join(""),
             // section for halo2 multi open version of KZG
-            ProofExtractionSteps::X1 => "  !x1 <- M.squeezeChallange\n".to_string(),
-            ProofExtractionSteps::X2 => "  !x2 <- M.squeezeChallange\n".to_string(),
-            ProofExtractionSteps::X3 => "  !x3 <- M.squeezeChallange\n".to_string(),
-            ProofExtractionSteps::X4 => "  !x4 <- M.squeezeChallange\n".to_string(),
+            ProofExtractionSteps::X1 => "  !x1 <- M.squeezeChallenge\n".to_string(),
+            ProofExtractionSteps::X2 => "  !x2 <- M.squeezeChallenge\n".to_string(),
+            ProofExtractionSteps::X3 => "  !x3 <- M.squeezeChallenge\n".to_string(),
+            ProofExtractionSteps::X4 => "  !x4 <- M.squeezeChallenge\n".to_string(),
             ProofExtractionSteps::FCommitment => "  !f_commitment <- M.readPoint\n".to_string(),
             ProofExtractionSteps::PI => "  !pi_term <- M.readPoint\n".to_string(),
             ProofExtractionSteps::QEvals => section
@@ -114,8 +114,8 @@ pub fn emit_verifier_code(
                 .join(""),
 
             // section for GWC19 version of KZG
-            ProofExtractionSteps::V => "  !v <- M.squeezeChallange\n".to_string(),
-            ProofExtractionSteps::U => "  !u <- M.squeezeChallange\n".to_string(),
+            ProofExtractionSteps::V => "  !v <- M.squeezeChallenge\n".to_string(),
+            ProofExtractionSteps::U => "  !u <- M.squeezeChallenge\n".to_string(),
             ProofExtractionSteps::Witnesses => section
                 .enumerate()
                 .map(|(number, _permutation_common)| format!("  !w{} <- M.readPoint\n", number + 1))

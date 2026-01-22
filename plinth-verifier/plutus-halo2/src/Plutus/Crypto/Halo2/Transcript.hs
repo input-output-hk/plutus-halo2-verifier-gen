@@ -2,7 +2,7 @@
 
 module Plutus.Crypto.Halo2.Transcript (
     Transcript,
-    squeezeChallange,
+    squeezeChallenge,
     addScalarToTranscript,
     addPointToTranscript,
     addCommonScalarToTranscript,
@@ -79,9 +79,9 @@ scalarR :: Scalar
 scalarR = mkScalar (0x1824b159acc5056f998c4fefecbc4ff55884b7fa0003480200000001fffffffe `modulo` bls12_381_field_prime)
 
 -- labels are fixed comparing to plonk poc?
-{-# INLINEABLE squeezeChallange #-}
-squeezeChallange :: Transcript -> (Scalar, Transcript)
-squeezeChallange bs =
+{-# INLINEABLE squeezeChallenge #-}
+squeezeChallenge :: Transcript -> (Scalar, Transcript)
+squeezeChallenge bs =
     let hash = blake2b_256 (bs <> blake2bPrefixChallenge) in
     let re_hash = blake2b_256 hash in
     let scalar1 = mkScalar ( byteStringToInteger LittleEndian hash `modulo` bls12_381_field_prime ) in
