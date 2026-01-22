@@ -15,8 +15,9 @@ use plutus_halo2_verifier_gen::plutus_gen::generate_aiken_verifier;
 use plutus_halo2_verifier_gen::plutus_gen::proof_serialization::export_proof;
 use plutus_halo2_verifier_gen::{
     circuits::lookup_table_circuit::LookupTest,
+    kzg_params::get_or_create_kzg_params,
     plutus_gen::{
-        adjusted_types::CardanoFriendlyState, extraction::ExtractKZG, generate_plinth_verifier,
+        adjusted_types::CardanoFriendlyBlake2b, extraction::ExtractKZG, generate_plinth_verifier,
         proof_serialization::export_public_inputs, proof_serialization::serialize_proof,
     },
 };
@@ -65,9 +66,9 @@ pub fn compile_lookup_table_circuit<
     };
 
     let k: u32 = k_from_circuit(&circuit);
-    let kzg_params: ParamsKZG<Bls12> = ParamsKZG::<Bls12>::unsafe_setup(k, rng.clone());
-    let vk: VerifyingKey<Scalar, S> = keygen_vk(&kzg_params, &circuit).unwrap();
-    let pk: ProvingKey<Scalar, S> = keygen_pk(vk.clone(), &circuit).unwrap();
+    let kzg_params: ParamsKZG<Bls12> = get_or_create_kzg_params(k, rng.clone())?;
+    let vk: VerifyingKey<Scalar, S> = keygen_vk(&kzg_params, &circuit)?;
+    let pk: ProvingKey<Scalar, S> = keygen_pk(vk.clone(), &circuit)?;
 
     // no instances, just dummy 42 to make prover and verifier happy
     let instances: &[&[&[Scalar]]] =
@@ -79,8 +80,8 @@ pub fn compile_lookup_table_circuit<
     let mut output = File::create(instances_file).context("failed to create instances file")?;
     export_public_inputs(instances, &mut output).context("Failed to export public inputs")?;
 
-    let mut transcript: CircuitTranscript<CardanoFriendlyState> =
-        CircuitTranscript::<CardanoFriendlyState>::init();
+    let mut transcript: CircuitTranscript<CardanoFriendlyBlake2b> =
+        CircuitTranscript::<CardanoFriendlyBlake2b>::init();
 
     create_proof(
         &kzg_params,
@@ -96,10 +97,10 @@ pub fn compile_lookup_table_circuit<
 
     info!("proof size {:?}", proof.len());
 
-    let mut transcript_verifier: CircuitTranscript<CardanoFriendlyState> =
-        CircuitTranscript::<CardanoFriendlyState>::init_from_bytes(&proof);
+    let mut transcript_verifier: CircuitTranscript<CardanoFriendlyBlake2b> =
+        CircuitTranscript::<CardanoFriendlyBlake2b>::init_from_bytes(&proof);
 
-    let verifier = prepare::<_, _, CircuitTranscript<CardanoFriendlyState>>(
+    let verifier = prepare::<_, _, CircuitTranscript<CardanoFriendlyBlake2b>>(
         &vk,
         instances,
         &mut transcript_verifier,
@@ -121,8 +122,8 @@ pub fn compile_lookup_table_circuit<
         .context("Plinth verifier generation failed")?;
 
     // Create invalid proof inputs for testing (with wrong public inputs)
-    let mut transcript: CircuitTranscript<CardanoFriendlyState> =
-        CircuitTranscript::<CardanoFriendlyState>::init();
+    let mut transcript: CircuitTranscript<CardanoFriendlyBlake2b> =
+        CircuitTranscript::<CardanoFriendlyBlake2b>::init();
     create_proof(
         &kzg_params,
         &pk,
