@@ -29,6 +29,8 @@ import PlutusTx.Builtins (
 import PlutusTx.Prelude (
     Semigroup ((<>)),
     modulo,
+    (*),
+    (+)
  )
 
 -- todo constants from rust implementation of halo2
@@ -72,14 +74,19 @@ blake2bPrefixCommon = consByteString 1 emptyByteString
 addCommonScalarToTranscript :: Transcript -> Scalar -> Transcript
 addCommonScalarToTranscript bs s = bs <> blake2bPrefixCommon <> (integerToByteString LittleEndian 32 (unScalar s))
 
+-- this is the constant 2^256 % q
+scalarR :: Scalar
+scalarR = mkScalar (0x1824b159acc5056f998c4fefecbc4ff55884b7fa0003480200000001fffffffe `modulo` bls12_381_field_prime)
+
 -- labels are fixed comparing to plonk poc?
 {-# INLINEABLE squeezeChallange #-}
 squeezeChallange :: Transcript -> (Scalar, Transcript)
 squeezeChallange bs =
-    ( mkScalar
-        ( byteStringToInteger LittleEndian (blake2b_256 (bs <> blake2bPrefixChallenge))
-            `modulo` bls12_381_field_prime
-        )
+    let hash = blake2b_256 (bs <> blake2bPrefixChallenge) in
+    let re_hash = blake2b_256 hash in
+    let scalar1 = mkScalar ( byteStringToInteger LittleEndian hash `modulo` bls12_381_field_prime ) in
+    let scalar2 = mkScalar ( byteStringToInteger LittleEndian re_hash `modulo` bls12_381_field_prime ) in
+    ( scalar1 + scalarR * scalar2
     , bs <> blake2bPrefixChallenge
     )
 
