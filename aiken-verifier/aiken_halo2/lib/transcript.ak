@@ -2,7 +2,8 @@ use aiken/builtin.{blake2b_256, bls12_381_g1_neg, bls12_381_g1_scalar_mul}
 use aiken/crypto/bitwise.{State}
 use aiken/crypto/bls12_381/g1.{decompress, generator}
 use aiken/crypto/bls12_381/scalar.{
-  Scalar, from_bytes_little_endian, from_int, to_bytes_little_endian,
+  Scalar, add, from_bytes_little_endian, from_int, mul_int,
+  to_bytes_little_endian,
 }
 use aiken/primitive/bytearray
 
@@ -77,8 +78,15 @@ pub fn squeeze_challenge(transcript: Transcript) -> (State<Scalar>, Transcript) 
   let data_for_squeeze =
     bytearray.concat(transcript.accumulated_for_hash, prefix_challenge)
   let squeeze_hash = blake2b_256(data_for_squeeze)
-  let squeeze_scalar = from_bytes_little_endian(squeeze_hash)
 
+  let squeeze_scalar =
+    add(
+      from_bytes_little_endian(squeeze_hash),
+      mul_int(
+        from_bytes_little_endian(blake2b_256(squeeze_hash)),
+        0x1824b159acc5056f998c4fefecbc4ff55884b7fa0003480200000001fffffffe,
+      ),
+    )
   (
     squeeze_scalar,
     Transcript { ..transcript, accumulated_for_hash: data_for_squeeze },
@@ -94,7 +102,7 @@ test transcript_representation_test() {
   let (squeeze, _) = squeeze_challenge(transcript_data)
   expect
     squeeze == from_int(
-      0x4adae634053c0c9ed84859d0be4afad0dce2a7fe3e3e29e09a02e19d603022ad,
+      0x7365251deaa576552985a09cf6062faf316e0cbaeaf47444c76e30e3587c2455,
     )
 }
 
@@ -171,7 +179,7 @@ test adding_scalar_to_transcript() {
 
   expect
     challenge == from_int(
-      0x6190bbe89273a593347609a54a42f88bb174cb94062a8dc9763f2f9d82862e9,
+      0x2a19e2ce1515cef1e285b88d6924b1ca31f1a94bf963f31711f6eedff5822fec,
     )
 }
 
@@ -196,7 +204,7 @@ test squeeze_challenge_calculations() {
     )
   expect
     challenge == from_int(
-      0x953016816a1528fef2fc6314ea3929ebebd9bbe9d315539251c205bd82408c5,
+      0x4040feb51441fdc6c4a87ad8630289c9589de2e30c24d32bfc216b094924b249,
     )
 }
 
@@ -233,7 +241,7 @@ test full_proof_deserialization_for_simple_mul_circuit() {
 
   expect
     gamma == from_int(
-      0x581743998eb1b602aa993ad12813fac838fe438153b29827d5216c98c4471960,
+      0xedce81b67b900bbd42dfc6f6092ea63dedebc55ceec928f3d57d00b2f45a52,
     )
 
   let (_permutations_committed_a, transcript_data) = read_point(transcript_data)
@@ -246,7 +254,7 @@ test full_proof_deserialization_for_simple_mul_circuit() {
 
   expect
     y == from_int(
-      0x4b57e2385bb505b146a1fd814e70f776617d92b8c413a9d6d369c6865fd01870,
+      0x3da50371091a908cf0b048461c04a7bea8865f4cd894f3a307d77a3d0868ce69,
     )
 
   let (_vanishingSplit1, transcript_data) = read_point(transcript_data)
@@ -256,7 +264,7 @@ test full_proof_deserialization_for_simple_mul_circuit() {
 
   expect
     x == from_int(
-      0x65e2000f8ef4d864b59536948015f6d968e559ecaccae4d58aea34b54593652d,
+      0x12ed2800d0c727a84c1452254b29f7c4c6aab7603a8374b80f37cd142a7267bf,
     )
 
   let (adviceEval1, transcript_data) = read_scalar(transcript_data)
@@ -309,18 +317,18 @@ test full_proof_deserialization_for_simple_mul_circuit() {
 
   expect
     x1 == from_int(
-      0x25dbe380cca31996adfe0536275c9fe0e70f4c00c87bfe2df90d6dcbd9c6c643,
+      0x47c90bdc21db3905d53d27940a78e26e537994f3ce3c251dd94ca7bb22af6274,
     )
   expect
     x2 == from_int(
-      0x453fe79d8e3a830d417882a1403b735fe5150db8de91c8277e4bca08eb8c9830,
+      0x3a40826e43ec94768aaafb4336c696d5f5ccf00404b9782bef2a110feccbcde,
     )
   let (_f_commitment, transcript_data) = read_point(transcript_data)
   let (x3, transcript_data) = squeeze_challenge(transcript_data)
 
   expect
     x3 == from_int(
-      0x6c180a84842b308c78d360330b43eb74047473918589c83ff05e2971b82a7025,
+      0x3292b1ceba51425b5951b3384344baf6dacfd6f8df3a0a29e4ed55eee2137ba0,
     )
 
   let (_q_eval_on_x3_1, transcript_data) = read_scalar(transcript_data)
@@ -334,7 +342,7 @@ test full_proof_deserialization_for_simple_mul_circuit() {
 
   expect
     x4 == from_int(
-      0x4a458f7c6a72c5efa4756daf7379ed4dd6e676306741a3bf08e3061eda88ab0f,
+      0x47952654bb92ed3210aeac0f76f99613e5cef90d2bf524e418335d86a4723248,
     )
 
   let expected_point =
