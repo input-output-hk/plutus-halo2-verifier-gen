@@ -592,11 +592,11 @@ where
         .filter(|e| matches!(e, ProofExtractionSteps::VanishingSplit))
         .count();
 
-    // !hCommitment1 = scale xn G1_zero + vanishingSplit{:?}", vanishing_splits_count
+    // !hCommitment1 = scale xn_minus_one G1_zero + vanishingSplit{:?}", vanishing_splits_count
     // a + b
     let a = ExpressionG1::Scale(
         Box::new(ExpressionG1::Zero),
-        ScalarExpression::Variable("xn".to_string()),
+        ScalarExpression::Variable("xn_minus_one".to_string()),
     );
     let b = ExpressionG1::VanishingSplit(vanishing_splits_count);
     let term = ExpressionG1::Sum(Box::new(a), Box::new(b));
@@ -606,11 +606,11 @@ where
         .push(("hCommitment1".to_string(), term));
     for i in 1..(vanishing_splits_count - 1) {
         // render last on as vanishing_g
-        // !hCommitment{:?} = scale xn hCommitment{:?} + vanishingSplit{:?}
+        // !hCommitment{:?} = scale xn_minus_one hCommitment{:?} + vanishingSplit{:?}
         // a + b
         let a = ExpressionG1::Scale(
             Box::new(ExpressionG1::Variable(format!("hCommitment{:?}", i))),
-            ScalarExpression::Variable("xn".to_string()),
+            ScalarExpression::Variable("xn_minus_one".to_string()),
         );
         let b = ExpressionG1::VanishingSplit(vanishing_splits_count - i);
         let term = ExpressionG1::Sum(Box::new(a), Box::new(b));
@@ -620,7 +620,7 @@ where
             .push((format!("hCommitment{:?}", i + 1,), term));
     }
 
-    // !vanishing_g = scale xn hCommitment{} + vanishingSplit1; vanishing_splits_count - 1
+    // !vanishing_g = scale xn_minus_one hCommitment{} + vanishingSplit1; vanishing_splits_count - 1
     // a + b
 
     let a = ExpressionG1::Scale(
@@ -628,7 +628,7 @@ where
             "hCommitment{:?}",
             vanishing_splits_count - 1
         ))),
-        ScalarExpression::Variable("xn".to_string()),
+        ScalarExpression::Variable("xn_minus_one".to_string()),
     );
     let b = ExpressionG1::VanishingSplit(1);
     let term = ExpressionG1::Sum(Box::new(a), Box::new(b));
