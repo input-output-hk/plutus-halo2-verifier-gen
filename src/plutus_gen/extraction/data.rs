@@ -37,6 +37,9 @@ pub enum ProofExtractionSteps {
     Theta,
     Beta,
     Gamma,
+
+    // elements related to Midnight-zk library
+    Trash,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, Default)]

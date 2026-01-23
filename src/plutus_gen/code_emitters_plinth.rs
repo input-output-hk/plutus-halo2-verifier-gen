@@ -104,6 +104,7 @@ pub fn emit_verifier_code(
             ProofExtractionSteps::X2 => "  !x2 <- M.squeezeChallenge\n".to_string(),
             ProofExtractionSteps::X3 => "  !x3 <- M.squeezeChallenge\n".to_string(),
             ProofExtractionSteps::X4 => "  !x4 <- M.squeezeChallenge\n".to_string(),
+            ProofExtractionSteps::Trash => "  !trash_challenge <- M.squeezeChallenge\n".to_string(),
             ProofExtractionSteps::FCommitment => "  !f_commitment <- M.readPoint\n".to_string(),
             ProofExtractionSteps::PI => "  !pi_term <- M.readPoint\n".to_string(),
             ProofExtractionSteps::QEvals => section

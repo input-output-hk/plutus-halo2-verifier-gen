@@ -181,6 +181,10 @@ where
 
     circuit_description
         .proof_extraction_steps
+        .push(ProofExtractionSteps::Trash);
+
+    circuit_description
+        .proof_extraction_steps
         .push(ProofExtractionSteps::VanishingRand);
 
     circuit_description

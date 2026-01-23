@@ -119,6 +119,7 @@ pub fn emit_verifier_code(
             ProofExtractionSteps::X2 => "    let (x2, transcript) = squeeze_challenge(transcript)\n".to_string(),
             ProofExtractionSteps::X3 => "    let (x3, transcript) = squeeze_challenge(transcript)\n".to_string(),
             ProofExtractionSteps::X4 => "    let (x4, transcript) = squeeze_challenge(transcript)\n".to_string(),
+            ProofExtractionSteps::Trash => "    let (trash_challenge, transcript) = squeeze_challenge(transcript)\n".to_string(),
             ProofExtractionSteps::FCommitment => "    let (f_commitment, transcript) =  read_point(transcript)\n".to_string(),
             ProofExtractionSteps::PI => "    let (pi_term, _) =  read_point(transcript)\n".to_string(),
             ProofExtractionSteps::QEvals => section
