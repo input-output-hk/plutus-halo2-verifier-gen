@@ -142,6 +142,9 @@ impl<PCS: ExtractPCS> CircuitRepresentation<PCS> {
             ProofExtractionSteps::Gamma => self
                 .proof_extraction_steps
                 .push(ProofExtractionSteps::Gamma),
+            ProofExtractionSteps::Trash => self
+                .proof_extraction_steps
+                .push(ProofExtractionSteps::Trash),
         }
     }
 }

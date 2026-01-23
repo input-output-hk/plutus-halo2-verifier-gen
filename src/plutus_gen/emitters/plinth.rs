@@ -99,6 +99,7 @@ where
                         + &format!("  !permuted_table_eval_{} <- M.readScalar\n", number + 1)
                 })
                 .join(""),
+            ProofExtractionSteps::Trash => "  !trash_challenge <- M.squeezeChallenge\n".to_string(),
         })
         .collect();
 

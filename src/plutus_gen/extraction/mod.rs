@@ -124,6 +124,7 @@ where
         vk.cs().lookups().iter().for_each(|argument| {
             let inputs = argument.input_expressions().to_vec();
             let tables = argument.table_expressions().to_vec();
+            println!("inputs: {:#?}", inputs);
             circuit_description.expressions.lookup(inputs, tables);
         });
 

@@ -68,6 +68,8 @@ pub(crate) fn extract_proof_steps<PCS>(
 
     (0..nb_lookups).for_each(|_| circuit_repr.extract_step(ProofExtractionSteps::LookupCommitment));
 
+    circuit_repr.extract_step(ProofExtractionSteps::Trash);
+
     circuit_repr.extract_step(ProofExtractionSteps::VanishingRand);
 
     circuit_repr.extract_step(ProofExtractionSteps::YCoordinate);

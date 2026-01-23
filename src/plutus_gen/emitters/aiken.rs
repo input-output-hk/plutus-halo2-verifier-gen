@@ -115,6 +115,7 @@ where
                         + &format!("    let (permuted_table_eval_{}, transcript) = read_scalar(transcript)\n", number + 1)
                 })
                 .join(""),
+            ProofExtractionSteps::Trash => "    let (trash_challenge, transcript) = squeeze_challenge(transcript)\n".to_string(),
         })
         .collect();
 
