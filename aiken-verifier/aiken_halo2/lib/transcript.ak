@@ -79,6 +79,10 @@ pub fn squeeze_challenge(transcript: Transcript) -> (State<Scalar>, Transcript) 
     bytearray.concat(transcript.accumulated_for_hash, prefix_challenge)
   let squeeze_hash = blake2b_256(data_for_squeeze)
 
+  // To ensure the challenge is uniformly distributed over the scalars,
+  // we generate two hash digests, map them with bias to the scalars,
+  // and add them together with the offset R = 2^256 % q where
+  // q is scalar field's prime.
   let squeeze_scalar =
     add(
       from_bytes_little_endian(squeeze_hash),
