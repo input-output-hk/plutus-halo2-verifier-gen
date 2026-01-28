@@ -16,10 +16,9 @@ use midnight_proofs::{
     transcript::{CircuitTranscript, Transcript},
 };
 
-use log::{debug, info};
-use plutus_halo2_verifier_gen::plutus_gen::generate_aiken_verifier;
-use plutus_halo2_verifier_gen::plutus_gen::proof_serialization::export_proof;
-use plutus_halo2_verifier_gen::{
+use cardhalo::plutus_gen::generate_aiken_verifier;
+use cardhalo::plutus_gen::proof_serialization::export_proof;
+use cardhalo::{
     circuits::simple_mul_circuit::SimpleMulCircuit,
     kzg_params::get_or_create_kzg_params,
     plutus_gen::{
@@ -27,6 +26,7 @@ use plutus_halo2_verifier_gen::{
         proof_serialization::export_public_inputs, proof_serialization::serialize_proof,
     },
 };
+use log::{debug, info};
 use rand::rngs::StdRng;
 use rand_core::SeedableRng;
 use std::fs::File;

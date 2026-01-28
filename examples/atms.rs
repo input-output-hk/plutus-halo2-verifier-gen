@@ -1,4 +1,15 @@
 use anyhow::{Context as _, Result, anyhow, bail};
+use cardhalo::kzg_params::get_or_create_kzg_params;
+use cardhalo::plutus_gen::extraction::ExtractKZG;
+use cardhalo::plutus_gen::generate_aiken_verifier;
+use cardhalo::plutus_gen::proof_serialization::export_proof;
+use cardhalo::{
+    circuits::atms_circuit::{AtmsSignatureCircuit, prepare_test_signatures},
+    plutus_gen::{
+        adjusted_types::CardanoFriendlyBlake2b, generate_plinth_verifier,
+        proof_serialization::export_public_inputs, proof_serialization::serialize_proof,
+    },
+};
 use log::info;
 use midnight_curves::{Base, Bls12, BlsScalar as Scalar, G1Projective};
 use midnight_proofs::{
@@ -10,17 +21,6 @@ use midnight_proofs::{
         kzg::params::ParamsKZG, kzg::params::ParamsVerifierKZG,
     },
     transcript::{CircuitTranscript, Transcript},
-};
-use plutus_halo2_verifier_gen::kzg_params::get_or_create_kzg_params;
-use plutus_halo2_verifier_gen::plutus_gen::extraction::ExtractKZG;
-use plutus_halo2_verifier_gen::plutus_gen::generate_aiken_verifier;
-use plutus_halo2_verifier_gen::plutus_gen::proof_serialization::export_proof;
-use plutus_halo2_verifier_gen::{
-    circuits::atms_circuit::{AtmsSignatureCircuit, prepare_test_signatures},
-    plutus_gen::{
-        adjusted_types::CardanoFriendlyBlake2b, generate_plinth_verifier,
-        proof_serialization::export_public_inputs, proof_serialization::serialize_proof,
-    },
 };
 use rand::prelude::StdRng;
 use rand_core::SeedableRng;

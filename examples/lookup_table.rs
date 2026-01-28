@@ -1,4 +1,14 @@
 use anyhow::{Context as _, Result, anyhow, bail};
+use cardhalo::plutus_gen::generate_aiken_verifier;
+use cardhalo::plutus_gen::proof_serialization::export_proof;
+use cardhalo::{
+    circuits::lookup_table_circuit::LookupTest,
+    kzg_params::get_or_create_kzg_params,
+    plutus_gen::{
+        adjusted_types::CardanoFriendlyBlake2b, extraction::ExtractKZG, generate_plinth_verifier,
+        proof_serialization::export_public_inputs, proof_serialization::serialize_proof,
+    },
+};
 use log::info;
 use midnight_curves::{Base, Bls12, Fq as Scalar, G1Projective};
 use midnight_proofs::{
@@ -10,16 +20,6 @@ use midnight_proofs::{
         kzg::params::ParamsKZG, kzg::params::ParamsVerifierKZG,
     },
     transcript::{CircuitTranscript, Transcript},
-};
-use plutus_halo2_verifier_gen::plutus_gen::generate_aiken_verifier;
-use plutus_halo2_verifier_gen::plutus_gen::proof_serialization::export_proof;
-use plutus_halo2_verifier_gen::{
-    circuits::lookup_table_circuit::LookupTest,
-    kzg_params::get_or_create_kzg_params,
-    plutus_gen::{
-        adjusted_types::CardanoFriendlyBlake2b, extraction::ExtractKZG, generate_plinth_verifier,
-        proof_serialization::export_public_inputs, proof_serialization::serialize_proof,
-    },
 };
 use rand::rngs::StdRng;
 use rand_core::SeedableRng;
