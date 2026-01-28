@@ -1,4 +1,4 @@
-use anyhow::{Context as _, Result, anyhow, bail};
+use anyhow::{Context as _, Result, anyhow};
 use cardhalo::kzg_params::get_or_create_kzg_params;
 use cardhalo::plutus_gen::extraction::ExtractKZG;
 use cardhalo::plutus_gen::generate_aiken_verifier;

@@ -13,7 +13,7 @@
 //! We can see that the number of rows affects the verifier negligibly.
 //! On the other hand, number of advice columns affects the verifier significantly.
 
-use anyhow::{Context as _, Result, anyhow, bail};
+use anyhow::{Context as _, Result, anyhow};
 use cardhalo::plutus_gen::generate_aiken_verifier;
 use cardhalo::plutus_gen::proof_serialization::export_proof;
 use cardhalo::{

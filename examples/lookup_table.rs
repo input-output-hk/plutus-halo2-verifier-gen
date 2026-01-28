@@ -1,4 +1,4 @@
-use anyhow::{Context as _, Result, anyhow, bail};
+use anyhow::{Context as _, Result, anyhow};
 use cardhalo::plutus_gen::generate_aiken_verifier;
 use cardhalo::plutus_gen::proof_serialization::export_proof;
 use cardhalo::{

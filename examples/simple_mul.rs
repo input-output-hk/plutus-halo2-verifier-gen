@@ -1,4 +1,4 @@
-use anyhow::{Context as _, Result, anyhow, bail};
+use anyhow::{Context as _, Result, anyhow};
 use ff::Field;
 use midnight_curves::{Base, Bls12, BlsScalar as Scalar, G1Projective};
 
