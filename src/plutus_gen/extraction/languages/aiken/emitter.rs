@@ -1,10 +1,11 @@
-use crate::plutus_gen::code_emitters_aiken::ScalarOperation::{Mul, Power};
-use crate::plutus_gen::decode_rotation;
+//! All functions related to writing Aiken code
+
+use super::{AikenExpression, combine_aiken_expressions};
 use crate::plutus_gen::extraction::data::{
     CommitmentData, Commitments, Evaluations, Query, RotationDescription,
 };
+use crate::plutus_gen::extraction::languages::*;
 use crate::plutus_gen::extraction::{
-    AikenExpression, combine_aiken_expressions,
     data::{CircuitRepresentation, ProofExtractionSteps},
     precompute_intermediate_sets,
 };
@@ -81,9 +82,9 @@ pub fn emit_verifier_code(
                 .enumerate()
                 .map(|(n, _)| {
                     format!(
-                        "    let (permutations_evaluated_{}_{}, transcript) = read_scalar(transcript)\n",
-                        letter,
-                        n + 1
+                        "    let ({}, transcript) = read_scalar(transcript)\n",
+                        perm_eval_str(&letter,
+                        n + 1)
                     )
                 })
                 .join(""),
@@ -221,12 +222,12 @@ pub fn emit_verifier_code(
             // !l5 = (permuted_input_eval_1 - permuted_table_eval_1)
             //     * &(permuted_input_eval_1 - permuted_input_inv_eval_1) * active_rows
 
-            let l1 = format!("mul(evaluation_at_0, sub(scalarOne, product_eval_{}))", id);
-            let l2 = format!("mul(last_evaluation, sub(mul(product_eval_{}, product_eval_{}), product_eval_{}))", id, id, id);
+            let l1 = format!("mul({}, sub({}, product_eval_{}))", EVAL_0_STR, ONE_STR, id);
+            let l2 = format!("mul({}, sub(mul(product_eval_{}, product_eval_{}), product_eval_{}))", EVAL_LAST_STR, id, id, id);
             let left = format!("mul(mul(product_next_eval_{}, add(permuted_input_eval_{}, beta)), add(permuted_table_eval_{}, gamma))", id, id, id);
             let right = format!("mul(mul(product_eval_{}, add(lookup_input_eq{}, beta)), add(lookup_table_eq{}, gamma))", id, id, id);
             let l3 = format!("mul(sub(lookup_left_{}, lookup_right_{}), active_rows)", id, id);
-            let l4 = format!("mul(evaluation_at_0, sub(permuted_input_eval_{}, permuted_table_eval_{}))", id, id);
+            let l4 = format!("mul({}, sub(permuted_input_eval_{}, permuted_table_eval_{}))", EVAL_0_STR, id, id);
             let l5 = format!("mul(mul(sub(permuted_input_eval_{}, permuted_table_eval_{}), sub(permuted_input_eval_{}, permuted_input_inv_eval_{})), active_rows)", id, id, id, id);
 
             format!("    let lookup_expression_1_{} = {}\n", id, l1) +
@@ -285,9 +286,9 @@ pub fn emit_verifier_code(
         .enumerate()
         .map(|(set_number, (set_id, terms))| {
             format!(
-                "    let left_set{:?} = mul(permutations_evaluated_{}_2, {}) \n",
+                "    let left_set{:?} = mul({}, {}) \n",
                 set_number + 1,
-                set_id,
+                perm_eval_str(set_id, 2),
                 terms
             )
         })
@@ -324,9 +325,9 @@ pub fn emit_verifier_code(
         .enumerate()
         .map(|(set_number, (set_id, terms))| {
             format!(
-                "    let right_set{:?} = mul(permutations_evaluated_{}_1, {}) \n",
+                "    let right_set{:?} = mul({}, {}) \n",
                 set_number + 1,
-                set_id,
+                perm_eval_str(set_id, 1),
                 terms
             )
         })
@@ -336,7 +337,7 @@ pub fn emit_verifier_code(
     let permutations_combined = if sets_lhs.len() == sets_rhs.len() {
         let sets_number = sets_lhs.len();
         (1..=sets_number).map(|n| {
-            format!("    let permutations{} = mul(sub(left_set{}, right_set{}), sub(scalarOne, add(last_evaluation, sum_of_evaluation_for_blinding_factors)))\n", n, n, n)
+            format!("    let permutations{} = mul(sub(left_set{}, right_set{}), sub({}, add({}, sum_of_evaluation_for_blinding_factors)))\n", n, n, n, ONE_STR, EVAL_LAST_STR)
         }).join("")
     } else {
         panic!("permutations sets have to be equal length")
@@ -409,7 +410,7 @@ pub fn emit_verifier_code(
         vanishing_expressions.join(""),
     );
 
-    let mut vanishing_evaluation = "add(mul(scalarZero, y), expression1)".to_string();
+    let mut vanishing_evaluation = format!("add(mul({}, y), expression1)", ZERO_STR);
     for n in 2..=(gates_count + permutations_eval_count + sets_count + lookups_count * 5) {
         vanishing_evaluation = format!("add(mul({}, y), expression{})", vanishing_evaluation, n)
     }
@@ -746,7 +747,7 @@ fn construct_intermediate_sets(queries: [Vec<Query>; 6]) -> Vec<(Vec<Query>, Rot
 // symbolic representation of powers of specific scalar
 #[allow(dead_code)]
 fn powers(name: char) -> impl Iterator<Item = ScalarOperation> {
-    (0..).map(move |idx| Power(name, idx))
+    (0..).map(move |idx| ScalarOperation::Power(name, idx))
 }
 
 //this is done in Plinth with template haskell since there is no macro language for aiken
@@ -1048,49 +1049,49 @@ impl AikenExpression for ScalarOperation {
     fn compile_expression(&self) -> String {
         match self {
             //if rules are for eliminating operations that outcome can be predicted
-            Mul(scalar, evaluation) if matches!(**scalar, Power(_, 0)) => {
+            Self::Mul(scalar, evaluation) if matches!(**scalar, Self::Power(_, 0)) => {
                 evaluation.compile_expression()
             }
-            ScalarOperation::MulS(scalar_a, scalar_b) if matches!(**scalar_a, Power(_, 0)) => {
+            Self::MulS(scalar_a, scalar_b) if matches!(**scalar_a, Self::Power(_, 0)) => {
                 scalar_b.compile_expression()
             }
-            ScalarOperation::MulS(scalar_a, scalar_b) if matches!(**scalar_b, Power(_, 0)) => {
+            Self::MulS(scalar_a, scalar_b) if matches!(**scalar_b, Self::Power(_, 0)) => {
                 scalar_a.compile_expression()
             }
-            Power(_name, exponent) if *exponent == 0 => "scalarOne".to_string(),
-            ScalarOperation::Add(scalar_a, scalar_b) if **scalar_a == ScalarOperation::Zero => {
+            Self::Power(_name, exponent) if *exponent == 0 => ONE_STR.to_string(),
+            Self::Add(scalar_a, scalar_b) if **scalar_a == Self::Zero => {
                 scalar_b.compile_expression()
             }
 
-            ScalarOperation::Zero => "scalarZero".to_string(),
-            Mul(scalar, evaluation) => {
+            Self::Zero => ZERO_STR.to_string(),
+            Self::Mul(scalar, evaluation) => {
                 format!(
                     "mul({}, {})",
                     scalar.compile_expression(),
                     evaluation.compile_expression()
                 )
             }
-            ScalarOperation::MulS(scalar_a, scalar_b) => {
+            Self::MulS(scalar_a, scalar_b) => {
                 format!(
                     "mul({}, {})",
                     scalar_a.compile_expression(),
                     scalar_b.compile_expression()
                 )
             }
-            Power(name, exponent) => {
+            Self::Power(name, exponent) => {
                 // All powers of `v` and `u` are pre-computed to avoid duplication
                 // so here instead of calling `scale(v, X)` we just refer to `vX` variable
                 // format!("scale({}, {})", name, exponent)
                 format!("{}{}", name, exponent)
             }
-            ScalarOperation::Add(scalar_a, scalar_b) => {
+            Self::Add(scalar_a, scalar_b) => {
                 format!(
                     "add({}, {})",
                     scalar_a.compile_expression(),
                     scalar_b.compile_expression()
                 )
             }
-            ScalarOperation::Rotation(x) => decode_rotation(x),
+            Self::Rotation(x) => decode_rotation(x),
         }
     }
 }

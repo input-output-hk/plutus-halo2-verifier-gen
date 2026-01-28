@@ -1,8 +1,9 @@
-use crate::plutus_gen::decode_rotation;
+//! All functions related to writing Plinth code
+
+use super::{PlinthExpression, combine_plinth_expressions};
 use crate::plutus_gen::extraction::data::{CircuitRepresentation, ProofExtractionSteps};
-use crate::plutus_gen::extraction::{
-    PlinthExpression, combine_plinth_expressions, precompute_intermediate_sets,
-};
+use crate::plutus_gen::extraction::languages::*;
+use crate::plutus_gen::extraction::precompute_intermediate_sets;
 use group::{GroupEncoding, prime::PrimeCurveAffine};
 use handlebars::{Handlebars, RenderError};
 use itertools::Itertools;
@@ -64,13 +65,7 @@ pub fn emit_verifier_code(
                 .join(""),
             ProofExtractionSteps::PermutationEval(letter) => section
                 .enumerate()
-                .map(|(n, _)| {
-                    format!(
-                        "  !permutations_evaluated_{}_{} <- M.readScalar\n",
-                        letter,
-                        n + 1
-                    )
-                })
+                .map(|(n, _)| format!("  !{} <- M.readScalar\n", perm_eval_str(&letter, n + 1)))
                 .join(""),
             ProofExtractionSteps::SqueezeChallenge => panic!("not squeezeChallenge supported"),
             ProofExtractionSteps::LookupPermuted => section
@@ -189,12 +184,12 @@ pub fn emit_verifier_code(
             // !l5 = (permuted_input_eval_1 - permuted_table_eval_1)
             //     * &(permuted_input_eval_1 - permuted_input_inv_eval_1) * active_rows
 
-            let l1 = format!("evaluation_at_0 * (scalarOne - product_eval_{})", id);
-            let l2 = format!("last_evaluation * (product_eval_{} * product_eval_{} - product_eval_{})", id, id, id);
+            let l1 = format!("{} * ({} - product_eval_{})", EVAL_0_STR, ONE_STR, id);
+            let l2 = format!("{} * (product_eval_{} * product_eval_{} - product_eval_{})", EVAL_LAST_STR, id, id, id);
             let left = format!("product_next_eval_{} * (permuted_input_eval_{} + beta) * (permuted_table_eval_{} + gamma)", id, id, id);
             let right = format!("product_eval_{} * (lookup_input_eq{} + beta) * (lookup_table_eq{} + gamma)", id, id, id);
             let l3 = format!("(lookup_left_{} - lookup_right_{}) * active_rows", id, id);
-            let l4 = format!("evaluation_at_0 * (permuted_input_eval_{} - permuted_table_eval_{})", id, id);
+            let l4 = format!("{} * (permuted_input_eval_{} - permuted_table_eval_{})", EVAL_0_STR, id, id);
             let l5 = format!("(permuted_input_eval_{} - permuted_table_eval_{}) * (permuted_input_eval_{} - permuted_input_inv_eval_{}) * active_rows", id, id, id, id);
 
             format!("      !lookup_expression_1_{} = {}\n", id, l1) +
@@ -248,9 +243,9 @@ pub fn emit_verifier_code(
         .enumerate()
         .map(|(set_number, (set_id, terms))| {
             format!(
-                "      !left_set{:?} = permutations_evaluated_{}_2 * {} \n",
+                "      !left_set{:?} = {} * {} \n",
                 set_number + 1,
-                set_id,
+                perm_eval_str(set_id, 2),
                 terms
             )
         })
@@ -287,9 +282,9 @@ pub fn emit_verifier_code(
         .enumerate()
         .map(|(set_number, (set_id, terms))| {
             format!(
-                "      !right_set{:?} = permutations_evaluated_{}_1 * {} \n",
+                "      !right_set{:?} = {} * {} \n",
                 set_number + 1,
-                set_id,
+                perm_eval_str(set_id, 1),
                 terms
             )
         })
@@ -299,7 +294,7 @@ pub fn emit_verifier_code(
     let permutations_combined = if sets_lhs.len() == sets_rhs.len() {
         let sets_number = sets_lhs.len();
         (1..=sets_number).map(|n| {
-            format!("      !permutations{} = (left_set{} - right_set{}) * (scalarOne - (last_evaluation + sum_of_evaluation_for_blinding_factors))\n", n, n, n)
+            format!("      !permutations{} = (left_set{} - right_set{}) * ({} - ({} + sum_of_evaluation_for_blinding_factors))\n", n, n, n, ONE_STR, EVAL_LAST_STR)
         }).join("")
     } else {
         panic!("permutations sets have to be equal length")
@@ -372,7 +367,7 @@ pub fn emit_verifier_code(
         vanishing_expressions.join(""),
     );
 
-    let mut vanishing_evaluation = "(scalarZero * y + expression1)".to_string();
+    let mut vanishing_evaluation = format!("({} * y + expression1)", ZERO_STR);
     for n in 2..=(gates_count + permutations_eval_count + sets_count + lookups_count * 5) {
         vanishing_evaluation = format!("({} * y + expression{})", vanishing_evaluation, n)
     }

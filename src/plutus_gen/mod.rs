@@ -1,10 +1,8 @@
-pub use crate::plutus_gen::code_emitters_aiken::{
-    emit_verifier_code as emit_verifier_code_aiken, emit_vk_code as emit_vk_code_aiken,
+use crate::plutus_gen::extraction::languages::{
+    aiken::{emit_verifier_code as emit_verifier_aiken, emit_vk_code as emit_vk_aiken},
+    plinth::{emit_verifier_code as emit_verifier_plinth, emit_vk_code as emit_vk_plinth},
 };
-use crate::plutus_gen::code_emitters_plinth::{
-    emit_verifier_code as emit_verifier_code_plinth, emit_vk_code,
-};
-use crate::plutus_gen::extraction::data::RotationDescription;
+
 use crate::plutus_gen::extraction::{ExtractKZG, extract_circuit};
 use anyhow::{Context as _, Result};
 use midnight_curves::{Bls12, BlsScalar as Scalar, G1Projective};
@@ -16,8 +14,6 @@ use midnight_proofs::poly::kzg::params::ParamsKZG;
 use std::path::Path;
 
 pub mod adjusted_types;
-mod code_emitters_aiken;
-mod code_emitters_plinth;
 pub mod extraction;
 pub mod proof_serialization;
 
@@ -58,14 +54,14 @@ where
 
     // Step 3: Based on the circuit repr generate Plinth verifier and verification key constants
     // using Handlebars templates
-    emit_verifier_code_plinth(
+    emit_verifier_plinth(
         verifier_template_file,
         verifier_generated_file,
         &circuit_representation,
     )
-    .context("Failed to emit the verifier code for plutus")?;
-    emit_vk_code(vk_template_file, vk_generated_file, &circuit_representation)
-        .context("Failed to emit the verifier key constants")?;
+    .context("Failed to emit the verifier code for plinth")?;
+    emit_vk_plinth(vk_template_file, vk_generated_file, &circuit_representation)
+        .context("Failed to emit the verifier key constants for plinth")?;
 
     Ok(())
 }
@@ -86,7 +82,7 @@ where
     // static locations of files in aiken directory
     let verifier_template_file = Path::new("aiken-verifier/templates/verification_h2.hbs");
 
-    emit_verifier_code_aiken(
+    emit_verifier_aiken(
         verifier_template_file,
         Path::new("aiken-verifier/aiken_halo2/lib/proof_verifier.ak"),
         Some(Path::new("aiken-verifier/templates/profiler.hbs")),
@@ -94,7 +90,7 @@ where
         test_proofs.map(|(p, invalid_p)| (p, invalid_p, instances[0][0].to_vec())),
     )
     .context("Failed to emit the verifier code for aiken")?;
-    emit_vk_code_aiken(
+    emit_vk_aiken(
         Path::new("aiken-verifier/templates/vk_constants.hbs"),
         Path::new("aiken-verifier/aiken_halo2/lib/verifier_key.ak"),
         &circuit_representation,
@@ -102,13 +98,4 @@ where
     .context("Failed to emit the verifier key constants for aiken")?;
 
     Ok(())
-}
-
-fn decode_rotation(rotation: &RotationDescription) -> String {
-    match rotation {
-        RotationDescription::Last => "x_last".to_string(),
-        RotationDescription::Previous => "x_prev".to_string(),
-        RotationDescription::Current => "x_current".to_string(),
-        RotationDescription::Next => "x_next".to_string(),
-    }
 }
