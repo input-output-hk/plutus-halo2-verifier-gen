@@ -1,4 +1,4 @@
-use crate::plutus_gen::extraction::languages::{
+pub use crate::plutus_gen::extraction::languages::{
     aiken::{emit_verifier_code as emit_verifier_aiken, emit_vk_code as emit_vk_aiken},
     plinth::{emit_verifier_code as emit_verifier_plinth, emit_vk_code as emit_vk_plinth},
 };

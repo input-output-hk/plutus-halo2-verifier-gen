@@ -2,7 +2,7 @@ use anyhow::{Context as _, Result, anyhow};
 use cardhalo::circuits::atms_circuit::prepare_test_signatures;
 use cardhalo::circuits::atms_with_lookups_circuit::AtmsLookupCircuit;
 use cardhalo::kzg_params::get_or_create_kzg_params;
-use cardhalo::plutus_gen::emit_verifier_code_aiken;
+use cardhalo::plutus_gen::emit_verifier_aiken;
 use cardhalo::plutus_gen::extraction::{ExtractKZG, extract_circuit};
 use midnight_curves::{Base, Bls12, BlsScalar as Scalar};
 use midnight_proofs::plonk::{VerifyingKey, k_from_circuit, keygen_vk};
