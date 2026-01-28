@@ -722,6 +722,7 @@ pub fn emit_vk_code(
     handlebars.render("aiken_template", &data)
 }
 
+#[allow(dead_code)]
 fn construct_intermediate_sets(queries: [Vec<Query>; 6]) -> Vec<(Vec<Query>, RotationDescription)> {
     let mut point_query_map: Vec<(RotationDescription, Vec<Query>)> = Vec::new();
     for query in queries.iter().flatten() {
@@ -743,6 +744,7 @@ fn construct_intermediate_sets(queries: [Vec<Query>; 6]) -> Vec<(Vec<Query>, Rot
 }
 
 // symbolic representation of powers of specific scalar
+#[allow(dead_code)]
 fn powers(name: char) -> impl Iterator<Item = ScalarOperation> {
     (0..).map(move |idx| Power(name, idx))
 }
@@ -753,6 +755,7 @@ fn powers(name: char) -> impl Iterator<Item = ScalarOperation> {
 // in src/poly/gwc_kzg/mod.rs
 // in https://github.com/input-output-hk/halo2/blob/gwc19_kzg/src/poly/gwc_kzg/mod.rs#L142-L212
 // but was translated to build MSM description instead of calculating one
+#[allow(dead_code)]
 fn construct_msm(
     commitment_data: Vec<(Vec<Query>, RotationDescription)>,
 ) -> (MsmOperations, MsmOperations) {
@@ -848,11 +851,13 @@ enum MsmOperations {
 }
 
 #[derive(Debug)]
+#[allow(dead_code)]
 struct OptimizedMSM {
     elements: Vec<ElementMSM>,
 }
 
 #[derive(Debug)]
+#[allow(dead_code)]
 enum ElementMSM {
     Element(ScalarOperation, Commitments),
     ElementW(ScalarOperation, usize),
@@ -860,6 +865,7 @@ enum ElementMSM {
 }
 
 impl ElementMSM {
+    #[allow(dead_code)]
     fn get_scalar(&mut self) -> &mut ScalarOperation {
         match self {
             ElementMSM::Element(scalar, _) => scalar,
@@ -871,6 +877,7 @@ impl ElementMSM {
 
 /// Flattens the recursive MSM operations tree into a linear list of elements,
 /// producing an optimized flat structure ready for Aiken code generation.
+#[allow(dead_code)]
 fn flatten_msm(msm: &MsmOperations) -> OptimizedMSM {
     match msm {
         MsmOperations::Empty => OptimizedMSM { elements: vec![] },
@@ -916,6 +923,7 @@ impl OptimizedMSM {
     /// Optimizes MSM by combining elements with the same G1 point.
     /// Elements sharing the same point have their scalars added together,
     /// reducing the number of point operations.
+    #[allow(dead_code)]
     fn optimize_msm(self) -> OptimizedMSM {
         // Key to identify unique G1 points
         #[derive(Clone, Eq, PartialEq, Hash)]
@@ -976,6 +984,7 @@ impl OptimizedMSM {
 
     /// Finds the maximum power exponent for a given variable in an MSM.
     /// Recursively traverses all scalar operations to find Power(var_name, exponent).
+    #[allow(dead_code)]
     fn find_max_power(&self, var_name: char) -> i32 {
         (*self)
             .elements
@@ -993,6 +1002,7 @@ impl OptimizedMSM {
     }
 
     /// Recursively finds max power exponent in a scalar operation tree
+    #[allow(dead_code)]
     fn find_max_power_in_scalar(scalar: &ScalarOperation, var_name: char) -> i32 {
         match scalar {
             ScalarOperation::Power(name, exponent) if *name == var_name => *exponent,
