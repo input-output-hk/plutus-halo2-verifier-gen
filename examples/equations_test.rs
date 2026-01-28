@@ -13,8 +13,6 @@ use rand_core::SeedableRng;
 use std::path::Path;
 
 fn main() -> Result<()> {
-    type KZG = KZGCommitmentScheme<Bls12>;
-
     let seed = [0u8; 32];
     let rng: StdRng = SeedableRng::from_seed(seed);
     const NUM_PARTIES: usize = 6;
@@ -36,7 +34,7 @@ fn main() -> Result<()> {
 
     let k: u32 = k_from_circuit(&circuit);
     let kzg_params: ParamsKZG<Bls12> = get_or_create_kzg_params(k, rng.clone())?;
-    let vk: VerifyingKey<Scalar, KZG> = keygen_vk(&kzg_params, &circuit)?;
+    let vk: VerifyingKey<Scalar, KZGCommitmentScheme<Bls12>> = keygen_vk(&kzg_params, &circuit)?;
 
     let instances: &[&[&[Scalar]]] = &[&[&[pks_comm, msg, Base::from(THRESHOLD as u64)]]];
 
