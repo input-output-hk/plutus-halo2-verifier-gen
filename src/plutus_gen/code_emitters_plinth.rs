@@ -28,7 +28,7 @@ pub fn emit_verifier_code(
             ProofExtractionSteps::Theta => "  !theta <- M.squeezeChallenge\n".to_string(),
             ProofExtractionSteps::Beta => "  !beta <- M.squeezeChallenge\n".to_string(),
             ProofExtractionSteps::Gamma => "  !gamma <- M.squeezeChallenge\n".to_string(),
-            ProofExtractionSteps::PermutationsCommited => section
+            ProofExtractionSteps::PermutationsCommitted => section
                 .zip(letters.clone())
                 .map(|(_permutation, letter)| {
                     format!("  !permutations_committed_{} <- M.readPoint\n", letter)

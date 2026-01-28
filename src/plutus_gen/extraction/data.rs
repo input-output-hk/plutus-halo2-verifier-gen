@@ -10,7 +10,7 @@ pub enum ProofExtractionSteps {
     SqueezeChallenge,
     AdviceEval,
     FixedEval,
-    PermutationsCommited,
+    PermutationsCommitted,
     PermutationEval(char),
     PermutationCommon,
 

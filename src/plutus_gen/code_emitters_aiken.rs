@@ -40,7 +40,7 @@ pub fn emit_verifier_code(
             ProofExtractionSteps::Theta => "    let (theta, transcript) = squeeze_challenge(transcript)\n".to_string(),
             ProofExtractionSteps::Beta => "    let (beta, transcript) = squeeze_challenge(transcript)\n".to_string(),
             ProofExtractionSteps::Gamma => "    let (gamma, transcript) = squeeze_challenge(transcript)\n".to_string(),
-            ProofExtractionSteps::PermutationsCommited => section
+            ProofExtractionSteps::PermutationsCommitted => section
                 .zip(letters.clone())
                 .map(|(_permutation, letter)| {
                     format!("    let (permutations_committed_{}, transcript) = read_point(transcript)\n", letter)

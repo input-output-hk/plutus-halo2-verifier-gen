@@ -170,7 +170,7 @@ where
     (0..num_permutation_commitments).for_each(|_| {
         circuit_description
             .proof_extraction_steps
-            .push(ProofExtractionSteps::PermutationsCommited);
+            .push(ProofExtractionSteps::PermutationsCommitted);
     });
 
     (0..num_lookups_permuted).for_each(|_| {
