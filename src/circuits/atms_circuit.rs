@@ -33,6 +33,7 @@ pub struct AtmsSignatureCircuit {
 impl Circuit<Base> for AtmsSignatureCircuit {
     type Config = AtmsConfig;
     type FloorPlanner = SimpleFloorPlanner;
+    type Params = ();
 
     fn without_witnesses(&self) -> Self {
         Self::default()
