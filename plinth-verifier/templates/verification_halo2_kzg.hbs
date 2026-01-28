@@ -120,7 +120,8 @@ verify proof {{{PUBLIC_INPUTS_NAMES}}} = fst $ flip (M.run VKConstants.transcrip
 
   let !rotateOmega = BlsUtils.rotateOmega omega omegaInv
       !n = {{X_EXPONENT}}
-      !xn = powMod x n
+      !xn_minus_one = powMod x (n-1)
+      !xn = xn_minus_one * x
 
 -- todo check if there are case where more X rotations are needed
       !x_prev = rotateOmega x (-1)

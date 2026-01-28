@@ -7,12 +7,14 @@ use atms_halo2::{
     signatures::schnorr::SchnorrSig,
     util::RegionCtx,
 };
-use blstrs::{Base, JubjubAffine};
-use halo2_proofs::{
+use midnight_curves::{Base, JubjubAffine};
+
+use rand::prelude::{IteratorRandom, StdRng};
+
+use midnight_proofs::{
     circuit::{Layouter, SimpleFloorPlanner, Value},
     plonk::{Circuit, ConstraintSystem, Error},
 };
-use rand::prelude::{IteratorRandom, StdRng};
 
 #[derive(Clone)]
 pub struct AtmsConfig {
@@ -162,17 +164,18 @@ pub fn prepare_test_signatures(
 mod tests {
     use super::*;
     use crate::plutus_gen::adjusted_types::CardanoFriendlyBlake2b;
-    use blstrs::{Base, Bls12, Scalar};
+    use midnight_curves::{Base, Bls12, BlsScalar as Scalar};
+
     use ff::Field;
-    use halo2_proofs::dev::MockProver;
-    use halo2_proofs::plonk::{
+    use log::info;
+    use midnight_proofs::dev::MockProver;
+    use midnight_proofs::plonk::{
         ProvingKey, VerifyingKey, create_proof, k_from_circuit, keygen_pk, keygen_vk, prepare,
     };
-    use halo2_proofs::poly::commitment::Guard;
-    use halo2_proofs::poly::gwc_kzg::GwcKZGCommitmentScheme;
-    use halo2_proofs::poly::kzg::params::ParamsKZG;
-    use halo2_proofs::transcript::{CircuitTranscript, Transcript};
-    use log::info;
+    use midnight_proofs::poly::commitment::Guard;
+    use midnight_proofs::poly::kzg::KZGCommitmentScheme;
+    use midnight_proofs::poly::kzg::params::ParamsKZG;
+    use midnight_proofs::transcript::{CircuitTranscript, Transcript};
     use rand::SeedableRng;
 
     #[test]
@@ -207,7 +210,7 @@ mod tests {
 
     #[test]
     fn test_atms_circuit_for_different_proofs() {
-        type PCS = GwcKZGCommitmentScheme<Bls12>;
+        type PCS = KZGCommitmentScheme<Bls12>;
 
         let seed = [0u8; 32];
         let mut rng: StdRng = SeedableRng::from_seed(seed);
@@ -238,10 +241,12 @@ mod tests {
         let mut transcript: CircuitTranscript<CardanoFriendlyBlake2b> =
             CircuitTranscript::<CardanoFriendlyBlake2b>::init();
 
+        let nb_committed_instances = 0;
         create_proof(
             &kzg_params,
             &pk,
             &[circuit],
+            nb_committed_instances,
             instances,
             &mut rng,
             &mut transcript,
@@ -256,6 +261,7 @@ mod tests {
 
         let verifier = prepare::<_, PCS, CircuitTranscript<CardanoFriendlyBlake2b>>(
             &vk,
+            &[&[]],
             instances,
             &mut transcript_verifier,
         )
@@ -289,6 +295,7 @@ mod tests {
             &kzg_params,
             &pk,
             &[circuit],
+            nb_committed_instances,
             instances,
             &mut rng,
             &mut transcript,
@@ -303,6 +310,7 @@ mod tests {
 
         let verifier = prepare::<_, PCS, CircuitTranscript<CardanoFriendlyBlake2b>>(
             &vk,
+            &[&[]],
             instances,
             &mut transcript_verifier,
         )

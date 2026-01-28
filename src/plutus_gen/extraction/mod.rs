@@ -3,129 +3,77 @@ use crate::plutus_gen::extraction::data::{
     ProofExtractionSteps, Query, RotationDescription, ScalarExpression,
 };
 use crate::plutus_gen::extraction::utils::get_any_query_index;
-use blstrs::{Bls12, G1Affine, G1Projective, Scalar};
+
+use crate::plutus_gen::extraction::languages::*;
+
 use ff::Field;
-use halo2_proofs::halo2curves::group::Curve;
-use halo2_proofs::halo2curves::group::prime::PrimeCurveAffine;
-use halo2_proofs::plonk::{Any, Error, Expression, VerifyingKey};
-use halo2_proofs::poly::commitment::PolynomialCommitmentScheme;
-use halo2_proofs::poly::{
-    Rotation, gwc_kzg::GwcKZGCommitmentScheme, kzg::KZGCommitmentScheme, kzg::params::ParamsKZG,
-};
+use group::Curve;
+use group::prime::PrimeCurveAffine;
 use itertools::Itertools;
-use log::debug;
-use std::collections::HashMap;
-pub use utils::{
-    AikenExpression, PlinthExpression, combine_aiken_expressions, combine_plinth_expressions,
+pub use languages::{
+    aiken::{AikenExpression, combine_aiken_expressions},
+    plinth::{PlinthExpression, combine_plinth_expressions},
 };
+use log::debug;
+use midnight_curves::{Bls12, BlsScalar as Scalar, G1Affine, G1Projective};
+use midnight_proofs::plonk::{Any, Error, Expression, VerifyingKey};
+use midnight_proofs::poly::commitment::PolynomialCommitmentScheme;
+use midnight_proofs::poly::{Rotation, kzg::params::ParamsKZG};
+use std::collections::HashMap;
 
 pub mod data;
+pub mod languages;
 mod utils;
 
-type GWC19Scheme = GwcKZGCommitmentScheme<Bls12>;
-type Halo2MultiOpenScheme = KZGCommitmentScheme<Bls12>;
+pub fn extract_kzg_steps(
+    mut circuit_representation: CircuitRepresentation,
+) -> CircuitRepresentation {
+    // sample 2 squeeze challenges x1 x2
+    // read f commitment to transcript
+    // sample 1 squeeze challenges x3
+    // read all q polly evaluations - this is length of point sets list
+    // sample 1 squeeze challenges x4
+    // read pi g1 element
 
-pub enum KzgType {
-    GWC19,
-    Halo2MultiOpen,
-}
+    circuit_representation
+        .proof_extraction_steps
+        .push(ProofExtractionSteps::X1);
 
-pub trait ExtractKZG {
-    fn extract_kzg_steps(circuit_representation: CircuitRepresentation) -> CircuitRepresentation;
-    fn kzg_type() -> KzgType;
-}
+    circuit_representation
+        .proof_extraction_steps
+        .push(ProofExtractionSteps::X2);
 
-impl ExtractKZG for GWC19Scheme {
-    fn extract_kzg_steps(
-        mut circuit_representation: CircuitRepresentation,
-    ) -> CircuitRepresentation {
+    circuit_representation
+        .proof_extraction_steps
+        .push(ProofExtractionSteps::FCommitment);
+
+    circuit_representation
+        .proof_extraction_steps
+        .push(ProofExtractionSteps::X3);
+
+    // number of final witnesses is equal to number of different point sets
+    let (sets, _) = precompute_intermediate_sets(&circuit_representation);
+    let number_of_witnesses = sets.len();
+
+    circuit_representation
+        .instantiation_data
+        .q_evaluations_count = number_of_witnesses;
+    // witnesses
+    for _ in 0..number_of_witnesses {
         circuit_representation
             .proof_extraction_steps
-            .push(ProofExtractionSteps::V);
-
-        // todo double check if number of final witnesses is equal to number of different X rotations
-        let number_of_witnesses = circuit_representation
-            .all_queries_ordered()
-            .iter()
-            .flatten()
-            .map(|q| q.point.clone())
-            .unique()
-            .count();
-
-        circuit_representation.instantiation_data.w_values_count = number_of_witnesses;
-        // witnesses
-        for _ in 0..number_of_witnesses {
-            circuit_representation
-                .proof_extraction_steps
-                .push(ProofExtractionSteps::Witnesses);
-        }
-
-        circuit_representation
-            .proof_extraction_steps
-            .push(ProofExtractionSteps::U);
-        circuit_representation
+            .push(ProofExtractionSteps::QEvals);
     }
 
-    fn kzg_type() -> KzgType {
-        KzgType::GWC19
-    }
-}
+    circuit_representation
+        .proof_extraction_steps
+        .push(ProofExtractionSteps::X4);
 
-impl ExtractKZG for Halo2MultiOpenScheme {
-    fn extract_kzg_steps(
-        mut circuit_representation: CircuitRepresentation,
-    ) -> CircuitRepresentation {
-        // sample 2 squeeze challenges x1 x2
-        // read f commitment to transcript
-        // sample 1 squeeze challenges x3
-        // read all q polly evaluations - this is length of point sets list
-        // sample 1 squeeze challenges x4
-        // read pi g1 element
+    circuit_representation
+        .proof_extraction_steps
+        .push(ProofExtractionSteps::PI);
 
-        circuit_representation
-            .proof_extraction_steps
-            .push(ProofExtractionSteps::X1);
-
-        circuit_representation
-            .proof_extraction_steps
-            .push(ProofExtractionSteps::X2);
-
-        circuit_representation
-            .proof_extraction_steps
-            .push(ProofExtractionSteps::FCommitment);
-
-        circuit_representation
-            .proof_extraction_steps
-            .push(ProofExtractionSteps::X3);
-
-        // number of final witnesses is equal to number of different point sets
-        let (sets, _) = precompute_intermediate_sets(&circuit_representation);
-        let number_of_witnesses = sets.len();
-
-        circuit_representation
-            .instantiation_data
-            .q_evaluations_count = number_of_witnesses;
-        // witnesses
-        for _ in 0..number_of_witnesses {
-            circuit_representation
-                .proof_extraction_steps
-                .push(ProofExtractionSteps::QEvals);
-        }
-
-        circuit_representation
-            .proof_extraction_steps
-            .push(ProofExtractionSteps::X4);
-
-        circuit_representation
-            .proof_extraction_steps
-            .push(ProofExtractionSteps::PI);
-
-        circuit_representation
-    }
-
-    fn kzg_type() -> KzgType {
-        KzgType::Halo2MultiOpen
-    }
+    circuit_representation
 }
 
 pub fn extract_circuit<S>(
@@ -162,6 +110,7 @@ where
         }
     }
 
+    // Variables used in common in Plinth & Aiken
     let mut advice_commitments = vec![G1Affine::generator(); vk.cs().num_advice_columns()];
     let mut challenges = vec![Scalar::ZERO; vk.cs().num_challenges()];
 
@@ -218,7 +167,7 @@ where
     (0..num_permutation_commitments).for_each(|_| {
         circuit_description
             .proof_extraction_steps
-            .push(ProofExtractionSteps::PermutationsCommited);
+            .push(ProofExtractionSteps::PermutationsCommitted);
     });
 
     (0..num_lookups_permuted).for_each(|_| {
@@ -226,6 +175,10 @@ where
             .proof_extraction_steps
             .push(ProofExtractionSteps::LookupCommitment)
     });
+
+    circuit_description
+        .proof_extraction_steps
+        .push(ProofExtractionSteps::Trash);
 
     circuit_description
         .proof_extraction_steps
@@ -400,19 +353,19 @@ where
     let first_set = sets
         .first()
         .ok_or("unable to get first element of the set")
-        .map_err(|_e| Error::Synthesis)?;
+        .map_err(|e| Error::Synthesis(e.to_string()))?;
     let last_set = sets
         .last()
         .ok_or("unable to get last element of the set")
-        .map_err(|_e| Error::Synthesis)?;
+        .map_err(|e| Error::Synthesis(e.to_string()))?;
     let shifted_sets: Vec<_> = sets.iter().skip(1).zip(sets.iter()).collect();
 
     let mut terms: Vec<ScalarExpression<Scalar>> = Vec::new();
     //evaluation_at_0 * (scalarOne - permutations_evaluated_{}_1)
     //a * (b - c)
-    let a = ScalarExpression::Variable("evaluation_at_0".to_string());
-    let b = ScalarExpression::Variable("scalarOne".to_string());
-    let c = ScalarExpression::Variable(format!("permutations_evaluated_{}_1", first_set));
+    let a = ScalarExpression::Variable(EVAL_0_STR.to_string());
+    let b = ScalarExpression::Variable(ONE_STR.to_string());
+    let c = ScalarExpression::Variable(perm_eval_str(first_set, 1));
 
     let term = ScalarExpression::Product(
         Box::new(a),
@@ -426,8 +379,8 @@ where
 
     //last_evaluation * (permutations_evaluated_{}_1 * permutations_evaluated_{}_1 - permutations_evaluated_{}_1)
     //a * (b * b - b)
-    let a = ScalarExpression::Variable("last_evaluation".to_string());
-    let b = ScalarExpression::Variable(format!("permutations_evaluated_{}_1", last_set));
+    let a = ScalarExpression::Variable(EVAL_LAST_STR.to_string());
+    let b = ScalarExpression::Variable(perm_eval_str(last_set, 1));
 
     let term = ScalarExpression::Product(
         Box::new(a),
@@ -446,12 +399,11 @@ where
         // (permutations_evaluated_{}_1 - permutations_evaluated_{}_3) * evaluation_at_0
         // (a - b) * c
 
-        let a = ScalarExpression::Variable(format!("permutations_evaluated_{}_1", next));
-        let neg_b = ScalarExpression::Negated(Box::new(ScalarExpression::Variable(format!(
-            "permutations_evaluated_{}_3",
-            current
+        let a = ScalarExpression::Variable(perm_eval_str(next, 1));
+        let neg_b = ScalarExpression::Negated(Box::new(ScalarExpression::Variable(perm_eval_str(
+            current, 3,
         ))));
-        let c = ScalarExpression::Variable("evaluation_at_0".to_string());
+        let c = ScalarExpression::Variable(EVAL_0_STR.to_string());
 
         let term = ScalarExpression::Product(
             Box::new(ScalarExpression::Sum(Box::new(a), Box::new(neg_b))),
@@ -483,9 +435,9 @@ where
                         // (adviceEval{:?} + (beta * permutationCommon{:?}) + gamma)
                         // a + (b * c) + d
                         let a = ScalarExpression::Advice(eval_index);
-                        let b = ScalarExpression::Variable("beta".to_string());
+                        let b = ScalarExpression::Variable(BETA_STR.to_string());
                         let c = ScalarExpression::PermutationCommon(permutation_index);
-                        let d = ScalarExpression::Variable("gamma".to_string());
+                        let d = ScalarExpression::Variable(GAMMA_STR.to_string());
 
                         let term = ScalarExpression::Sum(
                             Box::new(ScalarExpression::Sum(
@@ -503,9 +455,9 @@ where
                         // (fixedEval{:?} + (beta * permutationCommon{:?}) + gamma)
                         // a + (b * c) + d
                         let a = ScalarExpression::Fixed(eval_index);
-                        let b = ScalarExpression::Variable("beta".to_string());
+                        let b = ScalarExpression::Variable(BETA_STR.to_string());
                         let c = ScalarExpression::PermutationCommon(permutation_index);
-                        let d = ScalarExpression::Variable("gamma".to_string());
+                        let d = ScalarExpression::Variable(GAMMA_STR.to_string());
 
                         let term = ScalarExpression::Sum(
                             Box::new(ScalarExpression::Sum(
@@ -523,9 +475,9 @@ where
                         // (instanceEval{:?} + (beta * permutationCommon{:?}) + gamma)
                         // a + (b * c) + d
                         let a = ScalarExpression::Instance(eval_index);
-                        let b = ScalarExpression::Variable("beta".to_string());
+                        let b = ScalarExpression::Variable(BETA_STR.to_string());
                         let c = ScalarExpression::PermutationCommon(permutation_index);
-                        let d = ScalarExpression::Variable("gamma".to_string());
+                        let d = ScalarExpression::Variable(GAMMA_STR.to_string());
 
                         let term = ScalarExpression::Sum(
                             Box::new(ScalarExpression::Sum(
@@ -551,13 +503,13 @@ where
                         // a + (b * c) * d + e
 
                         let a = ScalarExpression::Advice(eval_index);
-                        let b = ScalarExpression::Variable("beta".to_string());
-                        let c = ScalarExpression::Variable("x".to_string());
+                        let b = ScalarExpression::Variable(BETA_STR.to_string());
+                        let c = ScalarExpression::Variable(X_STR.to_string());
                         let d = ScalarExpression::PowMod(
-                            Box::new(ScalarExpression::Variable("scalarDelta".to_string())),
+                            Box::new(ScalarExpression::Variable(SCALAR_DELTA_STR.to_string())),
                             power,
                         );
-                        let e = ScalarExpression::Variable("gamma".to_string());
+                        let e = ScalarExpression::Variable(GAMMA_STR.to_string());
 
                         let term = ScalarExpression::Sum(
                             Box::new(ScalarExpression::Sum(
@@ -579,13 +531,13 @@ where
                         // a + (b * c) * d + e
 
                         let a = ScalarExpression::Fixed(eval_index);
-                        let b = ScalarExpression::Variable("beta".to_string());
-                        let c = ScalarExpression::Variable("x".to_string());
+                        let b = ScalarExpression::Variable(BETA_STR.to_string());
+                        let c = ScalarExpression::Variable(X_STR.to_string());
                         let d = ScalarExpression::PowMod(
-                            Box::new(ScalarExpression::Variable("scalarDelta".to_string())),
+                            Box::new(ScalarExpression::Variable(SCALAR_DELTA_STR.to_string())),
                             power,
                         );
-                        let e = ScalarExpression::Variable("gamma".to_string());
+                        let e = ScalarExpression::Variable(GAMMA_STR.to_string());
 
                         let term = ScalarExpression::Sum(
                             Box::new(ScalarExpression::Sum(
@@ -607,13 +559,13 @@ where
                         // a + (b * c) * d + e
 
                         let a = ScalarExpression::Instance(eval_index);
-                        let b = ScalarExpression::Variable("beta".to_string());
-                        let c = ScalarExpression::Variable("x".to_string());
+                        let b = ScalarExpression::Variable(BETA_STR.to_string());
+                        let c = ScalarExpression::Variable(X_STR.to_string());
                         let d = ScalarExpression::PowMod(
-                            Box::new(ScalarExpression::Variable("scalarDelta".to_string())),
+                            Box::new(ScalarExpression::Variable(SCALAR_DELTA_STR.to_string())),
                             power,
                         );
-                        let e = ScalarExpression::Variable("gamma".to_string());
+                        let e = ScalarExpression::Variable(GAMMA_STR.to_string());
 
                         let term = ScalarExpression::Sum(
                             Box::new(ScalarExpression::Sum(
@@ -640,50 +592,47 @@ where
         .filter(|e| matches!(e, ProofExtractionSteps::VanishingSplit))
         .count();
 
-    // !hCommitment1 = scale xn G1_zero + vanishingSplit{:?}", vanishing_splits_count
+    // !hCommitment1 = scale xn_minus_one G1_zero + vanishingSplit{:?}", vanishing_splits_count
     // a + b
     let a = ExpressionG1::Scale(
         Box::new(ExpressionG1::Zero),
-        ScalarExpression::Variable("xn".to_string()),
+        ScalarExpression::Variable(XN_MINUS_ONE_STR.to_string()),
     );
     let b = ExpressionG1::VanishingSplit(vanishing_splits_count);
     let term = ExpressionG1::Sum(Box::new(a), Box::new(b));
 
-    circuit_description
-        .h_commitments
-        .push(("hCommitment1".to_string(), term));
+    circuit_description.h_commitments.push((h_com_str(1), term));
     for i in 1..(vanishing_splits_count - 1) {
         // render last on as vanishing_g
-        // !hCommitment{:?} = scale xn hCommitment{:?} + vanishingSplit{:?}
+        // !hCommitment{:?} = scale xn_minus_one hCommitment{:?} + vanishingSplit{:?}
         // a + b
         let a = ExpressionG1::Scale(
-            Box::new(ExpressionG1::Variable(format!("hCommitment{:?}", i))),
-            ScalarExpression::Variable("xn".to_string()),
+            Box::new(ExpressionG1::Variable(h_com_str(i))),
+            ScalarExpression::Variable(XN_MINUS_ONE_STR.to_string()),
         );
         let b = ExpressionG1::VanishingSplit(vanishing_splits_count - i);
         let term = ExpressionG1::Sum(Box::new(a), Box::new(b));
 
         circuit_description
             .h_commitments
-            .push((format!("hCommitment{:?}", i + 1,), term));
+            .push((h_com_str(i + 1), term));
     }
 
-    // !vanishing_g = scale xn hCommitment{} + vanishingSplit1; vanishing_splits_count - 1
+    // !vanishing_g = scale xn_minus_one hCommitment{} + vanishingSplit1; vanishing_splits_count - 1
     // a + b
 
     let a = ExpressionG1::Scale(
-        Box::new(ExpressionG1::Variable(format!(
-            "hCommitment{:?}",
-            vanishing_splits_count - 1
+        Box::new(ExpressionG1::Variable(h_com_str(
+            vanishing_splits_count - 1,
         ))),
-        ScalarExpression::Variable("xn".to_string()),
+        ScalarExpression::Variable(XN_MINUS_ONE_STR.to_string()),
     );
     let b = ExpressionG1::VanishingSplit(1);
     let term = ExpressionG1::Sum(Box::new(a), Box::new(b));
 
     circuit_description
         .h_commitments
-        .push(("vanishing_g".to_string(), term));
+        .push((VANISH_G_STR.to_string(), term));
 
     /// this function handles only 3 types of rotations,
     /// this is done to reduce number of scalars that have to be on the plutus side

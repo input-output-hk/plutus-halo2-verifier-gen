@@ -1,6 +1,6 @@
-use crate::plutus_gen::extraction::{AikenExpression, PlinthExpression};
-use blstrs::{G1Affine, G2Affine, Scalar};
-use halo2_proofs::plonk::Expression;
+use midnight_curves::{BlsScalar as Scalar, G1Affine, G2Affine};
+
+use midnight_proofs::plonk::Expression;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
@@ -9,7 +9,7 @@ pub enum ProofExtractionSteps {
     SqueezeChallenge,
     AdviceEval,
     FixedEval,
-    PermutationsCommited,
+    PermutationsCommitted,
     PermutationEval(char),
     PermutationCommon,
 
@@ -24,11 +24,6 @@ pub enum ProofExtractionSteps {
     XCoordinate,
     YCoordinate,
 
-    // elements specific to GWC19 version of multiopen KZG
-    V,
-    U,
-    Witnesses,
-
     //elements related to Halo2 version of multiopen KZG
     X1,
     X2,
@@ -41,6 +36,9 @@ pub enum ProofExtractionSteps {
     Theta,
     Beta,
     Gamma,
+
+    // elements related to Midnight-zk library
+    Trash,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, Default)]
@@ -89,140 +87,6 @@ pub enum RotationDescription {
     #[default]
     Current,
     Next,
-}
-
-impl PlinthExpression for Commitments {
-    fn compile_expression(&self) -> String {
-        match self {
-            Commitments::Advice(index) => {
-                format!("a{:?}", index)
-            }
-            Commitments::Fixed(index) => {
-                format!("f{:?}_commitment", index)
-            }
-            Commitments::Permutation(set) => {
-                format!("permutations_committed_{}", set)
-            }
-            Commitments::Lookup(index) => {
-                format!("lookupCommitment{:?}", index)
-            }
-            Commitments::PermutedInput(index) => {
-                format!("permutedInput{:?}", index)
-            }
-            Commitments::PermutedTable(index) => {
-                format!("permutedTable{:?}", index)
-            }
-            Commitments::PermutationsCommon(index) => {
-                format!("p{:?}_commitment", index)
-            }
-            Commitments::VanishingG => "vanishing_g".to_string(),
-            Commitments::VanishingRand => "vanishingRand".to_string(),
-        }
-    }
-}
-
-impl PlinthExpression for Evaluations {
-    fn compile_expression(&self) -> String {
-        match self {
-            Evaluations::Advice(index) => {
-                format!("adviceEval{:?}", index)
-            }
-            Evaluations::Fixed(index) => {
-                format!("fixedEval{:?}", index)
-            }
-            Evaluations::Permutation(set, index) => {
-                format!("permutations_evaluated_{}_{}", set, index)
-            }
-            Evaluations::Lookup(index) => {
-                format!("product_eval_{:?}", index)
-            }
-            Evaluations::LookupNext(index) => {
-                format!("product_next_eval_{:?}", index)
-            }
-            Evaluations::PermutedInput(index) => {
-                format!("permuted_input_eval_{:?}", index)
-            }
-            Evaluations::PermutedInputInverse(index) => {
-                format!("permuted_input_inv_eval_{:?}", index)
-            }
-            Evaluations::PermutedTable(index) => {
-                format!("permuted_table_eval_{:?}", index)
-            }
-            Evaluations::PermutationsCommon(index) => {
-                format!("permutationCommon{:?}", index)
-            }
-
-            Evaluations::VanishingS => "vanishing_s".to_string(),
-
-            Evaluations::RandomEval => "randomEval".to_string(),
-        }
-    }
-}
-
-impl AikenExpression for Evaluations {
-    fn compile_expression(&self) -> String {
-        match self {
-            Evaluations::Advice(index) => {
-                format!("advice_eval_{:?}", index)
-            }
-            Evaluations::Fixed(index) => {
-                format!("fixed_eval_{:?}", index)
-            }
-            Evaluations::Permutation(set, index) => {
-                format!("permutations_evaluated_{}_{}", set, index)
-            }
-            Evaluations::Lookup(index) => {
-                format!("product_eval_{:?}", index)
-            }
-            Evaluations::LookupNext(index) => {
-                format!("product_next_eval_{:?}", index)
-            }
-            Evaluations::PermutedInput(index) => {
-                format!("permuted_input_eval_{:?}", index)
-            }
-            Evaluations::PermutedInputInverse(index) => {
-                format!("permuted_input_inv_eval_{:?}", index)
-            }
-            Evaluations::PermutedTable(index) => {
-                format!("permuted_table_eval_{:?}", index)
-            }
-            Evaluations::PermutationsCommon(index) => {
-                format!("permutation_common_{:?}", index)
-            }
-            Evaluations::VanishingS => "vanishing_s".to_string(),
-            Evaluations::RandomEval => "random_eval".to_string(),
-        }
-    }
-}
-
-impl AikenExpression for Commitments {
-    fn compile_expression(&self) -> String {
-        match self {
-            Commitments::Advice(index) => {
-                format!("a{:?}", index)
-            }
-            Commitments::Fixed(index) => {
-                format!("f{:?}_commitment", index)
-            }
-            Commitments::Permutation(set) => {
-                format!("permutations_committed_{}", set)
-            }
-            Commitments::Lookup(index) => {
-                format!("lookup_commitment_{:?}", index)
-            }
-            Commitments::PermutedInput(index) => {
-                format!("permuted_input_{:?}", index)
-            }
-            Commitments::PermutedTable(index) => {
-                format!("permuted_table_{:?}", index)
-            }
-            Commitments::PermutationsCommon(index) => {
-                format!("p{:?}_commitment", index)
-            }
-            Commitments::VanishingG => "vanishing_g".to_string(),
-            Commitments::VanishingRand => "vanishing_rand".to_string(),
-        }
-    }
 }
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, Eq, PartialEq, Hash)]

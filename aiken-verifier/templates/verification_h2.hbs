@@ -36,7 +36,8 @@ pub fn verifier(proof: Data, {{{PUBLIC_INPUTS_NAMES}}}) -> Bool {
 
 
     let n = {{X_EXPONENT}}
-    let xn = scale( x, n)
+    let xn_minus_one = scale(x, n-1)
+    let xn = mul(xn_minus_one, x)
 
     let x_prev = rotate_omega(omega, omega_inv, x, (-1))
     let x_current = rotate_omega(omega, omega_inv, x, 0)
