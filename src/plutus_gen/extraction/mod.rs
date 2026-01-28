@@ -114,6 +114,20 @@ where
         }
     }
 
+    // Variables used in common in Plinth & Aiken
+    let beta_str = "beta".to_string();
+    let gamma_str = "gamma".to_string();
+    let delta_str = "scalarDelta".to_string();
+    let one_str = "scalarOne".to_string();
+    let x_str = "x".to_string();
+    let xn_minus_one_str = "xn_minus_one".to_string();
+
+    let eval_0_str = "evaluation_at_0".to_string();
+    let eval_last_str = "last_evaluation".to_string();
+    let vanishing_g_str = "vanishing_g".to_string();
+    let perm_eval_str = move |i: &&char, j: usize| format!("permutations_evaluated_{}_{}", i, j);
+    let h_com_str = move |index: usize| format!("hCommitment{:?}", index);
+
     let mut advice_commitments = vec![G1Affine::generator(); vk.cs().num_advice_columns()];
     let mut challenges = vec![Scalar::ZERO; vk.cs().num_challenges()];
 
@@ -366,9 +380,9 @@ where
     let mut terms: Vec<ScalarExpression<Scalar>> = Vec::new();
     //evaluation_at_0 * (scalarOne - permutations_evaluated_{}_1)
     //a * (b - c)
-    let a = ScalarExpression::Variable("evaluation_at_0".to_string());
-    let b = ScalarExpression::Variable("scalarOne".to_string());
-    let c = ScalarExpression::Variable(format!("permutations_evaluated_{}_1", first_set));
+    let a = ScalarExpression::Variable(eval_0_str.clone());
+    let b = ScalarExpression::Variable(one_str);
+    let c = ScalarExpression::Variable(perm_eval_str(first_set, 1));
 
     let term = ScalarExpression::Product(
         Box::new(a),
@@ -382,8 +396,8 @@ where
 
     //last_evaluation * (permutations_evaluated_{}_1 * permutations_evaluated_{}_1 - permutations_evaluated_{}_1)
     //a * (b * b - b)
-    let a = ScalarExpression::Variable("last_evaluation".to_string());
-    let b = ScalarExpression::Variable(format!("permutations_evaluated_{}_1", last_set));
+    let a = ScalarExpression::Variable(eval_last_str);
+    let b = ScalarExpression::Variable(perm_eval_str(last_set, 1));
 
     let term = ScalarExpression::Product(
         Box::new(a),
@@ -402,12 +416,11 @@ where
         // (permutations_evaluated_{}_1 - permutations_evaluated_{}_3) * evaluation_at_0
         // (a - b) * c
 
-        let a = ScalarExpression::Variable(format!("permutations_evaluated_{}_1", next));
-        let neg_b = ScalarExpression::Negated(Box::new(ScalarExpression::Variable(format!(
-            "permutations_evaluated_{}_3",
-            current
+        let a = ScalarExpression::Variable(perm_eval_str(next, 1));
+        let neg_b = ScalarExpression::Negated(Box::new(ScalarExpression::Variable(perm_eval_str(
+            current, 3,
         ))));
-        let c = ScalarExpression::Variable("evaluation_at_0".to_string());
+        let c = ScalarExpression::Variable(eval_0_str.clone());
 
         let term = ScalarExpression::Product(
             Box::new(ScalarExpression::Sum(Box::new(a), Box::new(neg_b))),
@@ -439,9 +452,9 @@ where
                         // (adviceEval{:?} + (beta * permutationCommon{:?}) + gamma)
                         // a + (b * c) + d
                         let a = ScalarExpression::Advice(eval_index);
-                        let b = ScalarExpression::Variable("beta".to_string());
+                        let b = ScalarExpression::Variable(beta_str.clone());
                         let c = ScalarExpression::PermutationCommon(permutation_index);
-                        let d = ScalarExpression::Variable("gamma".to_string());
+                        let d = ScalarExpression::Variable(gamma_str.clone());
 
                         let term = ScalarExpression::Sum(
                             Box::new(ScalarExpression::Sum(
@@ -459,9 +472,9 @@ where
                         // (fixedEval{:?} + (beta * permutationCommon{:?}) + gamma)
                         // a + (b * c) + d
                         let a = ScalarExpression::Fixed(eval_index);
-                        let b = ScalarExpression::Variable("beta".to_string());
+                        let b = ScalarExpression::Variable(beta_str.clone());
                         let c = ScalarExpression::PermutationCommon(permutation_index);
-                        let d = ScalarExpression::Variable("gamma".to_string());
+                        let d = ScalarExpression::Variable(gamma_str.clone());
 
                         let term = ScalarExpression::Sum(
                             Box::new(ScalarExpression::Sum(
@@ -479,9 +492,9 @@ where
                         // (instanceEval{:?} + (beta * permutationCommon{:?}) + gamma)
                         // a + (b * c) + d
                         let a = ScalarExpression::Instance(eval_index);
-                        let b = ScalarExpression::Variable("beta".to_string());
+                        let b = ScalarExpression::Variable(beta_str.clone());
                         let c = ScalarExpression::PermutationCommon(permutation_index);
-                        let d = ScalarExpression::Variable("gamma".to_string());
+                        let d = ScalarExpression::Variable(gamma_str.clone());
 
                         let term = ScalarExpression::Sum(
                             Box::new(ScalarExpression::Sum(
@@ -507,13 +520,13 @@ where
                         // a + (b * c) * d + e
 
                         let a = ScalarExpression::Advice(eval_index);
-                        let b = ScalarExpression::Variable("beta".to_string());
-                        let c = ScalarExpression::Variable("x".to_string());
+                        let b = ScalarExpression::Variable(beta_str.clone());
+                        let c = ScalarExpression::Variable(x_str.clone());
                         let d = ScalarExpression::PowMod(
-                            Box::new(ScalarExpression::Variable("scalarDelta".to_string())),
+                            Box::new(ScalarExpression::Variable(delta_str.clone())),
                             power,
                         );
-                        let e = ScalarExpression::Variable("gamma".to_string());
+                        let e = ScalarExpression::Variable(gamma_str.clone());
 
                         let term = ScalarExpression::Sum(
                             Box::new(ScalarExpression::Sum(
@@ -535,13 +548,13 @@ where
                         // a + (b * c) * d + e
 
                         let a = ScalarExpression::Fixed(eval_index);
-                        let b = ScalarExpression::Variable("beta".to_string());
-                        let c = ScalarExpression::Variable("x".to_string());
+                        let b = ScalarExpression::Variable(beta_str.clone());
+                        let c = ScalarExpression::Variable(x_str.clone());
                         let d = ScalarExpression::PowMod(
-                            Box::new(ScalarExpression::Variable("scalarDelta".to_string())),
+                            Box::new(ScalarExpression::Variable(delta_str.clone())),
                             power,
                         );
-                        let e = ScalarExpression::Variable("gamma".to_string());
+                        let e = ScalarExpression::Variable(gamma_str.clone());
 
                         let term = ScalarExpression::Sum(
                             Box::new(ScalarExpression::Sum(
@@ -563,13 +576,13 @@ where
                         // a + (b * c) * d + e
 
                         let a = ScalarExpression::Instance(eval_index);
-                        let b = ScalarExpression::Variable("beta".to_string());
-                        let c = ScalarExpression::Variable("x".to_string());
+                        let b = ScalarExpression::Variable(beta_str.clone());
+                        let c = ScalarExpression::Variable(x_str.clone());
                         let d = ScalarExpression::PowMod(
-                            Box::new(ScalarExpression::Variable("scalarDelta".to_string())),
+                            Box::new(ScalarExpression::Variable(delta_str.clone())),
                             power,
                         );
-                        let e = ScalarExpression::Variable("gamma".to_string());
+                        let e = ScalarExpression::Variable(gamma_str.clone());
 
                         let term = ScalarExpression::Sum(
                             Box::new(ScalarExpression::Sum(
@@ -600,46 +613,43 @@ where
     // a + b
     let a = ExpressionG1::Scale(
         Box::new(ExpressionG1::Zero),
-        ScalarExpression::Variable("xn_minus_one".to_string()),
+        ScalarExpression::Variable(xn_minus_one_str.clone()),
     );
     let b = ExpressionG1::VanishingSplit(vanishing_splits_count);
     let term = ExpressionG1::Sum(Box::new(a), Box::new(b));
 
-    circuit_description
-        .h_commitments
-        .push(("hCommitment1".to_string(), term));
+    circuit_description.h_commitments.push((h_com_str(1), term));
     for i in 1..(vanishing_splits_count - 1) {
         // render last on as vanishing_g
         // !hCommitment{:?} = scale xn_minus_one hCommitment{:?} + vanishingSplit{:?}
         // a + b
         let a = ExpressionG1::Scale(
             Box::new(ExpressionG1::Variable(format!("hCommitment{:?}", i))),
-            ScalarExpression::Variable("xn_minus_one".to_string()),
+            ScalarExpression::Variable(xn_minus_one_str.clone()),
         );
         let b = ExpressionG1::VanishingSplit(vanishing_splits_count - i);
         let term = ExpressionG1::Sum(Box::new(a), Box::new(b));
 
         circuit_description
             .h_commitments
-            .push((format!("hCommitment{:?}", i + 1,), term));
+            .push((h_com_str(i + 1), term));
     }
 
     // !vanishing_g = scale xn_minus_one hCommitment{} + vanishingSplit1; vanishing_splits_count - 1
     // a + b
 
     let a = ExpressionG1::Scale(
-        Box::new(ExpressionG1::Variable(format!(
-            "hCommitment{:?}",
-            vanishing_splits_count - 1
+        Box::new(ExpressionG1::Variable(h_com_str(
+            vanishing_splits_count - 1,
         ))),
-        ScalarExpression::Variable("xn_minus_one".to_string()),
+        ScalarExpression::Variable(xn_minus_one_str.clone()),
     );
     let b = ExpressionG1::VanishingSplit(1);
     let term = ExpressionG1::Sum(Box::new(a), Box::new(b));
 
     circuit_description
         .h_commitments
-        .push(("vanishing_g".to_string(), term));
+        .push((vanishing_g_str, term));
 
     /// this function handles only 3 types of rotations,
     /// this is done to reduce number of scalars that have to be on the plutus side
