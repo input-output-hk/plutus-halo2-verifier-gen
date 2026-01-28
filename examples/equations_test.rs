@@ -3,7 +3,7 @@ use cardhalo::circuits::atms_circuit::prepare_test_signatures;
 use cardhalo::circuits::atms_with_lookups_circuit::AtmsLookupCircuit;
 use cardhalo::kzg_params::get_or_create_kzg_params;
 use cardhalo::plutus_gen::emit_verifier_aiken;
-use cardhalo::plutus_gen::extraction::{ExtractKZG, extract_circuit};
+use cardhalo::plutus_gen::extraction::{extract_circuit, extract_kzg_steps};
 use midnight_curves::{Base, Bls12, BlsScalar as Scalar};
 use midnight_proofs::plonk::{VerifyingKey, k_from_circuit, keygen_vk};
 use midnight_proofs::poly::kzg::KZGCommitmentScheme;
@@ -45,9 +45,9 @@ fn main() -> Result<()> {
         .context("Circuit extraction failed")?;
 
     // Step 2: extract KZG steps specific to used commitment scheme
-    let circuit_representation = KZG::extract_kzg_steps(circuit_representation);
+    let circuit_representation = extract_kzg_steps(circuit_representation);
 
-    emit_verifier_code_aiken(
+    emit_verifier_aiken(
         Path::new("aiken-verifier/templates/gates_test.hbs"),
         Path::new("aiken-verifier/aiken_halo2/lib/gates_test.ak"),
         None,

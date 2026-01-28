@@ -5,7 +5,7 @@ use cardhalo::{
     circuits::lookup_table_circuit::LookupTest,
     kzg_params::get_or_create_kzg_params,
     plutus_gen::{
-        adjusted_types::CardanoFriendlyBlake2b, extraction::ExtractKZG, generate_plinth_verifier,
+        adjusted_types::CardanoFriendlyBlake2b, generate_plinth_verifier,
         proof_serialization::export_public_inputs, proof_serialization::serialize_proof,
     },
 };
@@ -36,7 +36,7 @@ pub fn compile_lookup_table_circuit<
             Commitment = G1Projective,
             Parameters = ParamsKZG<Bls12>,
             VerifierParameters = ParamsVerifierKZG<Bls12>,
-        > + ExtractKZG,
+        >,
 >() -> Result<()> {
     let seed = [0u8; 32]; // UNSAFE, constant seed is used for testing purposes
     let mut rng: StdRng = SeedableRng::from_seed(seed);

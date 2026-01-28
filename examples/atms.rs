@@ -1,6 +1,5 @@
 use anyhow::{Context as _, Result, anyhow};
 use cardhalo::kzg_params::get_or_create_kzg_params;
-use cardhalo::plutus_gen::extraction::ExtractKZG;
 use cardhalo::plutus_gen::generate_aiken_verifier;
 use cardhalo::plutus_gen::proof_serialization::export_proof;
 use cardhalo::{
@@ -36,7 +35,7 @@ pub fn compile_atms_circuit<
             Commitment = G1Projective,
             Parameters = ParamsKZG<Bls12>,
             VerifierParameters = ParamsVerifierKZG<Bls12>,
-        > + ExtractKZG,
+        >,
 >() -> Result<()> {
     let seed = [0u8; 32]; // UNSAFE, constant seed is used for testing purposes
     let mut rng: StdRng = SeedableRng::from_seed(seed);

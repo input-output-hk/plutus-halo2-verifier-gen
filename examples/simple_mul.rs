@@ -22,7 +22,7 @@ use cardhalo::{
     circuits::simple_mul_circuit::SimpleMulCircuit,
     kzg_params::get_or_create_kzg_params,
     plutus_gen::{
-        adjusted_types::CardanoFriendlyBlake2b, extraction::ExtractKZG, generate_plinth_verifier,
+        adjusted_types::CardanoFriendlyBlake2b, generate_plinth_verifier,
         proof_serialization::export_public_inputs, proof_serialization::serialize_proof,
     },
 };
@@ -41,7 +41,7 @@ fn compile_simple_mul_circuit<
             Commitment = G1Projective,
             Parameters = ParamsKZG<Bls12>,
             VerifierParameters = ParamsVerifierKZG<Bls12>,
-        > + ExtractKZG,
+        >,
 >() -> Result<()> {
     // Prepare the private and public inputs to the circuit!
     let constant = Scalar::from(7);

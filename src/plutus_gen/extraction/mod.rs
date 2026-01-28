@@ -18,70 +18,62 @@ use log::debug;
 use midnight_curves::{Bls12, BlsScalar as Scalar, G1Affine, G1Projective};
 use midnight_proofs::plonk::{Any, Error, Expression, VerifyingKey};
 use midnight_proofs::poly::commitment::PolynomialCommitmentScheme;
-use midnight_proofs::poly::{Rotation, kzg::KZGCommitmentScheme, kzg::params::ParamsKZG};
+use midnight_proofs::poly::{Rotation, kzg::params::ParamsKZG};
 use std::collections::HashMap;
 
 pub mod data;
 pub mod languages;
 mod utils;
 
-type Halo2MultiOpenScheme = KZGCommitmentScheme<Bls12>;
+pub fn extract_kzg_steps(
+    mut circuit_representation: CircuitRepresentation,
+) -> CircuitRepresentation {
+    // sample 2 squeeze challenges x1 x2
+    // read f commitment to transcript
+    // sample 1 squeeze challenges x3
+    // read all q polly evaluations - this is length of point sets list
+    // sample 1 squeeze challenges x4
+    // read pi g1 element
 
-pub trait ExtractKZG {
-    fn extract_kzg_steps(circuit_representation: CircuitRepresentation) -> CircuitRepresentation;
-}
+    circuit_representation
+        .proof_extraction_steps
+        .push(ProofExtractionSteps::X1);
 
-impl ExtractKZG for Halo2MultiOpenScheme {
-    fn extract_kzg_steps(
-        mut circuit_representation: CircuitRepresentation,
-    ) -> CircuitRepresentation {
-        // sample 2 squeeze challenges x1 x2
-        // read f commitment to transcript
-        // sample 1 squeeze challenges x3
-        // read all q polly evaluations - this is length of point sets list
-        // sample 1 squeeze challenges x4
-        // read pi g1 element
+    circuit_representation
+        .proof_extraction_steps
+        .push(ProofExtractionSteps::X2);
 
+    circuit_representation
+        .proof_extraction_steps
+        .push(ProofExtractionSteps::FCommitment);
+
+    circuit_representation
+        .proof_extraction_steps
+        .push(ProofExtractionSteps::X3);
+
+    // number of final witnesses is equal to number of different point sets
+    let (sets, _) = precompute_intermediate_sets(&circuit_representation);
+    let number_of_witnesses = sets.len();
+
+    circuit_representation
+        .instantiation_data
+        .q_evaluations_count = number_of_witnesses;
+    // witnesses
+    for _ in 0..number_of_witnesses {
         circuit_representation
             .proof_extraction_steps
-            .push(ProofExtractionSteps::X1);
-
-        circuit_representation
-            .proof_extraction_steps
-            .push(ProofExtractionSteps::X2);
-
-        circuit_representation
-            .proof_extraction_steps
-            .push(ProofExtractionSteps::FCommitment);
-
-        circuit_representation
-            .proof_extraction_steps
-            .push(ProofExtractionSteps::X3);
-
-        // number of final witnesses is equal to number of different point sets
-        let (sets, _) = precompute_intermediate_sets(&circuit_representation);
-        let number_of_witnesses = sets.len();
-
-        circuit_representation
-            .instantiation_data
-            .q_evaluations_count = number_of_witnesses;
-        // witnesses
-        for _ in 0..number_of_witnesses {
-            circuit_representation
-                .proof_extraction_steps
-                .push(ProofExtractionSteps::QEvals);
-        }
-
-        circuit_representation
-            .proof_extraction_steps
-            .push(ProofExtractionSteps::X4);
-
-        circuit_representation
-            .proof_extraction_steps
-            .push(ProofExtractionSteps::PI);
-
-        circuit_representation
+            .push(ProofExtractionSteps::QEvals);
     }
+
+    circuit_representation
+        .proof_extraction_steps
+        .push(ProofExtractionSteps::X4);
+
+    circuit_representation
+        .proof_extraction_steps
+        .push(ProofExtractionSteps::PI);
+
+    circuit_representation
 }
 
 pub fn extract_circuit<S>(
