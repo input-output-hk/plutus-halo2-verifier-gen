@@ -1,9 +1,8 @@
-pub use crate::plutus_gen::extraction::languages::{
+pub use emitters::{
     aiken::{emit_verifier_code as emit_verifier_aiken, emit_vk_code as emit_vk_aiken},
     plinth::{emit_verifier_code as emit_verifier_plinth, emit_vk_code as emit_vk_plinth},
 };
 
-use crate::plutus_gen::extraction::{extract_circuit, extract_kzg_steps};
 use anyhow::{Context as _, Result};
 use midnight_curves::{Bls12, BlsScalar as Scalar, G1Projective};
 
@@ -13,8 +12,11 @@ use midnight_proofs::poly::kzg::params::ParamsKZG;
 use std::path::Path;
 
 pub mod adjusted_types;
+pub mod emitters;
 pub mod extraction;
 pub mod proof_serialization;
+
+pub use extraction::CircuitRepresentation;
 
 /// Generates a Plinth verifier for a specific circuit and saves the generated code
 /// to the specified file paths. Uses different KZG type based on used PolynomialCommitmentScheme
@@ -45,11 +47,11 @@ where
         Path::new("plinth-verifier/plutus-halo2/src/Plutus/Crypto/Halo2/Generic/VKConstants.hs");
 
     // Step 1: extract circuit representation
-    let circuit_representation = extract_circuit(params, vk, instances)
+    let mut circuit_representation = CircuitRepresentation::extract_circuit(params, vk, instances)
         .context("Failed to extract the circuit representation")?;
 
     // Step 2: extract KZG steps specific to used commitment scheme
-    let circuit_representation = extract_kzg_steps(circuit_representation);
+    circuit_representation.extract_kzg_steps();
 
     // Step 3: Based on the circuit repr generate Plinth verifier and verification key constants
     // using Handlebars templates
@@ -74,9 +76,9 @@ pub fn generate_aiken_verifier<S>(
 where
     S: PolynomialCommitmentScheme<Scalar, Commitment = G1Projective>,
 {
-    let circuit_representation = extract_circuit(params, vk, instances)
+    let mut circuit_representation = CircuitRepresentation::extract_circuit(params, vk, instances)
         .context("Failed to extract the circuit representation")?;
-    let circuit_representation = extract_kzg_steps(circuit_representation);
+    circuit_representation.extract_kzg_steps();
 
     // static locations of files in aiken directory
     let verifier_template_file = Path::new("aiken-verifier/templates/verification_h2.hbs");

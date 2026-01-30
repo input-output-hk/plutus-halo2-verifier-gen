@@ -23,6 +23,5 @@ atms-halo2 = { git = "https://github.com/rrtoledo/sidechains-zk", package = "atm
 midnight-proofs = "0.7.0"
 midnight-curves = "0.2.0"
 
-
 [features]
 plutus_debug = []

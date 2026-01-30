@@ -54,16 +54,6 @@ fn main() -> Result<()> {
 
     info!("proof size {:?}", proof.len());
 
-    let mut invalid_proof = proof.clone();
-    // index points to bytes of first scalar that is part of the proof
-    // this should be safe and not result in malformed encoding exception
-    // which is likely for flipping Byte for compressed G1 element
-    // simple mul has 8 G1 elements at the beginning of the proof each 48 bytes long
-    let index = 48 * 8 + 2;
-    let firs_byte = invalid_proof[index];
-    let negated_firs_byte = !firs_byte;
-    invalid_proof[index] = negated_firs_byte;
-
     let mut transcript_verifier = CTranscript::init_from_bytes(&proof);
 
     let verifier = prepare::<_, PCS, CTranscript>(&vk, &[&[]], instances, &mut transcript_verifier)
@@ -73,6 +63,20 @@ fn main() -> Result<()> {
         .verify(&params.verifier_params())
         .map_err(|e| anyhow!("{e:?}"))
         .context("verify failed")?;
+
+    // Create invalid proof inputs for testing (with wrong public inputs)
+    let mut invalid_transcript = CTranscript::init();
+    create_proof(
+        &params,
+        &pk,
+        &[circuit.clone()],
+        nb_committed_instances,
+        &[&[&[Base::from(1u64), Base::from(1u64), Base::from(1u64)]]],
+        &mut rng,
+        &mut invalid_transcript,
+    )
+    .context("proof generation should not fail")?;
+    let invalid_proof = invalid_transcript.finalize();
 
     export_all(proof, params, vk, instances, invalid_proof)
 }

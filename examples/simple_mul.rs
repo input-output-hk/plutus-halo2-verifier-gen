@@ -66,6 +66,8 @@ fn main() -> Result<()> {
 
     let proof = transcript.finalize();
 
+    info!("proof size {:?}", proof.len());
+
     let mut invalid_proof = proof.clone();
     // index points to bytes of first scalar that is part of the proof
     // this should be safe and not result in malformed encoding exception
@@ -75,8 +77,6 @@ fn main() -> Result<()> {
     let firs_byte = invalid_proof[index];
     let negated_firs_byte = !firs_byte;
     invalid_proof[index] = negated_firs_byte;
-
-    info!("proof size {:?}", proof.len());
 
     let mut transcript_verifier = CTranscript::init_from_bytes(&proof);
     let verifier = prepare::<_, PCS, CTranscript>(&vk, &[&[]], instances, &mut transcript_verifier)

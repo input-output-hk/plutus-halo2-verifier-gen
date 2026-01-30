@@ -1,13 +1,11 @@
 //! All functions related to data's name and manipulation in Aiken language
 
-use crate::plutus_gen::extraction::data::{
-    Commitments, Evaluations, ExpressionG1, ScalarExpression,
-};
+use super::super::{Commitments, Evaluations, ExpressionG1, ScalarExpression, constants::*};
+
 use midnight_curves::BlsScalar as Scalar;
 use midnight_proofs::plonk::Expression;
-use std::io::{BufWriter, Result, Write};
 
-use crate::plutus_gen::extraction::languages::*;
+use std::io::{BufWriter, Result, Write};
 
 pub trait AikenExpression {
     fn compile_expression(&self) -> String;

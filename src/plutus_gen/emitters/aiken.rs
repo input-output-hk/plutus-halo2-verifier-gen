@@ -1,19 +1,15 @@
 //! All functions related to writing Aiken code
 
-use super::{AikenExpression, combine_aiken_expressions};
+use crate::plutus_gen::extraction::data::languages::aiken::*;
 use crate::plutus_gen::extraction::data::{
-    CommitmentData, Commitments, Evaluations, Query, RotationDescription,
+    CircuitRepresentation, CommitmentData, Commitments, Evaluations, ProofExtractionSteps, Query,
+    RotationDescription, constants::*,
 };
-use crate::plutus_gen::extraction::languages::*;
-use crate::plutus_gen::extraction::{
-    data::{CircuitRepresentation, ProofExtractionSteps},
-    precompute_intermediate_sets,
-};
+
 use midnight_curves::BlsScalar as Scalar;
 
 use ff::Field;
 use group::GroupEncoding;
-
 use handlebars::{Handlebars, RenderError};
 use itertools::Itertools;
 use log::debug;
@@ -165,6 +161,7 @@ pub fn emit_verifier_code(
     );
 
     let gates = circuit
+        .expressions
         .compiled_gate_equations
         .iter()
         .enumerate()
@@ -179,6 +176,7 @@ pub fn emit_verifier_code(
     data.insert("GATES".to_string(), gates);
 
     let lookup_tables = circuit
+        .expressions
         .compiled_lookups_equations
         .1
         .iter()
@@ -194,6 +192,7 @@ pub fn emit_verifier_code(
     data.insert("LOOKUP_TABLES_EXPRESSIONS".to_string(), lookup_tables);
 
     let lookup_inputs = circuit
+        .expressions
         .compiled_lookups_equations
         .0
         .iter()
@@ -208,7 +207,7 @@ pub fn emit_verifier_code(
         .join("");
     data.insert("LOOKUP_INPUTS_EXPRESSIONS".to_string(), lookup_inputs);
 
-    let lookup_equations = (1..=circuit.compiled_lookups_equations.0.len())
+    let lookup_equations = (1..=circuit.expressions.compiled_lookups_equations.0.len())
         .map(|id| {
             // !l1 = evaluation_at_0 * (scalarOne - product_eval_1)
             // !l2 = last_evaluation * (product_eval_1 * product_eval_1 - product_eval_1)
@@ -243,6 +242,7 @@ pub fn emit_verifier_code(
     data.insert("LOOKUPS".to_string(), lookup_equations);
 
     let permutation_evals = circuit
+        .expressions
         .permutations_evaluated_terms
         .iter()
         .enumerate()
@@ -257,6 +257,7 @@ pub fn emit_verifier_code(
     let mut sets_rhs: HashMap<char, String> = HashMap::new();
 
     let permutation_lhs = circuit
+        .expressions
         .permutation_terms_left
         .iter()
         .enumerate()
@@ -296,6 +297,7 @@ pub fn emit_verifier_code(
     data.insert("LHS_SETS".to_string(), lhf_sets);
 
     let permutation_rhs = circuit
+        .expressions
         .permutation_terms_right
         .iter()
         .enumerate()
@@ -345,65 +347,75 @@ pub fn emit_verifier_code(
 
     data.insert("PERMUTATIONS_COMBINED".to_string(), permutations_combined);
 
-    let gates_count = circuit.compiled_gate_equations.len();
-    let permutations_eval_count = circuit.permutations_evaluated_terms.len();
+    let gates_count = circuit.expressions.compiled_gate_equations.len();
+    let permutations_eval_count = circuit.expressions.permutations_evaluated_terms.len();
     let sets_count = sets_lhs.len();
-    let lookups_count = circuit.compiled_lookups_equations.0.len();
+    let lookups_count = circuit.expressions.compiled_lookups_equations.0.len();
+
+    let mut total_nb_expressions = 0;
 
     let mut vanishing_expressions = (1..=gates_count)
         .map(|n| format!("    let expression{} = gate_eq{}\n", n, n))
         .collect::<Vec<_>>();
+    total_nb_expressions += gates_count;
 
     let expressions = (1..=permutations_eval_count)
-        .map(|n| format!("    let expression{} = term_{}\n", n + gates_count, n))
-        .collect::<Vec<_>>();
-    vanishing_expressions.extend(expressions);
-
-    let expressions = (1..=sets_count)
         .map(|n| {
             format!(
-                "    let expression{} = permutations{}\n",
-                n + gates_count + permutations_eval_count,
+                "    let expression{} = term_{}\n",
+                n + total_nb_expressions,
                 n
             )
         })
         .collect::<Vec<_>>();
     vanishing_expressions.extend(expressions);
+    total_nb_expressions += permutations_eval_count;
+
+    let expressions = (1..=sets_count)
+        .map(|n| {
+            format!(
+                "    let expression{} = permutations{}\n",
+                n + total_nb_expressions,
+                n
+            )
+        })
+        .collect::<Vec<_>>();
+    vanishing_expressions.extend(expressions);
+    total_nb_expressions += sets_count;
 
     let expressions = (1..=lookups_count)
         .flat_map(|n| {
             [
                 format!(
                     "    let expression{} = lookup_expression_1_{}\n",
-                    ((n - 1) * 5) + 1 + gates_count + permutations_eval_count + sets_count,
+                    ((n - 1) * 5) + 1 + total_nb_expressions,
                     n
                 ),
                 format!(
                     "    let expression{} = lookup_expression_2_{}\n",
-                    ((n - 1) * 5) + 2 + gates_count + permutations_eval_count + sets_count,
+                    ((n - 1) * 5) + 2 + total_nb_expressions,
                     n
                 ),
                 format!(
                     "    let expression{} = lookup_expression_3_{}\n",
-                    ((n - 1) * 5) + 3 + gates_count + permutations_eval_count + sets_count,
+                    ((n - 1) * 5) + 3 + total_nb_expressions,
                     n
                 ),
                 format!(
                     "    let expression{} = lookup_expression_4_{}\n",
-                    ((n - 1) * 5) + 4 + gates_count + permutations_eval_count + sets_count,
+                    ((n - 1) * 5) + 4 + total_nb_expressions,
                     n
                 ),
                 format!(
                     "    let expression{} = lookup_expression_5_{}\n",
-                    ((n - 1) * 5) + 5 + gates_count + permutations_eval_count + sets_count,
+                    ((n - 1) * 5) + 5 + total_nb_expressions,
                     n
                 ),
             ]
         })
         .collect::<Vec<_>>();
     vanishing_expressions.extend(expressions);
-
-    let _expressions_count = vanishing_expressions.len();
+    total_nb_expressions += lookups_count * 5;
 
     data.insert(
         "VANISHING_EXPRESSIONS".to_string(),
@@ -411,13 +423,14 @@ pub fn emit_verifier_code(
     );
 
     let mut vanishing_evaluation = format!("add(mul({}, y), expression1)", ZERO_STR);
-    for n in 2..=(gates_count + permutations_eval_count + sets_count + lookups_count * 5) {
+    for n in 2..=(total_nb_expressions) {
         vanishing_evaluation = format!("add(mul({}, y), expression{})", vanishing_evaluation, n)
     }
     let vanishing_evaluation = format!("    let hEval = {}\n", vanishing_evaluation);
     data.insert("VANISHING_EVALUATION".to_string(), vanishing_evaluation);
 
     let h_commitments = circuit
+        .expressions
         .h_commitments
         .iter()
         .map(|(variable_name, expression)| {
@@ -427,7 +440,7 @@ pub fn emit_verifier_code(
         .join("");
     data.insert("H_COMMITMENTS".to_string(), h_commitments);
 
-    let (unique_grouped_points, commitment_data) = precompute_intermediate_sets(circuit);
+    let (unique_grouped_points, commitment_data) = circuit.precompute_intermediate_sets();
 
     let point_sets_indexes: Vec<usize> = (0..unique_grouped_points.len()).collect();
     let max_commitments_per_points_set = point_sets_indexes
@@ -488,7 +501,7 @@ pub fn emit_verifier_code(
 
     let kzg_halo2_point_sets = unique_grouped_points
         .iter()
-        .map(|set| set.iter().map(decode_rotation).join(","))
+        .map(|set| set.iter().map(RotationDescription::to_string).join(","))
         .join("],[");
 
     let kzg_halo2_point_sets = format!("     let point_sets = [[{}]]", kzg_halo2_point_sets);
@@ -1091,7 +1104,7 @@ impl AikenExpression for ScalarOperation {
                     scalar_b.compile_expression()
                 )
             }
-            Self::Rotation(x) => decode_rotation(x),
+            Self::Rotation(x) => RotationDescription::to_string(x),
         }
     }
 }
