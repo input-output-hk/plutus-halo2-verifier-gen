@@ -1,51 +1,46 @@
-use anyhow::{Context as _, Result, anyhow, bail};
+use anyhow::{Context as _, Result, anyhow};
 use blstrs::{Base, Bls12, G1Projective, Scalar};
 use halo2_proofs::{
-    plonk::{
-        ProvingKey, VerifyingKey, create_proof, k_from_circuit, keygen_pk, keygen_vk, prepare,
-    },
+    plonk::{create_proof, k_from_circuit, keygen_pk, keygen_vk, prepare},
     poly::{
-        commitment::Guard, commitment::PolynomialCommitmentScheme, gwc_kzg::GwcKZGCommitmentScheme,
-        kzg::KZGCommitmentScheme, kzg::params::ParamsKZG, kzg::params::ParamsVerifierKZG,
+        commitment::{Guard, PolynomialCommitmentScheme},
+        kzg::KZGCommitmentScheme,
+        kzg::params::{ParamsKZG, ParamsVerifierKZG},
     },
-    transcript::{CircuitTranscript, Transcript},
+    transcript::Transcript,
 };
 use log::info;
-use plutus_halo2_verifier_gen::kzg_params::get_or_create_kzg_params;
-use plutus_halo2_verifier_gen::plutus_gen::extraction::ExtractKZG;
-use plutus_halo2_verifier_gen::plutus_gen::generate_aiken_verifier;
-use plutus_halo2_verifier_gen::plutus_gen::proof_serialization::export_proof;
 use plutus_halo2_verifier_gen::{
-    circuits::atms_circuit::{AtmsSignatureCircuit, prepare_test_signatures},
-    plutus_gen::{
-        adjusted_types::CardanoFriendlyBlake2b, generate_plinth_verifier,
-        proof_serialization::export_public_inputs, proof_serialization::serialize_proof,
-    },
+    circuits::{atms_circuit::AtmsSignatureCircuit, atms_circuit::prepare_test_signatures},
+    kzg_params::get_or_create_kzg_params,
 };
 use rand::prelude::StdRng;
 use rand_core::SeedableRng;
-use std::env;
-use std::fs::File;
+
+#[path = "./utils.rs"]
+mod utils;
+use utils::{CTranscript, PCS, PK, Params, VK, export_all};
 
 fn main() -> Result<()> {
-    env_logger::init_from_env(env_logger::Env::default().filter_or("RUST_LOG", "info"));
-    let args: Vec<String> = env::args().collect();
+    // env_logger::init_from_env(env_logger::Env::default().filter_or("RUST_LOG", "info"));
+    // let args: Vec<String> = env::args().collect();
 
-    match &args[1..] {
-        [] => compile_atms_circuit::<KZGCommitmentScheme<Bls12>>(),
-        [command] if command == "gwc_kzg" => {
-            compile_atms_circuit::<GwcKZGCommitmentScheme<Bls12>>()
-        }
-        _ => {
-            println!("Usage:");
-            println!("- to run the example: `cargo run --example example_name`");
-            println!(
-                "- to run the example using the GWC19 version of multi-open KZG, run: `cargo run --example example_name gwc_kzg`"
-            );
+    // match &args[1..] {
+    //     [] => compile_atms_circuit::<KZGCommitmentScheme<Bls12>>(),
+    //     [command] if command == "gwc_kzg" => {
+    //         compile_atms_circuit::<GwcKZGCommitmentScheme<Bls12>>()
+    //     }
+    //     _ => {
+    //         println!("Usage:");
+    //         println!("- to run the example: `cargo run --example example_name`");
+    //         println!(
+    //             "- to run the example using the GWC19 version of multi-open KZG, run: `cargo run --example example_name gwc_kzg`"
+    //         );
 
-            bail!("Invalid command line arguments")
-        }
-    }
+    //         bail!("Invalid command line arguments")
+    //     }
+    // }
+    compile_atms_circuit::<KZGCommitmentScheme<Bls12>>()
 }
 
 pub fn compile_atms_circuit<
@@ -54,7 +49,7 @@ pub fn compile_atms_circuit<
             Commitment = G1Projective,
             Parameters = ParamsKZG<Bls12>,
             VerifierParameters = ParamsVerifierKZG<Bls12>,
-        > + ExtractKZG,
+        >,
 >() -> Result<()> {
     let seed = [0u8; 32]; // UNSAFE, constant seed is used for testing purposes
     let mut rng: StdRng = SeedableRng::from_seed(seed);
@@ -75,28 +70,22 @@ pub fn compile_atms_circuit<
     };
 
     let k: u32 = k_from_circuit(&circuit);
-    let kzg_params: ParamsKZG<Bls12> = get_or_create_kzg_params(k, rng.clone())?;
-    let vk: VerifyingKey<Scalar, S> = keygen_vk(&kzg_params, &circuit)?;
-    let pk: ProvingKey<Scalar, S> = keygen_pk(vk.clone(), &circuit)?;
+    let kzg_params: Params = get_or_create_kzg_params(k, rng.clone())?;
+    let vk: VK = keygen_vk(&kzg_params, &circuit)?;
+    let pk: PK = keygen_pk(vk.clone(), &circuit)?;
 
     // no instances, just dummy 42 to make prover and verifier happy
     let instances: &[&[&[Scalar]]] = &[&[&[pks_comm, msg, Base::from(threshold as u64)]]];
     info!("Public inputs: {:?}", instances);
 
-    let instances_file =
-        "./plinth-verifier/plutus-halo2/test/Generic/serialized_public_input.hex".to_string();
-    let mut output = File::create(instances_file).context("failed to create instances file")?;
-    export_public_inputs(instances, &mut output).context("Failed to export the public inputs")?;
-
-    let mut transcript: CircuitTranscript<CardanoFriendlyBlake2b> =
-        CircuitTranscript::<CardanoFriendlyBlake2b>::init();
+    let mut transcript = CTranscript::init();
 
     create_proof(
         &kzg_params,
         &pk,
         &[circuit],
         instances,
-        &mut rng,
+        &mut rng.clone(),
         &mut transcript,
     )
     .context("proof generation should not fail")?;
@@ -115,46 +104,15 @@ pub fn compile_atms_circuit<
 
     info!("proof size {:?}", proof.len());
 
-    let mut transcript_verifier: CircuitTranscript<CardanoFriendlyBlake2b> =
-        CircuitTranscript::<CardanoFriendlyBlake2b>::init_from_bytes(&proof);
+    let mut transcript_verifier = CTranscript::init_from_bytes(&proof);
 
-    let verifier = prepare::<_, S, CircuitTranscript<CardanoFriendlyBlake2b>>(
-        &vk,
-        instances,
-        &mut transcript_verifier,
-    )
-    .context("prepare verification failed")?;
+    let verifier =
+        prepare(&vk, instances, &mut transcript_verifier).context("prepare verification failed")?;
 
     verifier
         .verify(&kzg_params.verifier_params())
         .map_err(|e| anyhow!("{e:?}"))
         .context("verify failed")?;
 
-    serialize_proof(
-        "./plinth-verifier/plutus-halo2/test/Generic/serialized_proof.json".to_string(),
-        proof.clone(),
-    )
-    .context("json proof serialization failed")?;
-
-    generate_plinth_verifier(&kzg_params, &vk, instances)
-        .context("Plinth verifier generation failed")?;
-
-    generate_aiken_verifier(
-        &kzg_params,
-        &vk,
-        instances,
-        Some((proof.clone(), invalid_proof)),
-    )
-    .context("Aiken verifier generation failed")?;
-    export_proof(
-        "./aiken-verifier/submitter/serialized_proof.hex".to_string(),
-        proof,
-    )
-    .context("hex proof serialization failed")?;
-
-    let instances_file = "./aiken-verifier/submitter/serialized_public_input.hex".to_string();
-    let mut output = File::create(instances_file).context("failed to create instances file")?;
-    export_public_inputs(instances, &mut output).context("Failed to export the public inputs")?;
-
-    Ok(())
+    export_all(proof, kzg_params, vk, instances, invalid_proof)
 }
