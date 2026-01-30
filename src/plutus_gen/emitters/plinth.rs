@@ -1,9 +1,12 @@
-use crate::plutus_gen::decode_rotation;
-use crate::plutus_gen::extraction::data::{CircuitRepresentation, ProofExtractionSteps};
-use crate::plutus_gen::extraction::{
-    PlinthExpression, combine_plinth_expressions, precompute_intermediate_sets,
+//! All functions related to writing Plinth code
+
+use crate::plutus_gen::extraction::data::languages::plinth::*;
+use crate::plutus_gen::extraction::data::{
+    CircuitRepresentation, ProofExtractionSteps, RotationDescription, constants::*,
 };
-use halo2_proofs::halo2curves::group::{GroupEncoding, prime::PrimeCurveAffine};
+
+use group::GroupEncoding;
+use group::prime::PrimeCurveAffine;
 use handlebars::{Handlebars, RenderError};
 use itertools::Itertools;
 use log::debug;
@@ -28,7 +31,7 @@ pub fn emit_verifier_code(
             ProofExtractionSteps::Theta => "  !theta <- M.squeezeChallenge\n".to_string(),
             ProofExtractionSteps::Beta => "  !beta <- M.squeezeChallenge\n".to_string(),
             ProofExtractionSteps::Gamma => "  !gamma <- M.squeezeChallenge\n".to_string(),
-            ProofExtractionSteps::PermutationsCommited => section
+            ProofExtractionSteps::PermutationsCommitted => section
                 .zip(letters.clone())
                 .map(|(_permutation, letter)| {
                     format!("  !permutations_committed_{} <- M.readPoint\n", letter)
@@ -64,13 +67,7 @@ pub fn emit_verifier_code(
                 .join(""),
             ProofExtractionSteps::PermutationEval(letter) => section
                 .enumerate()
-                .map(|(n, _)| {
-                    format!(
-                        "  !permutations_evaluated_{}_{} <- M.readScalar\n",
-                        letter,
-                        n + 1
-                    )
-                })
+                .map(|(n, _)| format!("  !{} <- M.readScalar\n", perm_eval_str(&letter, n + 1)))
                 .join(""),
             ProofExtractionSteps::SqueezeChallenge => panic!("not squeezeChallenge supported"),
             ProofExtractionSteps::LookupPermuted => section
@@ -104,6 +101,7 @@ pub fn emit_verifier_code(
             ProofExtractionSteps::X2 => "  !x2 <- M.squeezeChallenge\n".to_string(),
             ProofExtractionSteps::X3 => "  !x3 <- M.squeezeChallenge\n".to_string(),
             ProofExtractionSteps::X4 => "  !x4 <- M.squeezeChallenge\n".to_string(),
+            ProofExtractionSteps::Trash => "  !trash_challenge <- M.squeezeChallenge\n".to_string(),
             ProofExtractionSteps::FCommitment => "  !f_commitment <- M.readPoint\n".to_string(),
             ProofExtractionSteps::PI => "  !pi_term <- M.readPoint\n".to_string(),
             ProofExtractionSteps::QEvals => section
@@ -111,14 +109,6 @@ pub fn emit_verifier_code(
                 .map(|(number, _permutation_common)| {
                     format!("  !q_eval_on_x3_{} <- M.readScalar\n", number + 1)
                 })
-                .join(""),
-
-            // section for GWC19 version of KZG
-            ProofExtractionSteps::V => "  !v <- M.squeezeChallenge\n".to_string(),
-            ProofExtractionSteps::U => "  !u <- M.squeezeChallenge\n".to_string(),
-            ProofExtractionSteps::Witnesses => section
-                .enumerate()
-                .map(|(number, _permutation_common)| format!("  !w{} <- M.readPoint\n", number + 1))
                 .join(""),
         })
         .collect();
@@ -139,6 +129,7 @@ pub fn emit_verifier_code(
     );
 
     let gates = circuit
+        .expressions
         .compiled_gate_equations
         .iter()
         .enumerate()
@@ -153,6 +144,7 @@ pub fn emit_verifier_code(
     data.insert("GATES".to_string(), gates);
 
     let lookup_tables = circuit
+        .expressions
         .compiled_lookups_equations
         .1
         .iter()
@@ -168,6 +160,7 @@ pub fn emit_verifier_code(
     data.insert("LOOKUP_TABLES_EXPRESSIONS".to_string(), lookup_tables);
 
     let lookup_inputs = circuit
+        .expressions
         .compiled_lookups_equations
         .0
         .iter()
@@ -182,7 +175,7 @@ pub fn emit_verifier_code(
         .join("");
     data.insert("LOOKUP_INPUTS_EXPRESSIONS".to_string(), lookup_inputs);
 
-    let lookup_equations = (1..=circuit.compiled_lookups_equations.0.len())
+    let lookup_equations = (1..=circuit.expressions.compiled_lookups_equations.0.len())
         .map(|id| {
             // !l1 = evaluation_at_0 * (scalarOne - product_eval_1)
             // !l2 = last_evaluation * (product_eval_1 * product_eval_1 - product_eval_1)
@@ -196,12 +189,12 @@ pub fn emit_verifier_code(
             // !l5 = (permuted_input_eval_1 - permuted_table_eval_1)
             //     * &(permuted_input_eval_1 - permuted_input_inv_eval_1) * active_rows
 
-            let l1 = format!("evaluation_at_0 * (scalarOne - product_eval_{})", id);
-            let l2 = format!("last_evaluation * (product_eval_{} * product_eval_{} - product_eval_{})", id, id, id);
+            let l1 = format!("{} * ({} - product_eval_{})", EVAL_0_STR, ONE_STR, id);
+            let l2 = format!("{} * (product_eval_{} * product_eval_{} - product_eval_{})", EVAL_LAST_STR, id, id, id);
             let left = format!("product_next_eval_{} * (permuted_input_eval_{} + beta) * (permuted_table_eval_{} + gamma)", id, id, id);
             let right = format!("product_eval_{} * (lookup_input_eq{} + beta) * (lookup_table_eq{} + gamma)", id, id, id);
             let l3 = format!("(lookup_left_{} - lookup_right_{}) * active_rows", id, id);
-            let l4 = format!("evaluation_at_0 * (permuted_input_eval_{} - permuted_table_eval_{})", id, id);
+            let l4 = format!("{} * (permuted_input_eval_{} - permuted_table_eval_{})", EVAL_0_STR, id, id);
             let l5 = format!("(permuted_input_eval_{} - permuted_table_eval_{}) * (permuted_input_eval_{} - permuted_input_inv_eval_{}) * active_rows", id, id, id, id);
 
             format!("      !lookup_expression_1_{} = {}\n", id, l1) +
@@ -217,6 +210,7 @@ pub fn emit_verifier_code(
     data.insert("LOOKUPS".to_string(), lookup_equations);
 
     let permutation_evals = circuit
+        .expressions
         .permutations_evaluated_terms
         .iter()
         .enumerate()
@@ -231,6 +225,7 @@ pub fn emit_verifier_code(
     let mut sets_rhs: HashMap<char, String> = HashMap::new();
 
     let permutation_lhs = circuit
+        .expressions
         .permutation_terms_left
         .iter()
         .enumerate()
@@ -255,9 +250,9 @@ pub fn emit_verifier_code(
         .enumerate()
         .map(|(set_number, (set_id, terms))| {
             format!(
-                "      !left_set{:?} = permutations_evaluated_{}_2 * {} \n",
+                "      !left_set{:?} = {} * {} \n",
                 set_number + 1,
-                set_id,
+                perm_eval_str(set_id, 2),
                 terms
             )
         })
@@ -265,6 +260,7 @@ pub fn emit_verifier_code(
     data.insert("LHS_SETS".to_string(), lhf_sets);
 
     let permutation_rhs = circuit
+        .expressions
         .permutation_terms_right
         .iter()
         .enumerate()
@@ -294,9 +290,9 @@ pub fn emit_verifier_code(
         .enumerate()
         .map(|(set_number, (set_id, terms))| {
             format!(
-                "      !right_set{:?} = permutations_evaluated_{}_1 * {} \n",
+                "      !right_set{:?} = {} * {} \n",
                 set_number + 1,
-                set_id,
+                perm_eval_str(set_id, 1),
                 terms
             )
         })
@@ -306,7 +302,7 @@ pub fn emit_verifier_code(
     let permutations_combined = if sets_lhs.len() == sets_rhs.len() {
         let sets_number = sets_lhs.len();
         (1..=sets_number).map(|n| {
-            format!("      !permutations{} = (left_set{} - right_set{}) * (scalarOne - (last_evaluation + sum_of_evaluation_for_blinding_factors))\n", n, n, n)
+            format!("      !permutations{} = (left_set{} - right_set{}) * ({} - ({} + sum_of_evaluation_for_blinding_factors))\n", n, n, n, ONE_STR, EVAL_LAST_STR)
         }).join("")
     } else {
         panic!("permutations sets have to be equal length")
@@ -314,79 +310,90 @@ pub fn emit_verifier_code(
 
     data.insert("PERMUTATIONS_COMBINED".to_string(), permutations_combined);
 
-    let gates_count = circuit.compiled_gate_equations.len();
-    let permutations_eval_count = circuit.permutations_evaluated_terms.len();
+    let gates_count = circuit.expressions.compiled_gate_equations.len();
+    let permutations_eval_count = circuit.expressions.permutations_evaluated_terms.len();
     let sets_count = sets_lhs.len();
-    let lookups_count = circuit.compiled_lookups_equations.0.len();
+    let lookups_count = circuit.expressions.compiled_lookups_equations.0.len();
+
+    let mut total_nb_expressions = 0;
 
     let mut vanishing_expressions = (1..=gates_count)
         .map(|n| format!("      !expression{} = gate_eq{}\n", n, n))
         .collect::<Vec<_>>();
+    total_nb_expressions += gates_count;
 
     let expressions = (1..=permutations_eval_count)
-        .map(|n| format!("      !expression{} = term{}\n", n + gates_count, n))
-        .collect::<Vec<_>>();
-    vanishing_expressions.extend(expressions);
-
-    let expressions = (1..=sets_count)
         .map(|n| {
             format!(
-                "      !expression{} = permutations{}\n",
-                n + gates_count + permutations_eval_count,
+                "      !expression{} = term{}\n",
+                n + total_nb_expressions,
                 n
             )
         })
         .collect::<Vec<_>>();
     vanishing_expressions.extend(expressions);
+    total_nb_expressions += permutations_eval_count;
+
+    let expressions = (1..=sets_count)
+        .map(|n| {
+            format!(
+                "      !expression{} = permutations{}\n",
+                n + total_nb_expressions,
+                n
+            )
+        })
+        .collect::<Vec<_>>();
+    vanishing_expressions.extend(expressions);
+    total_nb_expressions += sets_count;
 
     let expressions = (1..=lookups_count)
         .flat_map(|n| {
             [
                 format!(
                     "      !expression{} = lookup_expression_1_{}\n",
-                    ((n - 1) * 5) + 1 + gates_count + permutations_eval_count + sets_count,
+                    ((n - 1) * 5) + 1 + total_nb_expressions,
                     n
                 ),
                 format!(
                     "      !expression{} = lookup_expression_2_{}\n",
-                    ((n - 1) * 5) + 2 + gates_count + permutations_eval_count + sets_count,
+                    ((n - 1) * 5) + 2 + total_nb_expressions,
                     n
                 ),
                 format!(
                     "      !expression{} = lookup_expression_3_{}\n",
-                    ((n - 1) * 5) + 3 + gates_count + permutations_eval_count + sets_count,
+                    ((n - 1) * 5) + 3 + total_nb_expressions,
                     n
                 ),
                 format!(
                     "      !expression{} = lookup_expression_4_{}\n",
-                    ((n - 1) * 5) + 4 + gates_count + permutations_eval_count + sets_count,
+                    ((n - 1) * 5) + 4 + total_nb_expressions,
                     n
                 ),
                 format!(
                     "      !expression{} = lookup_expression_5_{}\n",
-                    ((n - 1) * 5) + 5 + gates_count + permutations_eval_count + sets_count,
+                    ((n - 1) * 5) + 5 + total_nb_expressions,
                     n
                 ),
             ]
         })
         .collect::<Vec<_>>();
     vanishing_expressions.extend(expressions);
-
-    let _expressions_count = vanishing_expressions.len();
+    total_nb_expressions += lookups_count * 5;
 
     data.insert(
         "VANISHING_EXPRESSIONS".to_string(),
         vanishing_expressions.join(""),
     );
 
-    let mut vanishing_evaluation = "(scalarZero * y + expression1)".to_string();
-    for n in 2..=(gates_count + permutations_eval_count + sets_count + lookups_count * 5) {
+    let mut vanishing_evaluation = format!("({} * y + expression1)", ZERO_STR);
+    for n in 2..=total_nb_expressions {
         vanishing_evaluation = format!("({} * y + expression{})", vanishing_evaluation, n)
     }
     let vanishing_evaluation = format!("      !hEval = {}\n", vanishing_evaluation);
     data.insert("VANISHING_EVALUATION".to_string(), vanishing_evaluation);
 
     let h_commitments = circuit
+        .expressions
         .h_commitments
         .iter()
         .map(|(variable_name, expression)| {
@@ -397,7 +404,8 @@ pub fn emit_verifier_code(
     data.insert("H_COMMITMENTS".to_string(), h_commitments);
 
     let advice_queries = circuit
-        .advice_queries
+        .queries
+        .advice
         .iter()
         .enumerate()
         .map(|(number, query)| {
@@ -412,7 +420,8 @@ pub fn emit_verifier_code(
     data.insert("ADVICE_QUERIES".to_string(), advice_queries);
 
     let fixed_queries = circuit
-        .fixed_queries
+        .queries
+        .fixed
         .iter()
         .enumerate()
         .map(|(number, query)| {
@@ -427,7 +436,8 @@ pub fn emit_verifier_code(
     data.insert("FIXED_QUERIES".to_string(), fixed_queries);
 
     let permutation_queries = circuit
-        .permutation_queries
+        .queries
+        .permutation
         .iter()
         .enumerate()
         .map(|(number, query)| {
@@ -442,7 +452,8 @@ pub fn emit_verifier_code(
     data.insert("PERMUTATION_QUERIES".to_string(), permutation_queries);
 
     let common_queries = circuit
-        .common_queries
+        .queries
+        .common
         .iter()
         .enumerate()
         .map(|(number, query)| {
@@ -456,7 +467,7 @@ pub fn emit_verifier_code(
         .join("");
     data.insert("COMMON_QUERIES".to_string(), common_queries);
 
-    let (unique_grouped_points, commitment_data) = precompute_intermediate_sets(circuit);
+    let (unique_grouped_points, commitment_data) = circuit.precompute_intermediate_sets();
 
     // Precompute maximum number of commitments queried for any points set,
     // it will define the number of X1 powers that we would need to compute during verification
@@ -488,7 +499,11 @@ pub fn emit_verifier_code(
                 "{}, {}, [{}], [{}]",
                 commitment_data.commitment.compile_expression(),
                 commitment_data.point_set_index,
-                commitment_data.points.iter().map(decode_rotation).join(","),
+                commitment_data
+                    .points
+                    .iter()
+                    .map(RotationDescription::to_string)
+                    .join(","),
                 commitment_data
                     .evaluations
                     .iter()
@@ -503,14 +518,15 @@ pub fn emit_verifier_code(
 
     let point_sets = unique_grouped_points
         .iter()
-        .map(|set| set.iter().map(decode_rotation).join(","))
+        .map(|set| set.iter().map(RotationDescription::to_string).join(","))
         .join("],[");
 
     let point_sets = format!("      !point_sets = [[{}]]", point_sets);
     data.insert("POINT_SETS".to_string(), point_sets);
 
     let common_queries = circuit
-        .lookup_queries
+        .queries
+        .lookup
         .iter()
         .enumerate()
         .map(|(number, query)| {
@@ -526,11 +542,12 @@ pub fn emit_verifier_code(
 
     //  NameAnn 'x_current 'a1_query
     let msm_advice_queries = circuit
-        .advice_queries
+        .queries
+        .advice
         .iter()
         .enumerate()
         .map(|(number, query)| {
-            let rotation = decode_rotation(&query.point);
+            let rotation = query.point.to_string();
             format!(
                 "              NameAnn '{} 'a{}_query ,\n",
                 rotation,
@@ -541,11 +558,12 @@ pub fn emit_verifier_code(
     data.insert("MSM_ADVICE_QUERIES".to_string(), msm_advice_queries);
 
     let msm_permutation_queries = circuit
-        .permutation_queries
+        .queries
+        .permutation
         .iter()
         .enumerate()
         .map(|(number, query)| {
-            let rotation = decode_rotation(&query.point);
+            let rotation = query.point.to_string();
             format!(
                 "              NameAnn '{} 'permutations_query{} ,\n",
                 rotation,
@@ -559,11 +577,12 @@ pub fn emit_verifier_code(
     );
 
     let msm_fixed_queries = circuit
-        .fixed_queries
+        .queries
+        .fixed
         .iter()
         .enumerate()
         .map(|(number, query)| {
-            let rotation = decode_rotation(&query.point);
+            let rotation = query.point.to_string();
             format!(
                 "              NameAnn '{} 'f{}_query ,\n",
                 rotation,
@@ -574,11 +593,12 @@ pub fn emit_verifier_code(
     data.insert("MSM_FIXED_QUERIES".to_string(), msm_fixed_queries);
 
     let msm_common_queries = circuit
-        .common_queries
+        .queries
+        .common
         .iter()
         .enumerate()
         .map(|(number, query)| {
-            let rotation = decode_rotation(&query.point);
+            let rotation = query.point.to_string();
             format!(
                 "              NameAnn '{} 'p{}_query ,\n",
                 rotation,
@@ -590,11 +610,12 @@ pub fn emit_verifier_code(
     data.insert("MSM_COMMON_QUERIES".to_string(), msm_common_queries);
 
     let msm_lookup_queries = circuit
-        .lookup_queries
+        .queries
+        .lookup
         .iter()
         .enumerate()
         .map(|(number, query)| {
-            let rotation = decode_rotation(&query.point);
+            let rotation = query.point.to_string();
             format!(
                 "              NameAnn '{} 'l{}_query ,\n",
                 rotation,
@@ -605,11 +626,6 @@ pub fn emit_verifier_code(
 
     data.insert("MSM_LOOKUP_QUERIES".to_string(), msm_lookup_queries);
 
-    // case for GWC19 version of KZG
-    let w_values = (1..=circuit.instantiation_data.w_values_count)
-        .map(|n| format!("              'w{}", n))
-        .join(" ,\n");
-    data.insert("W_VALUES".to_string(), w_values);
     // ------
     // case for halo2 multi open version of KZG
     let q_evaluations = (1..=circuit.instantiation_data.q_evaluations_count)
@@ -620,7 +636,8 @@ pub fn emit_verifier_code(
 
     let state = vec![];
     let rotation_order = circuit
-        .all_queries_ordered()
+        .queries
+        .all_ordered()
         .iter()
         .flatten()
         .map(|query| &query.point)
@@ -633,7 +650,10 @@ pub fn emit_verifier_code(
         .last()
         .expect("There should be at least one query");
 
-    let rotation_order: Vec<_> = rotation_order.iter().map(decode_rotation).collect();
+    let rotation_order: Vec<_> = rotation_order
+        .iter()
+        .map(RotationDescription::to_string)
+        .collect();
 
     let x_values = rotation_order
         .iter()
@@ -705,48 +725,48 @@ pub fn emit_verifier_code(
         .collect();
 
         let gates_traces: Vec<_> = (1..=gates_count).map(|e| format!("gate_eq{}", e)).collect();
-        let expressions_traces: Vec<_> = (1..=_expressions_count)
+        let expressions_traces: Vec<_> = (1..=expressions_count)
             .map(|e| format!("expression{}", e))
             .collect();
 
         let advice_queries_traces: Vec<_> = circuit
-            .advice_queries
+            .queries
+            .advice
             .iter()
-            .zip(1..=circuit.advice_queries.len())
-            .map(|(q, idx)| (format!("a{}_query", idx), decode_rotation(&q.point)))
+            .enumerate()
+            .map(|(q, idx)| (format!("a{}_query", idx), q.point.to_string()))
             .collect();
 
         let fixed_queries_traces: Vec<_> = circuit
-            .fixed_queries
+            .queries
+            .fixed
             .iter()
-            .zip(1..=circuit.fixed_queries.len())
-            .map(|(q, idx)| (format!("f{}_query", idx), decode_rotation(&q.point)))
+            .enumerate()
+            .map(|(q, idx)| (format!("f{}_query", idx), q.point.to_string()))
             .collect();
 
         let permutation_queries_traces: Vec<_> = circuit
-            .permutation_queries
+            .queries
+            .permutation
             .iter()
-            .zip(1..=circuit.permutation_queries.len())
-            .map(|(q, idx)| {
-                (
-                    format!("permutations_query{}", idx),
-                    decode_rotation(&q.point),
-                )
-            })
+            .enumerate()
+            .map(|(q, idx)| (format!("permutations_query{}", idx), q.point.to_string()))
             .collect();
 
         let common_queries_traces: Vec<_> = circuit
-            .common_queries
+            .queries
+            .common
             .iter()
-            .zip(1..=circuit.common_queries.len())
-            .map(|(q, idx)| (format!("p{}_query", idx), decode_rotation(&q.point)))
+            .enumerate()
+            .map(|(q, idx)| (format!("p{}_query", idx), q.point.to_string()))
             .collect();
 
         let lookups_queries_traces: Vec<_> = circuit
-            .lookup_queries
+            .queries
+            .lookup
             .iter()
-            .zip(1..=circuit.lookup_queries.len())
-            .map(|(q, idx)| (format!("l{}_query", idx), decode_rotation(&q.point)))
+            .enumerate()
+            .map(|(q, idx)| (format!("l{}_query", idx), q.point.to_string()))
             .collect();
 
         let scalar_traces: Vec<_> = [gates_traces, expressions_traces]
