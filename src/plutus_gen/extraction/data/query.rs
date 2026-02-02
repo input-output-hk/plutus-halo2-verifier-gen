@@ -42,61 +42,61 @@ impl Query {
 impl CircuitRepresentation {
     pub fn advice_query(
         &mut self,
-        commitment: Commitments,
-        evaluation: Evaluations,
-        point: RotationDescription,
+        commitment_index: usize,
+        evaluation_index: usize,
+        point: i32,
     ) -> () {
-        let query = Query::new(commitment, evaluation, point);
+        let query = Query::new(
+            Commitments::Advice(commitment_index), //format!("a{:?}", column.index() + 1),
+            Evaluations::Advice(evaluation_index), //format!("adviceEval{:?}", query_index + 1),
+            RotationDescription::from_i32(point),
+        );
         self.queries.advice.push(query);
-    }
-
-    pub fn instance_query(
-        &mut self,
-        commitment: Commitments,
-        evaluation: Evaluations,
-        point: RotationDescription,
-    ) -> () {
-        let query = Query::new(commitment, evaluation, point);
-        self.queries.instance.push(query);
     }
 
     pub fn fixed_query(
         &mut self,
-        commitment: Commitments,
-        evaluation: Evaluations,
-        point: RotationDescription,
+        commitment_index: usize,
+        evaluation_index: usize,
+        point: i32,
     ) -> () {
-        let query = Query::new(commitment, evaluation, point);
+        let query = Query::new(
+            Commitments::Fixed(commitment_index), //format!("f{:?}_commitment", column.index() + 1),
+            Evaluations::Fixed(evaluation_index), //format!("fixedEval{:?}", query_index + 1),
+            RotationDescription::from_i32(point),
+        );
         self.queries.fixed.push(query);
     }
 
     pub fn permutation_query(
         &mut self,
-        commitment: Commitments,
-        evaluation: Evaluations,
+        index: char,
+        evaluation_subindex: usize,
         point: RotationDescription,
     ) -> () {
-        let query = Query::new(commitment, evaluation, point);
+        let query = Query::new(
+            Commitments::Permutation(index), //format!("permutations_committed_{}", set),
+            Evaluations::Permutation(index, evaluation_subindex), //format!("permutations_evaluated_{}_2", set),
+            point,
+        );
         self.queries.permutation.push(query);
     }
 
-    pub fn common_query(
-        &mut self,
-        commitment: Commitments,
-        evaluation: Evaluations,
-        point: RotationDescription,
-    ) -> () {
-        let query = Query::new(commitment, evaluation, point);
+    pub fn common_query(&mut self, index: usize) -> () {
+        let query = Query::new(
+            Commitments::PermutationsCommon(index), //format!("p{:?}_commitment", idx + 1),
+            Evaluations::PermutationsCommon(index), //format!("permutationCommon{:?}", idx + 1),
+            RotationDescription::Current,
+        );
         self.queries.common.push(query);
     }
 
-    pub fn vanishing_query(
-        &mut self,
-        commitment: Commitments,
-        evaluation: Evaluations,
-        point: RotationDescription,
-    ) -> () {
-        let query = Query::new(commitment, evaluation, point);
+    pub fn vanishing_query(&mut self, evaluation: Evaluations) -> () {
+        let query = Query::new(
+            Commitments::VanishingG, //"vanishing_g".to_string(),
+            evaluation,              //"vanishing_s".to_string() or "randomEval".to_string(),
+            RotationDescription::Current,
+        );
         self.queries.vanishing.push(query);
     }
 

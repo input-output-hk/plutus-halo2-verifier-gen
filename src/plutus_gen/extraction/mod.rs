@@ -133,11 +133,7 @@ impl CircuitRepresentation {
                 .iter()
                 .enumerate()
                 .for_each(|(query_index, &(column, at))| {
-                    circuit_description.advice_query(
-                        Commitments::Advice(column.index() + 1), //format!("a{:?}", column.index() + 1),
-                        Evaluations::Advice(query_index + 1), //format!("adviceEval{:?}", query_index + 1),
-                        RotationDescription::from_i32(at.0),
-                    );
+                    circuit_description.advice_query(column.index() + 1, query_index + 1, at.0);
                 });
 
             // Extracting fixed_queries
@@ -146,55 +142,27 @@ impl CircuitRepresentation {
                 .iter()
                 .enumerate()
                 .for_each(|(query_index, &(column, at))| {
-                    circuit_description.fixed_query(
-                        Commitments::Fixed(column.index() + 1), //format!("f{:?}_commitment", column.index() + 1),
-                        Evaluations::Fixed(query_index + 1), //format!("fixedEval{:?}", query_index + 1),
-                        RotationDescription::from_i32(at.0),
-                    );
+                    circuit_description.fixed_query(column.index() + 1, query_index + 1, at.0);
                 });
 
             // Extracting permutation_queries (for current, next and last rotations)
             for (i, set) in sets.into_iter().enumerate() {
-                circuit_description.permutation_query(
-                    Commitments::Permutation(set), //format!("permutations_committed_{}", set),
-                    Evaluations::Permutation(set, 1), //format!("permutations_evaluated_{}_1", set),
-                    RotationDescription::Current,
-                );
-                circuit_description.permutation_query(
-                    Commitments::Permutation(set), //format!("permutations_committed_{}", set),
-                    Evaluations::Permutation(set, 2), //format!("permutations_evaluated_{}_2", set),
-                    RotationDescription::Next,
-                );
+                circuit_description.permutation_query(set, 1, RotationDescription::Current);
+                circuit_description.permutation_query(set, 2, RotationDescription::Next);
 
                 if i != sets_len - 1 {
-                    circuit_description.permutation_query(
-                        Commitments::Permutation(set), //format!("permutations_committed_{}", set),
-                        Evaluations::Permutation(set, 3), //format!("permutations_evaluated_{}_3", set),
-                        RotationDescription::Last,
-                    );
+                    circuit_description.permutation_query(set, 3, RotationDescription::Last);
                 }
             }
 
             // Extracting (permutation) common_queries
             (0..nb_permutation_common).for_each(|idx| {
-                circuit_description.common_query(
-                    Commitments::PermutationsCommon(idx + 1), //format!("p{:?}_commitment", idx + 1),
-                    Evaluations::PermutationsCommon(idx + 1), //format!("permutationCommon{:?}", idx + 1),
-                    RotationDescription::Current,
-                );
+                circuit_description.common_query(idx + 1);
             });
 
             // Extracting vanishing_queries
-            circuit_description.vanishing_query(
-                Commitments::VanishingG, //"vanishing_g".to_string(),
-                Evaluations::VanishingS, //"vanishing_s".to_string(),
-                RotationDescription::Current,
-            );
-            circuit_description.vanishing_query(
-                Commitments::VanishingRand, //"vanishingRand".to_string(),
-                Evaluations::RandomEval,    //"randomEval".to_string(),
-                RotationDescription::Current,
-            );
+            circuit_description.vanishing_query(Evaluations::VanishingS);
+            circuit_description.vanishing_query(Evaluations::RandomEval);
 
             // Extracting lookup_queries
             (0..nb_lookup_commitments).for_each(|idx| {
