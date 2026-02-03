@@ -45,6 +45,10 @@ pub struct InstantiationSpecificData {
 }
 
 impl CircuitRepresentation {
+    pub fn extract_q_evaluations_count(&mut self, number: usize) {
+        self.instantiation_data.q_evaluations_count = number;
+    }
+
     pub fn extract_instantiation_data<S>(
         &mut self,
         params: &ParamsKZG<Bls12>,

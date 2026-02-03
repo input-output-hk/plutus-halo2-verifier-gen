@@ -93,8 +93,7 @@ impl CircuitRepresentation {
         // number of final witnesses is equal to number of different point sets
         let (sets, _) = self.precompute_intermediate_sets();
         let number_of_witnesses = sets.len();
-
-        self.instantiation_data.q_evaluations_count = number_of_witnesses;
+        circuit_repr.extract_q_evaluations_count(number_of_witnesses);
 
         // witnesses
         for _ in 0..number_of_witnesses {
