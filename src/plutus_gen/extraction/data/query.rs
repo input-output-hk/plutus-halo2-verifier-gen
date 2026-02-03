@@ -91,10 +91,17 @@ impl CircuitRepresentation {
         self.queries.common.push(query);
     }
 
-    pub fn vanishing_query(&mut self, evaluation: Evaluations) -> () {
+    pub fn vanishing_queries(&mut self) -> () {
         let query = Query::new(
             Commitments::VanishingG, //"vanishing_g".to_string(),
-            evaluation,              //"vanishing_s".to_string() or "randomEval".to_string(),
+            Evaluations::VanishingS, //"vanishing_s".to_string()
+            RotationDescription::Current,
+        );
+        self.queries.vanishing.push(query);
+
+        let query = Query::new(
+            Commitments::VanishingRand, //"vanishingRand".to_string(),
+            Evaluations::RandomEval,    //"randomEval".to_string(),
             RotationDescription::Current,
         );
         self.queries.vanishing.push(query);

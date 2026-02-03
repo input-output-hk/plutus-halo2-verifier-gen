@@ -161,8 +161,7 @@ impl CircuitRepresentation {
             });
 
             // Extracting vanishing_queries
-            circuit_description.vanishing_query(Evaluations::VanishingS);
-            circuit_description.vanishing_query(Evaluations::RandomEval);
+            circuit_description.vanishing_queries();
 
             // Extracting lookup_queries
             (0..nb_lookup_commitments).for_each(|idx| {
