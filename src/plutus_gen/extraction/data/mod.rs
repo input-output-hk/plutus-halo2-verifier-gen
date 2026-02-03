@@ -17,7 +17,6 @@ pub(crate) use commitment::*;
 pub(crate) use commitment_data::*;
 pub(crate) use evaluation::*;
 pub(crate) use expression::*;
-pub(crate) use expression_steps::*;
 pub(crate) use instantiation_data::*;
 pub(crate) use proof_step::*;
 pub(crate) use query::*;
