@@ -81,7 +81,7 @@ impl CircuitRepresentation {
                 for value in instance.iter() {
                     // transcript.common(value)?;
                     debug!("write public input (instance) into the transcript");
-                    circuit_description.public_inputs += 1;
+                    circuit_description.increment_public_inputs();
                     debug!("{:?}", value);
                     debug!("--------------------------------");
                 }

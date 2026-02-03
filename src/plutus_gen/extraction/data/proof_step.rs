@@ -69,6 +69,9 @@ impl CircuitRepresentation {
             .filter(|e| **e == ProofExtractionSteps::LookupCommitment)
             .count()
     }
+    pub fn increment_public_inputs(&mut self) {
+        self.public_inputs += 1;
+    }
 
     pub fn extract_permutation_eval(&mut self, subscript: char) -> () {
         self.proof_extraction_steps
