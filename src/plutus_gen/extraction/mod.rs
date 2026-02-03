@@ -131,10 +131,7 @@ impl CircuitRepresentation {
             }
 
             // Extracting h_commitments
-            let vanishing_terms = vanishing_expressions(&circuit_description);
-            for (name, expression) in vanishing_terms {
-                circuit_description.vanishing_expression(name, expression);
-            }
+            circuit_description.vanishing_expressions();
         }
 
         debug!("---- Extracting queries");

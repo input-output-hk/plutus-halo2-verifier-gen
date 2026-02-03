@@ -69,6 +69,14 @@ impl CircuitRepresentation {
             .filter(|e| **e == ProofExtractionSteps::LookupCommitment)
             .count()
     }
+
+    pub fn nb_vanishing_splits(&self) -> usize {
+        self.proof_extraction_steps
+            .iter()
+            .filter(|e| **e == ProofExtractionSteps::VanishingSplit)
+            .count()
+    }
+
     pub fn increment_public_inputs(&mut self) {
         self.public_inputs += 1;
     }
