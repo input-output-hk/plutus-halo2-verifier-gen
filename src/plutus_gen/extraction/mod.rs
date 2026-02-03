@@ -14,6 +14,35 @@ pub use data::*;
 pub(crate) mod pcs;
 
 impl CircuitRepresentation {
+    fn rotations<S>(vk: &VerifyingKey<Scalar, S>) -> (i32, i32)
+    where
+        S: PolynomialCommitmentScheme<Scalar, Commitment = G1Projective>,
+    {
+        vk.cs()
+            .instance_queries()
+            .iter()
+            .fold((0, 0), |(min, max), (_, rotation)| {
+                if rotation.0 < min {
+                    (rotation.0, max)
+                } else if rotation.0 > max {
+                    (min, rotation.0)
+                } else {
+                    (min, max)
+                }
+            })
+    }
+
+    fn instance_max_length<S>(instances: &[&[&[Scalar]]]) -> usize
+    where
+        S: PolynomialCommitmentScheme<Scalar, Commitment = G1Projective>,
+    {
+        instances
+            .iter()
+            .flat_map(|instance| instance.iter().map(|instance| instance.len()))
+            .max_by(Ord::cmp)
+            .unwrap_or_default()
+    }
+
     pub fn extract_circuit<S>(
         params: &ParamsKZG<Bls12>,
         vk: &VerifyingKey<Scalar, S>,
@@ -38,29 +67,12 @@ impl CircuitRepresentation {
             panic!("More than 1 proof for processing");
         }
 
-        let (min_rotation, max_rotation) =
-            vk.cs()
-                .instance_queries()
-                .iter()
-                .fold((0, 0), |(min, max), (_, rotation)| {
-                    if rotation.0 < min {
-                        (rotation.0, max)
-                    } else if rotation.0 > max {
-                        (min, rotation.0)
-                    } else {
-                        (min, max)
-                    }
-                });
-        let max_instance_len = instances
-            .iter()
-            .flat_map(|instance| instance.iter().map(|instance| instance.len()))
-            .max_by(Ord::cmp)
-            .unwrap_or_default();
-        let rotations = -max_rotation..max_instance_len as i32 + min_rotation.abs();
-
         let mut circuit_description: CircuitRepresentation = CircuitRepresentation::default();
 
         // Extracting instantiation_data
+        let (min_rotation, max_rotation) = Self::rotations::<S>(vk);
+        let max_instance_len = Self::instance_max_length::<S>(instances) as i32;
+        let rotations = -max_rotation..max_instance_len + min_rotation.abs();
         circuit_description.extract_instantiation_data(params, vk, instances, rotations.len());
 
         // Extracting (number of) public_inputs
