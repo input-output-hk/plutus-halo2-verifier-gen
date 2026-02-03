@@ -115,10 +115,6 @@ impl CircuitRepresentation {
 
             // Extracting permutations_evaluated_terms
             circuit_description.evaluate_permutations_terms(&sets);
-            // let expressions = evaluate_permutations_terms(&sets).unwrap();
-            // for expression in expressions {
-            //     circuit_description.permutation_eval_expression(expression);
-            // }
 
             // Extracting permutation_terms_left and permutation_terms_right
             circuit_description.permutation_terms_both(
