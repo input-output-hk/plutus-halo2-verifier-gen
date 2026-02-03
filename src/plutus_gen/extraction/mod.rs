@@ -114,21 +114,19 @@ impl CircuitRepresentation {
             });
 
             // Extracting permutations_evaluated_terms
-            let expressions = evaluate_permutations_terms(&sets).unwrap();
-            for expression in expressions {
-                circuit_description.permutation_eval_expression(expression);
-            }
+            circuit_description.evaluate_permutations_terms(&sets);
+            // let expressions = evaluate_permutations_terms(&sets).unwrap();
+            // for expression in expressions {
+            //     circuit_description.permutation_eval_expression(expression);
+            // }
 
             // Extracting permutation_terms_left and permutation_terms_right
-            let (terms_left, terms_right) =
-                permutation_terms_both(&vk, chunk_len, &sets, nb_permutation_common).unwrap();
-
-            for (index, expression) in terms_left {
-                circuit_description.permutation_left_expression(index, expression);
-            }
-            for (index, expression) in terms_right {
-                circuit_description.permutation_right_expression(index, expression);
-            }
+            circuit_description.permutation_terms_both(
+                &vk,
+                chunk_len,
+                &sets,
+                nb_permutation_common,
+            );
 
             // Extracting h_commitments
             circuit_description.vanishing_expressions();
