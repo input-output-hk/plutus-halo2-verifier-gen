@@ -83,13 +83,6 @@ impl InstantiationSpecificData {
 
         self.transcript_representation = vk.transcript_repr();
 
-        self.public_inputs_count = {
-            if instances[0].len() == 1 {
-                instances[0][0].len()
-            } else {
-                // we have committed instances
-                instances[0][1].len()
-            }
-        };
+        self.public_inputs_count = instances[0][0].len();
     }
 }
