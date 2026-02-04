@@ -13,6 +13,12 @@ pub use data::*;
 
 pub mod pcs;
 
+use crate::plutus_gen::extraction::pcs::ExtractPCS;
+
+impl<PCS: ExtractPCS + PolynomialCommitmentScheme<Scalar, Commitment = G1Projective>>
+    CircuitRepresentation<PCS>
+{
+    fn rotations(vk: &VerifyingKey<Scalar, PCS>) -> (i32, i32) {
         vk.cs()
             .instance_queries()
             .iter()
@@ -27,10 +33,7 @@ pub mod pcs;
             })
     }
 
-    fn instance_max_length<S>(instances: &[&[&[Scalar]]]) -> usize
-    where
-        S: PolynomialCommitmentScheme<Scalar, Commitment = G1Projective>,
-    {
+    fn instance_max_length(instances: &[&[&[Scalar]]]) -> usize {
         instances
             .iter()
             .flat_map(|instance| instance.iter().map(|instance| instance.len()))
@@ -38,14 +41,11 @@ pub mod pcs;
             .unwrap_or_default()
     }
 
-    pub fn extract_circuit<S>(
+    pub fn extract_circuit(
         params: &ParamsKZG<Bls12>,
-        vk: &VerifyingKey<Scalar, S>,
+        vk: &VerifyingKey<Scalar, PCS>,
         instances: &[&[&[Scalar]]],
-    ) -> Result<Self, Error>
-    where
-        S: PolynomialCommitmentScheme<Scalar, Commitment = G1Projective>,
-    {
+    ) -> Result<Self, Error> {
         let chunk_len = vk.cs().degree() - 2;
 
         #[cfg(feature = "plutus_debug")]
@@ -62,11 +62,12 @@ pub mod pcs;
             panic!("More than 1 proof for processing");
         }
 
-        let mut circuit_description: CircuitRepresentation = CircuitRepresentation::default();
+        let mut circuit_description: CircuitRepresentation<PCS> =
+            CircuitRepresentation::<PCS>::new();
 
         // Extracting instantiation_data
-        let (min_rotation, max_rotation) = Self::rotations::<S>(vk);
-        let max_instance_len = Self::instance_max_length::<S>(instances) as i32;
+        let (min_rotation, max_rotation) = Self::rotations(vk);
+        let max_instance_len = Self::instance_max_length(instances) as i32;
         let rotations = -max_rotation..max_instance_len + min_rotation.abs();
         circuit_description.proof_instantiation_data.extract(
             params,

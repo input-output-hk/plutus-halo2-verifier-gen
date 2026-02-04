@@ -1,6 +1,6 @@
-use crate::plutus_gen::CircuitRepresentation;
-
 use super::super::{ScalarExpression, constants::*};
+use crate::plutus_gen::CircuitRepresentation;
+use crate::plutus_gen::extraction::pcs::ExtractPCS;
 
 use blstrs::{G1Projective, Scalar};
 
@@ -8,10 +8,14 @@ use halo2_proofs::halo2curves::group::Curve;
 use halo2_proofs::plonk::{Advice, Any, Column, Fixed, Instance, VerifyingKey};
 use halo2_proofs::poly::{Rotation, commitment::PolynomialCommitmentScheme};
 
-fn get_any_query_index<S>(vk: &VerifyingKey<Scalar, S>, column: Column<Any>, at: Rotation) -> usize
+fn get_any_query_index<PCS>(
+    vk: &VerifyingKey<Scalar, PCS>,
+    column: Column<Any>,
+    at: Rotation,
+) -> usize
 where
-    S: PolynomialCommitmentScheme<Scalar>,
-    S::Commitment: Curve,
+    PCS: PolynomialCommitmentScheme<Scalar>,
+    PCS::Commitment: Curve,
 {
     match column.column_type() {
         Any::Advice(_) => {
@@ -71,7 +75,7 @@ where
     }
 }
 
-impl CircuitRepresentation {
+impl<PCS: ExtractPCS> CircuitRepresentation<PCS> {
     pub fn evaluate_permutations_terms(&mut self, sets: &Vec<char>) {
         // TODO think about errors returned
         let first_set = sets.first().unwrap();
@@ -132,14 +136,14 @@ impl CircuitRepresentation {
         }
     }
 
-    pub fn permutation_terms_both<S>(
+    pub fn permutation_terms_both(
         &mut self,
-        vk: &VerifyingKey<Scalar, S>,
+        vk: &VerifyingKey<Scalar, PCS>,
         chunk_len: usize,
         sets: &Vec<char>,
         nb_permutation_common: usize,
     ) where
-        S: PolynomialCommitmentScheme<Scalar, Commitment = G1Projective>,
+        PCS: PolynomialCommitmentScheme<Scalar, Commitment = G1Projective>,
     {
         sets.iter()
             .zip(vk.cs().permutation().columns.chunks(chunk_len))

@@ -1,56 +1,62 @@
-use anyhow::{Context as _, Result, anyhow};
-use blstrs::{Base, Bls12, G1Projective, Scalar};
+use anyhow::{Context as _, Result, anyhow, bail};
 use ff::Field;
+use log::{debug, info};
+use rand::prelude::StdRng;
+use rand_core::SeedableRng;
+use std::env;
+
+use blstrs::{Base, Bls12, G1Projective, Scalar};
+
 use halo2_proofs::{
-    plonk::{create_proof, k_from_circuit, keygen_pk, keygen_vk, prepare},
+    plonk::{
+        ProvingKey, VerifyingKey, create_proof, k_from_circuit, keygen_pk, keygen_vk, prepare,
+    },
     poly::{
         commitment::{Guard, PolynomialCommitmentScheme},
+        gwc_kzg::GwcKZGCommitmentScheme,
         kzg::KZGCommitmentScheme,
-        kzg::params::{ParamsKZG, ParamsVerifierKZG},
     },
     transcript::Transcript,
 };
-use log::{debug, info};
+
 use plutus_halo2_verifier_gen::{
     circuits::simple_mul_circuit::SimpleMulCircuit, kzg_params::get_or_create_kzg_params,
+    plutus_gen::ExtractPCS,
 };
-use rand::prelude::StdRng;
-use rand_core::SeedableRng;
 
 #[path = "./utils.rs"]
 mod utils;
-use utils::{CTranscript, PCS, PK, Params, VK, export_all};
+use utils::{CTranscript, Params, ParamsVK, export_all};
 
 fn main() -> Result<()> {
-    // env_logger::init_from_env(env_logger::Env::default().filter_or("RUST_LOG", "info"));
+    env_logger::init_from_env(env_logger::Env::default().filter_or("RUST_LOG", "info"));
 
-    // let args: Vec<String> = env::args().collect();
+    let args: Vec<String> = env::args().collect();
 
-    // match &args[1..] {
-    //     [] => compile_simple_mul_circuit::<KZGCommitmentScheme<Bls12>>(),
-    //     [command] if command == "gwc_kzg" => {
-    //         compile_simple_mul_circuit::<GwcKZGCommitmentScheme<Bls12>>()
-    //     }
-    //     _ => {
-    //         println!("Usage:");
-    //         println!("- to run the example: `cargo run --example example_name`");
-    //         println!(
-    //             "- to run the example using the GWC19 version of multi-open KZG, run: `cargo run --example example_name gwc_kzg`"
-    //         );
+    match &args[1..] {
+        [] => compile_simple_mul_circuit::<KZGCommitmentScheme<Bls12>>(),
+        [command] if command == "gwc_kzg" => {
+            compile_simple_mul_circuit::<GwcKZGCommitmentScheme<Bls12>>()
+        }
+        _ => {
+            println!("Usage:");
+            println!("- to run the example: `cargo run --example example_name`");
+            println!(
+                "- to run the example using the GWC19 version of multi-open KZG, run: `cargo run --example example_name gwc_kzg`"
+            );
 
-    //         bail!("Invalid command line arguments")
-    //     }
-    // }
-    compile_simple_mul_circuit::<KZGCommitmentScheme<Bls12>>()
+            bail!("Invalid command line arguments")
+        }
+    }
 }
 
 fn compile_simple_mul_circuit<
-    S: PolynomialCommitmentScheme<
+    PCS: PolynomialCommitmentScheme<
             Scalar,
             Commitment = G1Projective,
-            Parameters = ParamsKZG<Bls12>,
-            VerifierParameters = ParamsVerifierKZG<Bls12>,
-        >,
+            Parameters = Params,
+            VerifierParameters = ParamsVK,
+        > + ExtractPCS,
 >() -> Result<()> {
     // Prepare the private and public inputs to the circuit!
     let constant = Scalar::from(7);
@@ -72,9 +78,9 @@ fn compile_simple_mul_circuit<
     let mut rng: StdRng = SeedableRng::from_seed(seed);
 
     let k: u32 = k_from_circuit(&circuit);
-    let kzg_params: ParamsKZG<Bls12> = get_or_create_kzg_params(k, rng.clone())?;
-    let vk: VK = keygen_vk(&kzg_params, &circuit).context("keygen_vk should not fail")?;
-    let pk: PK = keygen_pk(vk.clone(), &circuit).context("keygen_pk should not fail")?;
+    let kzg_params: Params = get_or_create_kzg_params(k, rng.clone())?;
+    let vk: VerifyingKey<Scalar, PCS> = keygen_vk(&kzg_params, &circuit)?;
+    let pk: ProvingKey<Scalar, PCS> = keygen_pk(vk.clone(), &circuit)?;
 
     let mut transcript = CTranscript::init();
     debug!("transcript: {:?}", transcript);
@@ -117,5 +123,5 @@ fn compile_simple_mul_circuit<
         .map_err(|e| anyhow!("{e:?}"))
         .context("verify failed")?;
 
-    export_all(proof, kzg_params, vk, instances, invalid_proof)
+    export_all(proof, kzg_params, &vk, instances, invalid_proof)
 }

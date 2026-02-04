@@ -5,6 +5,8 @@ use crate::plutus_gen::extraction::data::{
     CircuitRepresentation, CommitmentData, Commitments, Evaluations, ProofExtractionSteps, Query,
     RotationDescription, constants::*,
 };
+use crate::plutus_gen::extraction::pcs::{ExtractPCS, PCSType};
+
 use blstrs::Scalar;
 use ff::Field;
 
@@ -16,13 +18,16 @@ use log::debug;
 use std::ops::Neg;
 use std::{collections::HashMap, fs::File, iter::once, path::Path};
 
-pub fn emit_verifier_code(
+pub fn emit_verifier_code<PCS>(
     template_file: &Path, // aiken mustashe template
     aiken_file: &Path,    // generated aiken file, output
     profiler_file: Option<&Path>,
-    circuit: &CircuitRepresentation,
+    circuit: &CircuitRepresentation<PCS>,
     test_data: Option<(Vec<u8>, Vec<u8>, Vec<Scalar>)>,
-) -> Result<String, RenderError> {
+) -> Result<String, RenderError>
+where
+    PCS: ExtractPCS,
+{
     let letters = 'a'..='z';
     let proof_extraction: Vec<_> = circuit
         .proof_extraction_steps
@@ -466,41 +471,41 @@ pub fn emit_verifier_code(
         let q_evaluations = PCS::pcs_data_plinth(&circuit);
         data.insert("HALO2_Q_EVALS_FROM_PROOF".to_string(), q_evaluations);
 
-    // Pre-sort commitment data by point set index to save on this inside the contract
-    let halo2_commitment_data = point_sets_indexes
-        .iter()
-        .map(|idx| {
-            let commitments_in_set: Vec<&CommitmentData> = commitment_data
-                .iter()
-                .filter(|&cd| cd.point_set_index == *idx)
-                .collect();
+        // Pre-sort commitment data by point set index to save on this inside the contract
+        let halo2_commitment_data = point_sets_indexes
+            .iter()
+            .map(|idx| {
+                let commitments_in_set: Vec<&CommitmentData> = commitment_data
+                    .iter()
+                    .filter(|&cd| cd.point_set_index == *idx)
+                    .collect();
 
-            let commitments_in_set_str = commitments_in_set
-                .iter()
-                .map(|commitment_data| {
-                    format!(
-                        "\t\t\t({}, [{}])",
-                        commitment_data.commitment.compile_expression(),
-                        commitment_data
-                            .evaluations
-                            .iter()
-                            .map(AikenExpression::compile_expression)
-                            .join(",")
-                    )
-                })
-                .join(",\n");
+                let commitments_in_set_str = commitments_in_set
+                    .iter()
+                    .map(|commitment_data| {
+                        format!(
+                            "\t\t\t({}, [{}])",
+                            commitment_data.commitment.compile_expression(),
+                            commitment_data
+                                .evaluations
+                                .iter()
+                                .map(AikenExpression::compile_expression)
+                                .join(",")
+                        )
+                    })
+                    .join(",\n");
 
-            format!("\n\t\t[\n{}\n\t\t]", commitments_in_set_str)
-        })
+                format!("\n\t\t[\n{}\n\t\t]", commitments_in_set_str)
+            })
             .join(",");
 
         let kzg_halo2_commitment_map =
             format!("\tlet commitment_data = [{}]", halo2_commitment_data);
         data.insert("HALO2_COMMITMENT_MAP".to_string(), kzg_halo2_commitment_map);
 
-    let kzg_halo2_point_sets = unique_grouped_points
-        .iter()
-        .map(|set| set.iter().map(RotationDescription::to_string).join(","))
+        let kzg_halo2_point_sets = unique_grouped_points
+            .iter()
+            .map(|set| set.iter().map(RotationDescription::to_string).join(","))
             .join("],[");
 
         let kzg_halo2_point_sets = format!("     let point_sets = [[{}]]", kzg_halo2_point_sets);
@@ -673,15 +678,18 @@ pub fn emit_verifier_code(
     handlebars.render("aiken_template", &data)
 }
 
-pub fn emit_vk_code(
+pub fn emit_vk_code<PCS>(
     template_file: &Path,
     aiken_file: &Path,
-    circuit: &CircuitRepresentation,
-) -> Result<String, RenderError> {
+    circuit: &CircuitRepresentation<PCS>,
+) -> Result<String, RenderError>
+where
+    PCS: ExtractPCS,
+{
     let mut data: HashMap<String, String> = HashMap::new(); // data to bind to mustache template
 
     let points = circuit
-        .instantiation_data
+        .proof_instantiation_data
         .fixed_commitments
         .iter()
         .cloned()

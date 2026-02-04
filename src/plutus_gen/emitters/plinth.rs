@@ -4,6 +4,7 @@ use crate::plutus_gen::extraction::data::languages::plinth::*;
 use crate::plutus_gen::extraction::data::{
     CircuitRepresentation, ProofExtractionSteps, RotationDescription, constants::*,
 };
+use crate::plutus_gen::extraction::pcs::{ExtractPCS, PCSType};
 
 use halo2_proofs::halo2curves::group::GroupEncoding;
 use halo2_proofs::halo2curves::group::prime::PrimeCurveAffine;
@@ -13,11 +14,14 @@ use itertools::Itertools;
 use log::debug;
 use std::{collections::HashMap, fs::File, path::Path};
 
-pub fn emit_verifier_code(
+pub fn emit_verifier_code<PCS>(
     template_file: &Path, // haskell mustashe template
     haskell_file: &Path,  // generated haskell file, output
-    circuit: &CircuitRepresentation,
-) -> Result<String, RenderError> {
+    circuit: &CircuitRepresentation<PCS>,
+) -> Result<String, RenderError>
+where
+    PCS: ExtractPCS,
+{
     let letters = 'a'..='z';
     let proof_extraction: Vec<_> = circuit
         .proof_extraction_steps
@@ -546,33 +550,33 @@ pub fn emit_verifier_code(
             .join("");
         data.insert("LOOKUP_QUERIES".to_string(), common_queries);
 
-    let common_queries = circuit
-        .queries
-        .lookup
-        .iter()
-        .enumerate()
-        .map(|(number, query)| {
-            format!(
-                "      !l{}_query = MinimalVerifierQuery {} {}\n",
-                number + 1,
-                query.commitment.compile_expression(),
-                query.evaluation.compile_expression()
-            )
-        })
-        .join("");
-    data.insert("LOOKUP_QUERIES".to_string(), common_queries);
+        let common_queries = circuit
+            .queries
+            .lookup
+            .iter()
+            .enumerate()
+            .map(|(number, query)| {
+                format!(
+                    "      !l{}_query = MinimalVerifierQuery {} {}\n",
+                    number + 1,
+                    query.commitment.compile_expression(),
+                    query.evaluation.compile_expression()
+                )
+            })
+            .join("");
+        data.insert("LOOKUP_QUERIES".to_string(), common_queries);
 
-    //  NameAnn 'x_current 'a1_query
-    let msm_advice_queries = circuit
-        .queries
-        .advice
-        .iter()
-        .enumerate()
-        .map(|(number, query)| {
-            let rotation = query.point.to_string();
-            format!(
-                "              NameAnn '{} 'a{}_query ,\n",
-                rotation,
+        //  NameAnn 'x_current 'a1_query
+        let msm_advice_queries = circuit
+            .queries
+            .advice
+            .iter()
+            .enumerate()
+            .map(|(number, query)| {
+                let rotation = query.point.to_string();
+                format!(
+                    "              NameAnn '{} 'a{}_query ,\n",
+                    rotation,
                     number + 1
                 )
             })
@@ -600,78 +604,78 @@ pub fn emit_verifier_code(
         );
 
         let msm_fixed_queries = circuit
-        .queries
-        .fixed
-        .iter()
-        .enumerate()
-        .map(|(number, query)| {
-            let rotation = query.point.to_string();
-            format!(
-                "              NameAnn '{} 'f{}_query ,\n",
-                rotation,
-                number + 1
-            )
-        })
-        .join("");
-    data.insert("MSM_FIXED_QUERIES".to_string(), msm_fixed_queries);
+            .queries
+            .fixed
+            .iter()
+            .enumerate()
+            .map(|(number, query)| {
+                let rotation = query.point.to_string();
+                format!(
+                    "              NameAnn '{} 'f{}_query ,\n",
+                    rotation,
+                    number + 1
+                )
+            })
+            .join("");
+        data.insert("MSM_FIXED_QUERIES".to_string(), msm_fixed_queries);
 
-    let msm_common_queries = circuit
-        .queries
-        .common
-        .iter()
-        .enumerate()
-        .map(|(number, query)| {
-            let rotation = query.point.to_string();
-            format!(
-                "              NameAnn '{} 'p{}_query ,\n",
-                rotation,
-                number + 1
-            )
-        })
-        .join("");
+        let msm_common_queries = circuit
+            .queries
+            .common
+            .iter()
+            .enumerate()
+            .map(|(number, query)| {
+                let rotation = query.point.to_string();
+                format!(
+                    "              NameAnn '{} 'p{}_query ,\n",
+                    rotation,
+                    number + 1
+                )
+            })
+            .join("");
 
-    data.insert("MSM_COMMON_QUERIES".to_string(), msm_common_queries);
+        data.insert("MSM_COMMON_QUERIES".to_string(), msm_common_queries);
 
-    let msm_lookup_queries = circuit
-        .queries
-        .lookup
-        .iter()
-        .enumerate()
-        .map(|(number, query)| {
-            let rotation = query.point.to_string();
-            format!(
-                "              NameAnn '{} 'l{}_query ,\n",
-                rotation,
-                number + 1
-            )
-        })
-        .join("");
+        let msm_lookup_queries = circuit
+            .queries
+            .lookup
+            .iter()
+            .enumerate()
+            .map(|(number, query)| {
+                let rotation = query.point.to_string();
+                format!(
+                    "              NameAnn '{} 'l{}_query ,\n",
+                    rotation,
+                    number + 1
+                )
+            })
+            .join("");
 
-    data.insert("MSM_LOOKUP_QUERIES".to_string(), msm_lookup_queries);
+        data.insert("MSM_LOOKUP_QUERIES".to_string(), msm_lookup_queries);
 
         let w_values = PCS::pcs_data_plinth(circuit);
         data.insert("W_VALUES".to_string(), w_values);
 
-    let state = vec![];
-    let rotation_order = circuit
-        .queries
-        .all_ordered()
-        .iter()
-        .flatten()
-        .map(|query| &query.point)
-        .scan(state, |s, e| {
-            if !s.contains(e) {
-                s.push(e.clone())
-            }
-            Some(s.clone())
-        })
-        .last()
-        .expect("There should be at least one query");
+        let state = vec![];
+        let rotation_order = circuit
+            .queries
+            .all_ordered()
+            .iter()
+            .flatten()
+            .map(|query| &query.point)
+            .scan(state, |s, e| {
+                if !s.contains(e) {
+                    s.push(e.clone())
+                }
+                Some(s.clone())
+            })
+            .last()
+            .expect("There should be at least one query");
 
-    let rotation_order: Vec<_> = rotation_order
-        .iter()
-        .map(RotationDescription::to_string)
-        .collect();
+        let rotation_order: Vec<_> = rotation_order
+            .iter()
+            .map(RotationDescription::to_string)
+            .collect();
 
         let x_values = rotation_order
             .iter()
@@ -822,11 +826,14 @@ pub fn emit_verifier_code(
     handlebars.render("haskell_template", &data)
 }
 
-pub fn emit_vk_code(
+pub fn emit_vk_code<PCS>(
     template_file: &Path, // haskell mustashe template
     haskell_file: &Path,  // generated haskell file, output
-    circuit: &CircuitRepresentation,
-) -> Result<String, RenderError> {
+    circuit: &CircuitRepresentation<PCS>,
+) -> Result<String, RenderError>
+where
+    PCS: ExtractPCS,
+{
     let mut data: HashMap<String, String> = HashMap::new(); // data to bind to mustache template
 
     let points = circuit

@@ -1,9 +1,10 @@
 use super::super::{CircuitRepresentation, ExpressionG1, ScalarExpression, constants::*};
+use crate::plutus_gen::extraction::pcs::ExtractPCS;
 
 #[cfg(feature = "plutus_debug")]
 use log::info;
 
-impl CircuitRepresentation {
+impl<PCS: ExtractPCS> CircuitRepresentation<PCS> {
     pub fn vanishing_expressions(&mut self) {
         // let mut terms = Vec::new();
 

@@ -1,4 +1,5 @@
 use super::super::{CircuitRepresentation, ProofExtractionSteps};
+use crate::plutus_gen::extraction::pcs::ExtractPCS;
 
 use blstrs::{G1Affine, G1Projective, Scalar};
 use halo2_proofs::plonk::VerifyingKey;
@@ -10,10 +11,10 @@ use halo2_proofs::halo2curves::group::prime::PrimeCurveAffine;
 #[cfg(feature = "plutus_debug")]
 use log::info;
 
-impl CircuitRepresentation {
-    pub fn extract_proof_steps<S>(&mut self, vk: &VerifyingKey<Scalar, S>) -> ()
+impl<PCS: ExtractPCS> CircuitRepresentation<PCS> {
+    pub fn extract_proof_steps(&mut self, vk: &VerifyingKey<Scalar, PCS>) -> ()
     where
-        S: PolynomialCommitmentScheme<Scalar, Commitment = G1Projective>,
+        PCS: PolynomialCommitmentScheme<Scalar, Commitment = G1Projective>,
     {
         let chunk_len = vk.cs().degree() - 2;
 
