@@ -76,9 +76,6 @@ impl<PCS: ExtractPCS> CircuitRepresentation<PCS> {
 
         self.extract_step(ProofExtractionSteps::YCoordinate);
 
-        #[cfg(feature = "plutus_debug")]
-        info!("Following Midnight-zk's verify_algebraic_constraints function");
-
         (0..vk.get_domain().get_quotient_poly_degree()).for_each(|_| {
             self.extract_step(ProofExtractionSteps::VanishingSplit);
         });

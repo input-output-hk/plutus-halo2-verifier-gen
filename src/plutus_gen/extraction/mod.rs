@@ -48,9 +48,6 @@ impl<PCS: ExtractPCS + PolynomialCommitmentScheme<Scalar, Commitment = G1Project
     ) -> Result<Self, Error> {
         let chunk_len = vk.cs().degree() - 2;
 
-        #[cfg(feature = "plutus_debug")]
-        info!("Following Midnight-zk's parse_trace function");
-
         for instances in instances.iter() {
             if instances.len() != vk.cs().num_instance_columns() {
                 return Err(Error::InvalidInstances);
