@@ -1,6 +1,7 @@
+use anyhow::{Error, anyhow};
 use blstrs::{Bls12, G1Projective, Scalar};
 
-use halo2_proofs::plonk::{Error, VerifyingKey};
+use halo2_proofs::plonk::VerifyingKey;
 use halo2_proofs::poly::commitment::PolynomialCommitmentScheme;
 use halo2_proofs::poly::kzg::params::ParamsKZG;
 
@@ -50,13 +51,20 @@ impl<PCS: ExtractPCS + PolynomialCommitmentScheme<Scalar, Commitment = G1Project
 
         for instances in instances.iter() {
             if instances.len() != vk.cs().num_instance_columns() {
-                return Err(Error::InvalidInstances);
+                return Err(anyhow!(
+                    "Invalid number of instances, #instances ({}) != #instance_columns ({})",
+                    instances.len(),
+                    vk.cs().num_instance_columns()
+                ));
             }
         }
 
         // We suppose we only are verifying a single proof
         if instances.len() > 1 {
-            panic!("More than 1 proof for processing");
+            return Err(anyhow!(
+                "Only one proof can be processed at a time, {} were received",
+                instances.len()
+            ));
         }
 
         let mut circuit_description: CircuitRepresentation<PCS> =
