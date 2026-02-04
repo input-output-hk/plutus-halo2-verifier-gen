@@ -1,5 +1,7 @@
 //! RotationDescription type and associated functions
 
+use serde::{Deserialize, Serialize};
+
 // TODO handle cases with custom gates that have more rotations then those 4?
 
 /// RotationDescription handles only rotations with value -1, 0, and 1.
@@ -8,7 +10,7 @@
 /// <https://blog.zksecurity.xyz/posts/halo2-query-collision/>,
 /// especially handle the case where rotation 2^k is used to check for
 /// wrapping of the trace table rows
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Default, Hash)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default, Hash, Serialize, Deserialize)]
 pub enum RotationDescription {
     Last,
     Previous,

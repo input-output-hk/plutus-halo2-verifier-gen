@@ -97,21 +97,21 @@ pub fn emit_verifier_code(
                         + &format!("  !permuted_table_eval_{} <- M.readScalar\n", number + 1)
                 })
                 .join(""),
-            // section for halo2 multi open version of KZG
-            ProofExtractionSteps::X1 => "  !x1 <- M.squeezeChallenge\n".to_string(),
-            ProofExtractionSteps::X2 => "  !x2 <- M.squeezeChallenge\n".to_string(),
-            ProofExtractionSteps::X3 => "  !x3 <- M.squeezeChallenge\n".to_string(),
-            ProofExtractionSteps::X4 => "  !x4 <- M.squeezeChallenge\n".to_string(),
-            ProofExtractionSteps::FCommitment => "  !f_commitment <- M.readPoint\n".to_string(),
-            ProofExtractionSteps::PI => "  !pi_term <- M.readPoint\n".to_string(),
-            ProofExtractionSteps::QEvals => section
-                .enumerate()
-                .map(|(number, _permutation_common)| {
-                    format!("  !q_eval_on_x3_{} <- M.readScalar\n", number + 1)
-                })
-                .join(""),
         })
         .collect();
+
+    let pcs_extraction = circuit
+        .pcs_extraction_steps
+        .iter()
+        .chunk_by(|e| (*e).clone())
+        .into_iter()
+        .map(|(section_type, section)| {
+            section
+                .enumerate()
+                .map(|(number, _step)| PCS::step_to_plinth(section_type.clone(), number + 1))
+                .join("")
+        })
+        .collect::<Vec<_>>();
 
     let mut data: HashMap<String, String> = HashMap::new(); // data to bind to mustache template
 
@@ -120,12 +120,12 @@ pub fn emit_verifier_code(
         circuit.public_inputs.to_string(),
     );
 
-    let proof_extraction_stage = proof_extraction.join("");
+    let proof_extraction_stage = proof_extraction.join("") + &pcs_extraction.join("");
     data.insert("PES".to_string(), proof_extraction_stage);
 
     data.insert(
         "X_EXPONENT".to_string(),
-        circuit.instantiation_data.n_coefficient.to_string(),
+        circuit.proof_instantiation_data.n_coefficient.to_string(),
     );
 
     let gates = circuit
@@ -403,96 +403,9 @@ pub fn emit_verifier_code(
         .join("");
     data.insert("H_COMMITMENTS".to_string(), h_commitments);
 
-    let advice_queries = circuit
-        .queries
-        .advice
-        .iter()
-        .enumerate()
-        .map(|(number, query)| {
-            format!(
-                "      !a{}_query = MinimalVerifierQuery {} {}\n",
-                number + 1,
-                query.commitment.compile_expression(),
-                query.evaluation.compile_expression()
-            )
-        })
-        .join("");
-    data.insert("ADVICE_QUERIES".to_string(), advice_queries);
+    let (unique_grouped_points, commitment_data) = PCS::precompute_intermediate_sets(circuit);
 
-    let fixed_queries = circuit
-        .queries
-        .fixed
-        .iter()
-        .enumerate()
-        .map(|(number, query)| {
-            format!(
-                "      !f{}_query = MinimalVerifierQuery {} {}\n",
-                number + 1,
-                query.commitment.compile_expression(),
-                query.evaluation.compile_expression()
-            )
-        })
-        .join("");
-    data.insert("FIXED_QUERIES".to_string(), fixed_queries);
-
-    let permutation_queries = circuit
-        .queries
-        .permutation
-        .iter()
-        .enumerate()
-        .map(|(number, query)| {
-            format!(
-                "      !permutations_query{} = MinimalVerifierQuery {} {}\n",
-                number + 1,
-                query.commitment.compile_expression(),
-                query.evaluation.compile_expression()
-            )
-        })
-        .join("");
-    data.insert("PERMUTATION_QUERIES".to_string(), permutation_queries);
-
-    let common_queries = circuit
-        .queries
-        .common
-        .iter()
-        .enumerate()
-        .map(|(number, query)| {
-            format!(
-                "      !p{}_query = MinimalVerifierQuery {} {}\n",
-                number + 1,
-                query.commitment.compile_expression(),
-                query.evaluation.compile_expression()
-            )
-        })
-        .join("");
-    data.insert("COMMON_QUERIES".to_string(), common_queries);
-
-    let (unique_grouped_points, commitment_data) = circuit.precompute_intermediate_sets();
-
-    // Precompute maximum number of commitments queried for any points set,
-    // it will define the number of X1 powers that we would need to compute during verification
-    let point_sets_indexes: Vec<usize> = (0..unique_grouped_points.len()).collect();
-    let max_commitments_per_points_set = point_sets_indexes
-        .iter()
-        .map(|&idx| {
-            commitment_data
-                .iter()
-                .filter(|cd| cd.point_set_index == idx)
-                .count()
-        })
-        .max()
-        .unwrap_or(0);
-    data.insert(
-        "X1_POWERS_COUNT".to_string(),
-        max_commitments_per_points_set.to_string(),
-    );
-
-    data.insert(
-        "X4_POWERS_COUNT".to_string(),
-        (point_sets_indexes.len() + 1).to_string(),
-    );
-
-    let commitment_data = commitment_data
+    let commitment_data_str = commitment_data
         .iter()
         .map(|commitment_data| {
             format!(
@@ -513,7 +426,7 @@ pub fn emit_verifier_code(
         })
         .join("),(");
 
-    let commitment_map = format!("      !commitment_data = [({})]", commitment_data);
+    let commitment_map = format!("      !commitment_data = [({})]", commitment_data_str);
     data.insert("COMMITMENT_MAP".to_string(), commitment_map);
 
     let point_sets = unique_grouped_points
@@ -523,6 +436,115 @@ pub fn emit_verifier_code(
 
     let point_sets = format!("      !point_sets = [[{}]]", point_sets);
     data.insert("POINT_SETS".to_string(), point_sets);
+
+    if PCS::pcs_type() == PCSType::Halo2MultiOpen {
+        // Precompute maximum number of commitments queried for any points set,
+        // it will define the number of X1 powers that we would need to compute during verification
+        let point_sets_indexes: Vec<usize> = (0..unique_grouped_points.len()).collect();
+        let max_commitments_per_points_set = point_sets_indexes
+            .iter()
+            .map(|&idx| {
+                commitment_data
+                    .iter()
+                    .filter(|cd| cd.point_set_index == idx)
+                    .count()
+            })
+            .max()
+            .unwrap_or(0);
+        data.insert(
+            "X1_POWERS_COUNT".to_string(),
+            max_commitments_per_points_set.to_string(),
+        );
+
+        data.insert(
+            "X4_POWERS_COUNT".to_string(),
+            (point_sets_indexes.len() + 1).to_string(),
+        );
+
+        let q_evaluations = PCS::pcs_data_plinth(&circuit);
+        data.insert("Q_EVALS_FROM_PROOF".to_string(), q_evaluations);
+    }
+
+    if PCS::pcs_type() == PCSType::GWC19 {
+        let advice_queries = circuit
+            .queries
+            .advice
+            .iter()
+            .enumerate()
+            .map(|(number, query)| {
+                format!(
+                    "      !a{}_query = MinimalVerifierQuery {} {}\n",
+                    number + 1,
+                    query.commitment.compile_expression(),
+                    query.evaluation.compile_expression()
+                )
+            })
+            .join("");
+        data.insert("ADVICE_QUERIES".to_string(), advice_queries);
+
+        let fixed_queries = circuit
+            .queries
+            .fixed
+            .iter()
+            .enumerate()
+            .map(|(number, query)| {
+                format!(
+                    "      !f{}_query = MinimalVerifierQuery {} {}\n",
+                    number + 1,
+                    query.commitment.compile_expression(),
+                    query.evaluation.compile_expression()
+                )
+            })
+            .join("");
+        data.insert("FIXED_QUERIES".to_string(), fixed_queries);
+
+        let permutation_queries = circuit
+            .queries
+            .permutation
+            .iter()
+            .enumerate()
+            .map(|(number, query)| {
+                format!(
+                    "      !permutations_query{} = MinimalVerifierQuery {} {}\n",
+                    number + 1,
+                    query.commitment.compile_expression(),
+                    query.evaluation.compile_expression()
+                )
+            })
+            .join("");
+        data.insert("PERMUTATION_QUERIES".to_string(), permutation_queries);
+
+        let common_queries = circuit
+            .queries
+            .common
+            .iter()
+            .enumerate()
+            .map(|(number, query)| {
+                format!(
+                    "      !p{}_query = MinimalVerifierQuery {} {}\n",
+                    number + 1,
+                    query.commitment.compile_expression(),
+                    query.evaluation.compile_expression()
+                )
+            })
+            .join("");
+        data.insert("COMMON_QUERIES".to_string(), common_queries);
+
+        let common_queries = circuit
+            .queries
+            .lookup
+            .iter()
+            .enumerate()
+            .map(|(number, query)| {
+                format!(
+                    "      !l{}_query = MinimalVerifierQuery {} {}\n",
+                    number + 1,
+                    query.commitment.compile_expression(),
+                    query.evaluation.compile_expression()
+                )
+            })
+            .join("");
+        data.insert("LOOKUP_QUERIES".to_string(), common_queries);
 
     let common_queries = circuit
         .queries
@@ -551,32 +573,33 @@ pub fn emit_verifier_code(
             format!(
                 "              NameAnn '{} 'a{}_query ,\n",
                 rotation,
-                number + 1
-            )
-        })
-        .join("");
-    data.insert("MSM_ADVICE_QUERIES".to_string(), msm_advice_queries);
+                    number + 1
+                )
+            })
+            .join("");
+        data.insert("MSM_ADVICE_QUERIES".to_string(), msm_advice_queries);
 
-    let msm_permutation_queries = circuit
-        .queries
-        .permutation
-        .iter()
-        .enumerate()
-        .map(|(number, query)| {
-            let rotation = query.point.to_string();
-            format!(
-                "              NameAnn '{} 'permutations_query{} ,\n",
-                rotation,
-                number + 1
-            )
-        })
-        .join("");
-    data.insert(
-        "MSM_PERMUTATION_QUERIES".to_string(),
-        msm_permutation_queries,
-    );
+        let msm_permutation_queries = circuit
+            .queries
+            .permutation
+            .iter()
+            .enumerate()
+            .map(|(number, query)| {
+                let rotation = query.point.to_string();
+                format!(
+                    "              NameAnn '{} 'permutations_query{} ,\n",
+                    rotation,
+                    number + 1
+                )
+            })
+            .join("");
 
-    let msm_fixed_queries = circuit
+        data.insert(
+            "MSM_PERMUTATION_QUERIES".to_string(),
+            msm_permutation_queries,
+        );
+
+        let msm_fixed_queries = circuit
         .queries
         .fixed
         .iter()
@@ -626,13 +649,8 @@ pub fn emit_verifier_code(
 
     data.insert("MSM_LOOKUP_QUERIES".to_string(), msm_lookup_queries);
 
-    // ------
-    // case for halo2 multi open version of KZG
-    let q_evaluations = (1..=circuit.instantiation_data.q_evaluations_count)
-        .map(|n| format!("q_eval_on_x3_{}", n))
-        .join(", ");
-    data.insert("Q_EVALS_FROM_PROOF".to_string(), q_evaluations);
-    // ------
+        let w_values = PCS::pcs_data_plinth(circuit);
+        data.insert("W_VALUES".to_string(), w_values);
 
     let state = vec![];
     let rotation_order = circuit
@@ -655,30 +673,31 @@ pub fn emit_verifier_code(
         .map(RotationDescription::to_string)
         .collect();
 
-    let x_values = rotation_order
-        .iter()
-        .map(|n| format!("              '{}", n))
-        .join(" ,\n");
-    data.insert("X_ROTATIONS".to_string(), x_values);
+        let x_values = rotation_order
+            .iter()
+            .map(|n| format!("              '{}", n))
+            .join(" ,\n");
+        data.insert("X_ROTATIONS".to_string(), x_values);
+    }
 
-    let fixed_commitments_lifts = (1..=circuit.instantiation_data.fixed_commitments.len()).map(|id| {
+    let fixed_commitments_lifts = (1..=circuit.proof_instantiation_data.fixed_commitments.len()).map(|id| {
         format!("f{}_commitment :: BuiltinBLS12_381_G1_Element\nf{}_commitment = $(lift VKConstants.f{}_commitment)\n\n", id, id, id)
     }).join("");
-    let permutation_commitments_lifts = (1..=circuit.instantiation_data.permutation_commitments.len()).map(|id| {
+    let permutation_commitments_lifts = (1..=circuit.proof_instantiation_data.permutation_commitments.len()).map(|id| {
         format!("p{}_commitment :: BuiltinBLS12_381_G1_Element\np{}_commitment = $(lift VKConstants.p{}_commitment)\n\n", id, id, id)
     }).join("");
-    let public_inputs = (1..=circuit.instantiation_data.public_inputs_count)
+    let public_inputs = (1..=circuit.proof_instantiation_data.public_inputs_count)
         .map(|n| format!("  !i{} <- M.commonScalar p{}\n", n, n))
         .join("");
 
-    let public_inputs_types = (1..=circuit.instantiation_data.public_inputs_count)
+    let public_inputs_types = (1..=circuit.proof_instantiation_data.public_inputs_count)
         .map(|_| "Scalar ->".to_string())
         .join(" ");
-    let public_inputs_names = (1..=circuit.instantiation_data.public_inputs_count)
+    let public_inputs_names = (1..=circuit.proof_instantiation_data.public_inputs_count)
         .map(|n| format!("p{}", n))
         .join(" ");
 
-    let public_inputs_lagrange = (1..=circuit.instantiation_data.public_inputs_count)
+    let public_inputs_lagrange = (1..=circuit.proof_instantiation_data.public_inputs_count)
         .map(|n| format!("i{}", n))
         .join(", ");
 
@@ -811,7 +830,7 @@ pub fn emit_vk_code(
     let mut data: HashMap<String, String> = HashMap::new(); // data to bind to mustache template
 
     let points = circuit
-        .instantiation_data
+        .proof_instantiation_data
         .fixed_commitments
         .clone()
         .iter()
@@ -823,10 +842,10 @@ pub fn emit_vk_code(
             )
         })
         .join(",\n");
-    let exports = (1..=circuit.instantiation_data.fixed_commitments.len())
+    let exports = (1..=circuit.proof_instantiation_data.fixed_commitments.len())
         .map(|id| format!("  f{}_commitment,\n", id))
         .join("");
-    let assignment = circuit.instantiation_data.fixed_commitments.clone().iter().enumerate().map(|(id, point)| {
+    let assignment = circuit.proof_instantiation_data.fixed_commitments.clone().iter().enumerate().map(|(id, point)| {
         if point.is_identity().into() {
             format!("f{}_commitment :: BuiltinBLS12_381_G1_Element\nf{}_commitment = (bls12_381_G1_uncompress bls12_381_G1_compressed_zero)\n", id + 1, id + 1)
         } else {
@@ -839,7 +858,7 @@ pub fn emit_vk_code(
     data.insert("FIXED_COMMITMENT_G1".to_string(), assignment);
 
     let points = circuit
-        .instantiation_data
+        .proof_instantiation_data
         .permutation_commitments
         .clone()
         .iter()
@@ -851,10 +870,13 @@ pub fn emit_vk_code(
             )
         })
         .join(",\n");
-    let exports = (1..=circuit.instantiation_data.permutation_commitments.len())
+    let exports = (1..=circuit
+        .proof_instantiation_data
+        .permutation_commitments
+        .len())
         .map(|id| format!("  p{}_commitment,\n", id))
         .join("");
-    let assignment = circuit.instantiation_data.permutation_commitments.clone().iter().enumerate().map(|(id, point)| {
+    let assignment = circuit.proof_instantiation_data.permutation_commitments.clone().iter().enumerate().map(|(id, point)| {
         if point.is_identity().into() {
             format!("p{}_commitment :: BuiltinBLS12_381_G1_Element\np{}_commitment = (bls12_381_G1_uncompress bls12_381_G1_compressed_zero)\n", id + 1, id + 1)
         } else {
@@ -865,7 +887,7 @@ pub fn emit_vk_code(
     data.insert("PERMUTATION_COMMITMENTS".to_string(), points);
     data.insert("PERMUTATION_COMMITMENTS_EXPORTS".to_string(), exports);
     data.insert("PERMUTATION_COMMITMENT_G1".to_string(), assignment);
-    let compressed_sg2 = hex::encode(circuit.instantiation_data.s_g2.to_bytes());
+    let compressed_sg2 = hex::encode(circuit.proof_instantiation_data.s_g2.to_bytes());
 
     debug!("compressed_sg2: {}", compressed_sg2);
 
@@ -875,28 +897,41 @@ pub fn emit_vk_code(
     );
     data.insert(
         "OMEGA".to_string(),
-        hex::encode(circuit.instantiation_data.omega.to_bytes_be()),
+        hex::encode(circuit.proof_instantiation_data.omega.to_bytes_be()),
     );
     data.insert(
         "OMEGA_INV".to_string(),
-        hex::encode(circuit.instantiation_data.inverted_omega.to_bytes_be()),
+        hex::encode(
+            circuit
+                .proof_instantiation_data
+                .inverted_omega
+                .to_bytes_be(),
+        ),
     );
     data.insert(
         "BARYCENTRIC_WEIGHT".to_string(),
-        hex::encode(circuit.instantiation_data.barycentric_weight.to_bytes_be()),
+        hex::encode(
+            circuit
+                .proof_instantiation_data
+                .barycentric_weight
+                .to_bytes_be(),
+        ),
     );
     data.insert(
         "TRANSCRIPT_REP".to_string(),
         hex::encode(
             circuit
-                .instantiation_data
+                .proof_instantiation_data
                 .transcript_representation
                 .to_bytes_be(),
         ),
     );
     data.insert(
         "BLINDING_FACTORS".to_string(),
-        circuit.instantiation_data.blinding_factors.to_string(),
+        circuit
+            .proof_instantiation_data
+            .blinding_factors
+            .to_string(),
     );
 
     let mut handlebars = Handlebars::new();

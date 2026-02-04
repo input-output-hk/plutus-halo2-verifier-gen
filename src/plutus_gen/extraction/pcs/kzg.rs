@@ -1,107 +1,116 @@
-use crate::plutus_gen::extraction::data::{
-    CircuitRepresentation, CommitmentData, Commitments, ProofExtractionSteps, Query,
-    RotationDescription,
-};
+use crate::plutus_gen::extraction::data::CircuitRepresentation;
+
+use super::{ExtractPCS, PCSType};
+
+use blstrs::Bls12;
+use halo2_proofs::poly::kzg::KZGCommitmentScheme;
 
 #[cfg(feature = "plutus_debug")]
 use log::info;
 
 use itertools::Itertools;
-use std::collections::HashMap;
 
-pub type IntermediateSets = (Vec<Vec<RotationDescription>>, Vec<CommitmentData>);
+type Halo2MultiOpenScheme = KZGCommitmentScheme<Bls12>;
 
-impl CircuitRepresentation {
-    pub fn precompute_intermediate_sets(&self) -> IntermediateSets {
-        let queries = self.queries.all_ordered();
+#[derive(Default)]
+pub struct HMOData {
+    q_evaluations_count: usize,
+}
 
-        let ordered_unique_commitments = queries.iter().flatten().map(|q| &q.commitment);
-        let ordered_unique_commitments: Vec<Commitments> =
-            ordered_unique_commitments.cloned().unique().collect();
+#[derive(PartialEq, Clone, Debug)]
+pub enum HMOSteps {
+    X1,
+    X2,
+    X3,
+    X4,
+    PI,
+    QEvals,
+    FCommitment,
+}
 
-        let commitment_map: HashMap<Commitments, Vec<&Query>> = queries
-            .iter()
-            .flatten()
-            .into_group_map_by(|e| e.commitment.clone());
-
-        let point_sets_map: HashMap<Commitments, Vec<RotationDescription>> = commitment_map
-            .iter()
-            .map(|(k, v)| {
-                (
-                    k.clone(),
-                    v.iter()
-                        .map(|e| &e.point)
-                        .cloned()
-                        .unique()
-                        .collect::<Vec<_>>(),
-                )
-            })
-            .collect();
-
-        let mut grouped_points: Vec<Vec<RotationDescription>> = vec![];
-
-        for commitment in ordered_unique_commitments.iter() {
-            grouped_points.push(
-                point_sets_map
-                    .get(commitment)
-                    .unwrap_or_else(|| {
-                        panic!("point set for commitment {:?} not found", commitment)
-                    })
-                    .clone(),
-            );
-        }
-
-        let unique_grouped_points: Vec<Vec<_>> = grouped_points.iter().cloned().unique().collect();
-
-        let point_sets_indexes: HashMap<_, _> = unique_grouped_points
-            .iter()
-            .enumerate()
-            .map(|(a, b)| (b.clone(), a))
-            .collect();
-
-        let mut commitment_data: Vec<CommitmentData> = vec![];
-
-        for commitment in ordered_unique_commitments.iter() {
-            let query = commitment_map
-                .get(commitment)
-                .unwrap_or_else(|| panic!("queries for commitment {:?} not found", commitment));
-            let points: Vec<RotationDescription> = query.iter().map(|q| q.point.clone()).collect();
-
-            let point_set_idx = point_sets_indexes
-                .get(&points)
-                .unwrap_or_else(|| panic!("point set for commitment {:?} not found", commitment));
-
-            commitment_data.push(CommitmentData {
-                commitment: (*commitment).clone(),
-                point_set_index: *point_set_idx,
-                evaluations: query.iter().map(|q| q.evaluation.clone()).collect(),
-                points,
-            });
-        }
-        (unique_grouped_points, commitment_data)
+impl ExtractPCS for Halo2MultiOpenScheme {
+    type PCSExtractionSteps = HMOSteps;
+    type PCSData = HMOData;
+    fn pcs_type() -> PCSType {
+        PCSType::Halo2MultiOpen
     }
 
-    pub fn extract_kzg_steps(&mut self) {
-        self.extract_step(ProofExtractionSteps::X1);
+    fn pcs_data(circuit_repr: &CircuitRepresentation<Self>) -> usize {
+        circuit_repr.pcs_instantiation_data.q_evaluations_count
+    }
 
-        self.extract_step(ProofExtractionSteps::X2);
+    fn pcs_data_aiken(circuit_repr: &CircuitRepresentation<Self>) -> String {
+        (1..=circuit_repr.pcs_instantiation_data.q_evaluations_count)
+            .map(|n| format!("q_eval_on_x3_{}", n))
+            .join(", ")
+    }
 
-        self.extract_step(ProofExtractionSteps::FCommitment);
+    fn pcs_data_plinth(circuit_repr: &CircuitRepresentation<Self>) -> String {
+        (1..=circuit_repr.pcs_instantiation_data.q_evaluations_count)
+            .map(|n| format!("q_eval_on_x3_{}", n))
+            .join(", ")
+    }
 
-        self.extract_step(ProofExtractionSteps::X3);
+    fn extract_pcs_steps(circuit_repr: &mut CircuitRepresentation<Self>) {
+        circuit_repr.pcs_extraction_steps.push(HMOSteps::X1);
+
+        circuit_repr.pcs_extraction_steps.push(HMOSteps::X2);
+
+        circuit_repr
+            .pcs_extraction_steps
+            .push(HMOSteps::FCommitment);
+
+        circuit_repr.pcs_extraction_steps.push(HMOSteps::X3);
 
         // number of final witnesses is equal to number of different point sets
-        let (sets, _) = self.precompute_intermediate_sets();
+        let (sets, _) = Self::precompute_intermediate_sets(circuit_repr);
         let number_of_witnesses = sets.len();
-        self.extract_q_evaluations_count(number_of_witnesses);
+        circuit_repr.pcs_instantiation_data.q_evaluations_count = number_of_witnesses;
 
         // witnesses
         for _ in 0..number_of_witnesses {
-            self.extract_step(ProofExtractionSteps::QEvals);
+            circuit_repr.pcs_extraction_steps.push(HMOSteps::QEvals);
         }
 
-        self.extract_step(ProofExtractionSteps::X4);
+        circuit_repr.pcs_extraction_steps.push(HMOSteps::X4);
 
-        self.extract_step(ProofExtractionSteps::PI);
+        circuit_repr.pcs_extraction_steps.push(HMOSteps::PI);
+    }
+
+    fn step_to_aiken(step: Self::PCSExtractionSteps, number: usize) -> String {
+        match step {
+            HMOSteps::X1 => {
+                "    let (x1, transcript) = squeeze_challenge(transcript)\n".to_string()
+            }
+            HMOSteps::X2 => {
+                "    let (x2, transcript) = squeeze_challenge(transcript)\n".to_string()
+            }
+            HMOSteps::X3 => {
+                "    let (x3, transcript) = squeeze_challenge(transcript)\n".to_string()
+            }
+            HMOSteps::X4 => {
+                "    let (x4, transcript) = squeeze_challenge(transcript)\n".to_string()
+            }
+            HMOSteps::PI => "    let (pi_term, _) =  read_point(transcript)\n".to_string(),
+            HMOSteps::FCommitment => {
+                "    let (f_commitment, transcript) =  read_point(transcript)\n".to_string()
+            }
+            HMOSteps::QEvals => format!(
+                "    let (q_eval_on_x3_{}, transcript) = read_scalar(transcript)\n",
+                number
+            ),
+        }
+    }
+
+    fn step_to_plinth(step: Self::PCSExtractionSteps, number: usize) -> String {
+        match step {
+            HMOSteps::X1 => "  !x1 <- M.squeezeChallenge\n".to_string(),
+            HMOSteps::X2 => "  !x2 <- M.squeezeChallenge\n".to_string(),
+            HMOSteps::X3 => "  !x3 <- M.squeezeChallenge\n".to_string(),
+            HMOSteps::X4 => "  !x4 <- M.squeezeChallenge\n".to_string(),
+            HMOSteps::PI => "  !pi_term <- M.readPoint\n".to_string(),
+            HMOSteps::FCommitment => "  !f_commitment <- M.readPoint\n".to_string(),
+            HMOSteps::QEvals => format!("  !q_eval_on_x3_{} <- M.readScalar\n", number),
+        }
     }
 }

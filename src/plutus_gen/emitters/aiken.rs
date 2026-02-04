@@ -111,21 +111,21 @@ pub fn emit_verifier_code(
                         + &format!("    let (permuted_table_eval_{}, transcript) = read_scalar(transcript)\n", number + 1)
                 })
                 .join(""),
-            // section for halo2 multi open version of KZG
-            ProofExtractionSteps::X1 => "    let (x1, transcript) = squeeze_challenge(transcript)\n".to_string(),
-            ProofExtractionSteps::X2 => "    let (x2, transcript) = squeeze_challenge(transcript)\n".to_string(),
-            ProofExtractionSteps::X3 => "    let (x3, transcript) = squeeze_challenge(transcript)\n".to_string(),
-            ProofExtractionSteps::X4 => "    let (x4, transcript) = squeeze_challenge(transcript)\n".to_string(),
-            ProofExtractionSteps::FCommitment => "    let (f_commitment, transcript) =  read_point(transcript)\n".to_string(),
-            ProofExtractionSteps::PI => "    let (pi_term, _) =  read_point(transcript)\n".to_string(),
-            ProofExtractionSteps::QEvals => section
-                .enumerate()
-                .map(|(number, _permutation_common)| {
-                    format!("    let (q_eval_on_x3_{}, transcript) = read_scalar(transcript)\n", number + 1)
-                })
-                .join(""),
         })
         .collect();
+
+    let pcs_extraction = circuit
+        .pcs_extraction_steps
+        .iter()
+        .chunk_by(|e| (*e).clone())
+        .into_iter()
+        .map(|(section_type, section)| {
+            section
+                .enumerate()
+                .map(|(number, _step)| PCS::step_to_aiken(section_type.clone(), number + 1))
+                .join("")
+        })
+        .collect::<Vec<_>>();
 
     let mut data: HashMap<String, String> = HashMap::new(); // data to bind to mustache template
 
@@ -134,29 +134,29 @@ pub fn emit_verifier_code(
         circuit.public_inputs.to_string(),
     );
 
-    let public_inputs_lagrange = (1..=circuit.instantiation_data.public_inputs_count)
+    let public_inputs_lagrange = (1..=circuit.proof_instantiation_data.public_inputs_count)
         .map(|n| format!("i_{}", n))
         .join(", ");
     data.insert("PUBLIC_INPUTS_LAGRANGE".to_string(), public_inputs_lagrange);
 
-    let public_inputs = (1..=circuit.instantiation_data.public_inputs_count)
+    let public_inputs = (1..=circuit.proof_instantiation_data.public_inputs_count)
         .map(|n| format!("    let transcript = common_scalar(i_{}, transcript)\n", n))
         .join("");
 
     data.insert("PUBLIC_INPUTS".to_string(), public_inputs);
 
-    let public_inputs_names = (1..=circuit.instantiation_data.public_inputs_count)
+    let public_inputs_names = (1..=circuit.proof_instantiation_data.public_inputs_count)
         .map(|n| format!("i_{}: State<Scalar>", n))
         .join(", ");
 
     data.insert("PUBLIC_INPUTS_NAMES".to_string(), public_inputs_names);
 
-    let proof_extraction_stage = proof_extraction.join("");
-    data.insert("PES".to_string(), proof_extraction_stage);
+    let extraction_stage = proof_extraction.join("") + &pcs_extraction.join("");
+    data.insert("PES".to_string(), extraction_stage);
 
     data.insert(
         "X_EXPONENT".to_string(),
-        circuit.instantiation_data.n_coefficient.to_string(),
+        circuit.proof_instantiation_data.n_coefficient.to_string(),
     );
 
     let gates = circuit
@@ -439,33 +439,32 @@ pub fn emit_verifier_code(
         .join("");
     data.insert("H_COMMITMENTS".to_string(), h_commitments);
 
-    let (unique_grouped_points, commitment_data) = circuit.precompute_intermediate_sets();
+    let (unique_grouped_points, commitment_data) = PCS::precompute_intermediate_sets(&circuit);
 
-    let point_sets_indexes: Vec<usize> = (0..unique_grouped_points.len()).collect();
-    let max_commitments_per_points_set = point_sets_indexes
-        .iter()
-        .map(|&idx| {
-            commitment_data
-                .iter()
-                .filter(|cd| cd.point_set_index == idx)
-                .count()
-        })
-        .max()
-        .unwrap_or(0);
-    data.insert(
-        "HALO2_X1_POWERS_COUNT".to_string(),
-        max_commitments_per_points_set.to_string(),
-    );
+    if PCS::pcs_type() == PCSType::Halo2MultiOpen {
+        let point_sets_indexes: Vec<usize> = (0..unique_grouped_points.len()).collect();
+        let max_commitments_per_points_set = point_sets_indexes
+            .iter()
+            .map(|&idx| {
+                commitment_data
+                    .iter()
+                    .filter(|cd| cd.point_set_index == idx)
+                    .count()
+            })
+            .max()
+            .unwrap_or(0);
+        data.insert(
+            "HALO2_X1_POWERS_COUNT".to_string(),
+            max_commitments_per_points_set.to_string(),
+        );
 
-    data.insert(
-        "HALO2_X4_POWERS_COUNT".to_string(),
-        (point_sets_indexes.len() + 1).to_string(),
-    );
+        data.insert(
+            "HALO2_X4_POWERS_COUNT".to_string(),
+            (point_sets_indexes.len() + 1).to_string(),
+        );
 
-    let q_evaluations = (1..=circuit.instantiation_data.q_evaluations_count)
-        .map(|n| format!("q_eval_on_x3_{}", n))
-        .join(", ");
-    data.insert("HALO2_Q_EVALS_FROM_PROOF".to_string(), q_evaluations);
+        let q_evaluations = PCS::pcs_data_plinth(&circuit);
+        data.insert("HALO2_Q_EVALS_FROM_PROOF".to_string(), q_evaluations);
 
     // Pre-sort commitment data by point set index to save on this inside the contract
     let halo2_commitment_data = point_sets_indexes
@@ -493,26 +492,78 @@ pub fn emit_verifier_code(
 
             format!("\n\t\t[\n{}\n\t\t]", commitments_in_set_str)
         })
-        .join(",");
+            .join(",");
 
-    let kzg_halo2_commitment_map = format!("\tlet commitment_data = [{}]", halo2_commitment_data);
-    data.insert("HALO2_COMMITMENT_MAP".to_string(), kzg_halo2_commitment_map);
+        let kzg_halo2_commitment_map =
+            format!("\tlet commitment_data = [{}]", halo2_commitment_data);
+        data.insert("HALO2_COMMITMENT_MAP".to_string(), kzg_halo2_commitment_map);
 
     let kzg_halo2_point_sets = unique_grouped_points
         .iter()
         .map(|set| set.iter().map(RotationDescription::to_string).join(","))
-        .join("],[");
+            .join("],[");
 
-    let kzg_halo2_point_sets = format!("     let point_sets = [[{}]]", kzg_halo2_point_sets);
-    data.insert("HALO2_POINT_SETS".to_string(), kzg_halo2_point_sets);
+        let kzg_halo2_point_sets = format!("     let point_sets = [[{}]]", kzg_halo2_point_sets);
+        data.insert("HALO2_POINT_SETS".to_string(), kzg_halo2_point_sets);
+    }
 
-    let fixed_commitments_imports = (1..=circuit.instantiation_data.fixed_commitments.len())
+    if PCS::pcs_type() == PCSType::GWC19 {
+        let kzg_gwc19_intermediate_sets =
+            construct_intermediate_sets(circuit.queries.all_ordered());
+        let (left, right) = construct_msm(kzg_gwc19_intermediate_sets);
+
+        let optimized_left = flatten_msm(&left).optimize_msm();
+        let optimized_right = flatten_msm(&right).optimize_msm();
+
+        let kzg_gwc19_msm = format!(
+            "    let el = eval({})\n    let er = eval({})",
+            optimized_left.compile_expression(),
+            optimized_right.compile_expression()
+        );
+        data.insert("GWC19_MSM".to_string(), kzg_gwc19_msm.clone());
+
+        // Extract max powers of v and u by traversing scalar operations in optimized MSMs
+        let max_v_power = optimized_left
+            .find_max_power('v')
+            .max(optimized_right.find_max_power('v'));
+        let max_u_power = optimized_left
+            .find_max_power('u')
+            .max(optimized_right.find_max_power('u'));
+
+        let generate_powers = |var_name: char, max_power: i32| -> String {
+            (2..=max_power)
+                .map(|i| {
+                    format!(
+                        "\tlet {}{} = mul({}{}, {})",
+                        var_name,
+                        i,
+                        var_name,
+                        i - 1,
+                        var_name
+                    )
+                })
+                .join("\n")
+        };
+
+        data.insert(
+            "GWC19_V_POWERS".to_string(),
+            generate_powers('v', max_v_power),
+        );
+        data.insert(
+            "GWC19_U_POWERS".to_string(),
+            generate_powers('u', max_u_power),
+        );
+    }
+
+    let fixed_commitments_imports = (1..=circuit.proof_instantiation_data.fixed_commitments.len())
         .map(|id| format!("f{}_commitment", id))
         .join(", ");
-    let permutation_commitments_imports =
-        (1..=circuit.instantiation_data.permutation_commitments.len())
-            .map(|id| format!("p{}_commitment", id))
-            .join(", ");
+    let permutation_commitments_imports = (1..=circuit
+        .proof_instantiation_data
+        .permutation_commitments
+        .len())
+        .map(|id| format!("p{}_commitment", id))
+        .join(", ");
 
     data.insert("F_IMPORTS".to_string(), fixed_commitments_imports);
     data.insert("P_IMPORTS".to_string(), permutation_commitments_imports);
@@ -650,7 +701,7 @@ pub fn emit_vk_code(
     data.insert("FIXED_COMMITMENTS".to_string(), points);
 
     let points = circuit
-        .instantiation_data
+        .proof_instantiation_data
         .permutation_commitments
         .iter()
         .cloned()
@@ -669,7 +720,7 @@ pub fn emit_vk_code(
 
     data.insert("PERMUTATION_COMMITMENTS".to_string(), points);
 
-    let compressed_sg2 = hex::encode(circuit.instantiation_data.s_g2.to_bytes());
+    let compressed_sg2 = hex::encode(circuit.proof_instantiation_data.s_g2.to_bytes());
 
     debug!("compressed_sg2: {}", compressed_sg2);
 
@@ -679,33 +730,49 @@ pub fn emit_vk_code(
     );
     data.insert(
         "OMEGA".to_string(),
-        hex::encode(circuit.instantiation_data.omega.to_bytes_be()),
+        hex::encode(circuit.proof_instantiation_data.omega.to_bytes_be()),
     );
     data.insert(
         "OMEGA_INV".to_string(),
-        hex::encode(circuit.instantiation_data.inverted_omega.to_bytes_be()),
+        hex::encode(
+            circuit
+                .proof_instantiation_data
+                .inverted_omega
+                .to_bytes_be(),
+        ),
     );
     data.insert(
         "BARYCENTRIC_WEIGHT".to_string(),
-        hex::encode(circuit.instantiation_data.barycentric_weight.to_bytes_be()),
+        hex::encode(
+            circuit
+                .proof_instantiation_data
+                .barycentric_weight
+                .to_bytes_be(),
+        ),
     );
     data.insert(
         "TRANSCRIPT_REP".to_string(),
         hex::encode(
             circuit
-                .instantiation_data
+                .proof_instantiation_data
                 .transcript_representation
                 .to_bytes_be(),
         ),
     );
     data.insert(
         "BLINDING_FACTORS".to_string(),
-        circuit.instantiation_data.blinding_factors.to_string(),
+        circuit
+            .proof_instantiation_data
+            .blinding_factors
+            .to_string(),
     );
 
-    let fixed_commitments = circuit.instantiation_data.fixed_commitments.len();
+    let fixed_commitments = circuit.proof_instantiation_data.fixed_commitments.len();
 
-    let permutation_commitments = circuit.instantiation_data.permutation_commitments.len();
+    let permutation_commitments = circuit
+        .proof_instantiation_data
+        .permutation_commitments
+        .len();
 
     let fixed = (1..=fixed_commitments).map(|idx| {
         format!(

@@ -20,7 +20,7 @@ impl CircuitRepresentation {
             let b = ExpressionG1::VanishingSplit(nb_vanishing_splits);
             let init_expr = ExpressionG1::Sum(Box::new(a), Box::new(b));
             // terms.push((h_com_str(1), term));
-            self.vanishing_expression(h_com_str(1), init_expr);
+            self.expressions.vanishing(h_com_str(1), init_expr);
         }
 
         // render last on as vanishing_g
@@ -35,7 +35,7 @@ impl CircuitRepresentation {
             let loop_expr = ExpressionG1::Sum(Box::new(a), Box::new(b));
 
             // terms.push((h_com_str(i + 1), term));
-            self.vanishing_expression(h_com_str(i + 1), loop_expr);
+            self.expressions.vanishing(h_com_str(i + 1), loop_expr);
         }
 
         // !vanishing_g = scale xn hCommitment{} + vanishingSplit1; nb_vanishing_splits - 1
@@ -47,7 +47,7 @@ impl CircuitRepresentation {
             );
             let b = ExpressionG1::VanishingSplit(1);
             let g_expr = ExpressionG1::Sum(Box::new(a), Box::new(b));
-            self.vanishing_expression(VANISH_G_STR.to_string(), g_expr);
+            self.expressions.vanishing(VANISH_G_STR.to_string(), g_expr);
         }
     }
 }

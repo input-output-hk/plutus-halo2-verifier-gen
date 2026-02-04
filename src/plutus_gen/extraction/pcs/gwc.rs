@@ -1,7 +1,7 @@
 use crate::plutus_gen::extraction::data::CircuitRepresentation;
 use itertools::Itertools;
 
-use super::{ExtractPCS, IntermediateSets, PCSType};
+use super::{ExtractPCS, PCSType};
 
 use blstrs::Bls12;
 use halo2_proofs::poly::gwc_kzg::GwcKZGCommitmentScheme;
@@ -16,6 +16,7 @@ pub struct GWC19Data {
     w_values_count: usize,
 }
 
+#[derive(PartialEq, Clone, Debug)]
 pub enum GWC19Steps {
     U,
     V,
@@ -28,10 +29,19 @@ impl ExtractPCS for GWC19Scheme {
     fn pcs_type() -> PCSType {
         PCSType::GWC19
     }
-    fn precompute_intermediate_sets(
-        _circuit_repr: &CircuitRepresentation<Self>,
-    ) -> IntermediateSets {
-        (Vec::new(), Vec::new())
+
+    fn pcs_data(circuit_repr: &CircuitRepresentation<Self>) -> usize {
+        circuit_repr.pcs_instantiation_data.w_values_count
+    }
+    fn pcs_data_aiken(_circuit_repr: &CircuitRepresentation<Self>) -> String {
+        // Not used in Aiken
+        "".to_string()
+    }
+
+    fn pcs_data_plinth(circuit_repr: &CircuitRepresentation<Self>) -> String {
+        (1..=circuit_repr.pcs_instantiation_data.w_values_count)
+            .map(|n| format!("              'w{}", n))
+            .join(" ,\n")
     }
 
     fn extract_pcs_steps(circuit_repr: &mut CircuitRepresentation<Self>) {
@@ -55,5 +65,28 @@ impl ExtractPCS for GWC19Scheme {
         }
 
         circuit_repr.pcs_extraction_steps.push(GWC19Steps::U);
+    }
+
+    fn step_to_aiken(step: Self::PCSExtractionSteps, number: usize) -> String {
+        match step {
+            GWC19Steps::U => {
+                "    let (u, transcript) = squeeze_challenge(transcript)\n".to_string()
+            }
+            GWC19Steps::V => {
+                "    let (v, transcript) = squeeze_challenge(transcript)\n".to_string()
+            }
+            GWC19Steps::Witnesses => format!(
+                "    let (w{}, transcript) =  read_point(transcript)\n",
+                number
+            ),
+        }
+    }
+
+    fn step_to_plinth(step: Self::PCSExtractionSteps, number: usize) -> String {
+        match step {
+            GWC19Steps::U => "  !u <- M.squeezeChallenge\n".to_string(),
+            GWC19Steps::V => "  !v <- M.squeezeChallenge\n".to_string(),
+            GWC19Steps::Witnesses => format!("  !w{} <- M.readPoint\n", number),
+        }
     }
 }

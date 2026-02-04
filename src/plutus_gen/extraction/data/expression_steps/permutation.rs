@@ -92,7 +92,7 @@ impl CircuitRepresentation {
                     Box::new(ScalarExpression::Negated(Box::new(c))),
                 )),
             );
-            self.permutation_eval_expression(term);
+            self.expressions.permutation_eval(term);
         }
 
         //last_evaluation * (permutations_evaluated_{}_1 * permutations_evaluated_{}_1 - permutations_evaluated_{}_1)
@@ -111,7 +111,7 @@ impl CircuitRepresentation {
                     Box::new(ScalarExpression::Negated(Box::new(b))),
                 )),
             );
-            self.permutation_eval_expression(term);
+            self.expressions.permutation_eval(term);
         }
 
         for (next, current) in shifted_sets {
@@ -128,7 +128,7 @@ impl CircuitRepresentation {
                 Box::new(ScalarExpression::Sum(Box::new(a), Box::new(neg_b))),
                 Box::new(c),
             );
-            self.permutation_eval_expression(term);
+            self.expressions.permutation_eval(term);
         }
     }
 
@@ -166,7 +166,7 @@ impl CircuitRepresentation {
                                 )),
                                 Box::new(d),
                             );
-                            self.permutation_left_expression(*set, term);
+                            self.expressions.permutation_left(*set, term);
                         }
                         Any::Fixed => {
                             // (fixedEval{:?} + (beta * permutationCommon{:?}) + gamma)
@@ -184,7 +184,7 @@ impl CircuitRepresentation {
                                 Box::new(d),
                             );
 
-                            self.permutation_left_expression(*set, term);
+                            self.expressions.permutation_left(*set, term);
                         }
                         Any::Instance => {
                             // (instanceEval{:?} + (beta * permutationCommon{:?}) + gamma)
@@ -202,7 +202,7 @@ impl CircuitRepresentation {
                                 Box::new(d),
                             );
 
-                            self.permutation_left_expression(*set, term);
+                            self.expressions.permutation_left(*set, term);
                         }
                     }
                 });
@@ -238,7 +238,7 @@ impl CircuitRepresentation {
                                 Box::new(e),
                             );
 
-                            self.permutation_right_expression(*set, term);
+                            self.expressions.permutation_right(*set, term);
                         }
                         Any::Fixed => {
                             // (fixedEval{:?} + (beta * x) * (powMod scalarDelta {:?}) + gamma)
@@ -267,7 +267,7 @@ impl CircuitRepresentation {
                                 Box::new(e),
                             );
 
-                            self.permutation_right_expression(*set, term);
+                            self.expressions.permutation_right(*set, term);
                         }
                         Any::Instance => {
                             // (instanceEval{:?} + (beta * x) * (powMod scalarDelta {:?}) + gamma)
@@ -296,7 +296,7 @@ impl CircuitRepresentation {
                                 Box::new(e),
                             );
 
-                            self.permutation_right_expression(*set, term);
+                            self.expressions.permutation_right(*set, term);
                         }
                     }
                 });

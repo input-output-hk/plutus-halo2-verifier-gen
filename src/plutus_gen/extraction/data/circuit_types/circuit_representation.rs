@@ -1,48 +1,44 @@
-//! ProofExtractionSteps type and associated functions
+//! Circuit representation and associated types
 
-use super::CircuitRepresentation;
+use super::{
+    super::ProofExtractionSteps, CircuitExpressions, CircuitQueries, InstantiationSpecificData,
+};
 
 use itertools::Itertools;
-use serde::{Deserialize, Serialize};
 
-/// This type lists all potential steps of the verifier.
-/// It is used to emit the right number of phases in the given language
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
-pub enum ProofExtractionSteps {
-    AdviceCommitments,
-    SqueezeChallenge,
-    AdviceEval,
-    FixedEval,
-    PermutationsCommitted,
-    PermutationEval(char),
-    PermutationCommon,
+use crate::plutus_gen::extraction::pcs::ExtractPCS;
 
-    LookupPermuted,
-    LookupCommitment,
-    LookupEval,
-
-    VanishingRand,
-    RandomEval,
-    VanishingSplit,
-
-    XCoordinate,
-    YCoordinate,
-
-    //elements related to Halo2 version of multiopen KZG
-    X1,
-    X2,
-    X3,
-    X4,
-    FCommitment,
-    PI,
-    QEvals,
-    //
-    Theta,
-    Beta,
-    Gamma,
+/// CircuitRepresentation type
+/// This type is for extracting from a proof and verification key, and storing
+/// all expressions and queries and polynomial commitment scheme's data.
+#[derive(Clone, Debug, Default)]
+pub struct CircuitRepresentation<PCS: ExtractPCS + ?Sized> {
+    pub proof_instantiation_data: InstantiationSpecificData,
+    pub pcs_instantiation_data: PCS::PCSData,
+    pub public_inputs: i32, // public_inputs are scalars
+    pub committed_instances: usize,
+    pub proof_extraction_steps: Vec<ProofExtractionSteps>,
+    pub pcs_extraction_steps: Vec<PCS::PCSExtractionSteps>,
+    pub expressions: CircuitExpressions,
+    pub queries: CircuitQueries,
 }
 
-impl CircuitRepresentation {
+impl<PCS: ExtractPCS> CircuitRepresentation<PCS> {
+    pub fn new() -> Self {
+        CircuitRepresentation {
+            proof_instantiation_data: InstantiationSpecificData::default(),
+            pcs_instantiation_data: PCS::PCSData::default(),
+            public_inputs: 0,
+            committed_instances: 0,
+            proof_extraction_steps: vec![],
+            pcs_extraction_steps: vec![],
+            expressions: CircuitExpressions::default(),
+            queries: CircuitQueries::default(),
+        }
+    }
+}
+
+impl<PCS: ExtractPCS> CircuitRepresentation<PCS> {
     pub fn compute_sets(&self) -> Vec<char> {
         self.proof_extraction_steps
             .iter()
@@ -131,17 +127,6 @@ impl CircuitRepresentation {
             ProofExtractionSteps::YCoordinate => self
                 .proof_extraction_steps
                 .push(ProofExtractionSteps::YCoordinate),
-            ProofExtractionSteps::X1 => self.proof_extraction_steps.push(ProofExtractionSteps::X1),
-            ProofExtractionSteps::X2 => self.proof_extraction_steps.push(ProofExtractionSteps::X2),
-            ProofExtractionSteps::X3 => self.proof_extraction_steps.push(ProofExtractionSteps::X3),
-            ProofExtractionSteps::X4 => self.proof_extraction_steps.push(ProofExtractionSteps::X4),
-            ProofExtractionSteps::FCommitment => self
-                .proof_extraction_steps
-                .push(ProofExtractionSteps::FCommitment),
-            ProofExtractionSteps::PI => self.proof_extraction_steps.push(ProofExtractionSteps::PI),
-            ProofExtractionSteps::QEvals => self
-                .proof_extraction_steps
-                .push(ProofExtractionSteps::QEvals),
             ProofExtractionSteps::Theta => self
                 .proof_extraction_steps
                 .push(ProofExtractionSteps::Theta),

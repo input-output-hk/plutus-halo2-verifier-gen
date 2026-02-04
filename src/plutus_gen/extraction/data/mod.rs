@@ -1,26 +1,10 @@
-mod circuit_expressions;
-mod circuit_representation;
-mod commitment;
-mod commitment_data;
+pub mod base_types;
+pub mod circuit_types;
 pub(crate) mod constants;
-mod evaluation;
-mod expression;
-mod expression_steps;
-mod instantiation_data;
-mod proof_step;
-mod query;
-mod rotation_description;
-
-pub(crate) use circuit_expressions::*;
-pub use circuit_representation::*;
-pub(crate) use commitment::*;
-pub(crate) use commitment_data::*;
-pub(crate) use evaluation::*;
-pub(crate) use expression::*;
-pub(crate) use instantiation_data::*;
-pub(crate) use proof_step::*;
-pub(crate) use query::*;
-pub(crate) use rotation_description::*;
+pub mod expression_steps;
 
 // Supported languages
 pub mod languages;
+
+pub use base_types::*;
+pub use circuit_types::*;

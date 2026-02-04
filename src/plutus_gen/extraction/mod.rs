@@ -11,13 +11,8 @@ use log::info;
 pub mod data;
 pub use data::*;
 
-pub(crate) mod pcs;
+pub mod pcs;
 
-impl CircuitRepresentation {
-    fn rotations<S>(vk: &VerifyingKey<Scalar, S>) -> (i32, i32)
-    where
-        S: PolynomialCommitmentScheme<Scalar, Commitment = G1Projective>,
-    {
         vk.cs()
             .instance_queries()
             .iter()
@@ -73,7 +68,12 @@ impl CircuitRepresentation {
         let (min_rotation, max_rotation) = Self::rotations::<S>(vk);
         let max_instance_len = Self::instance_max_length::<S>(instances) as i32;
         let rotations = -max_rotation..max_instance_len + min_rotation.abs();
-        circuit_description.extract_instantiation_data(params, vk, instances, rotations.len());
+        circuit_description.proof_instantiation_data.extract(
+            params,
+            vk,
+            instances,
+            rotations.len(),
+        );
 
         // Extracting (number of) public_inputs
         for instance in instances.iter() {
@@ -92,8 +92,6 @@ impl CircuitRepresentation {
         circuit_description.extract_proof_steps(vk);
 
         let sets = circuit_description.compute_sets();
-        let sets_len = sets.len();
-
         let nb_permutation_common = circuit_description.nb_permutation_common();
         let nb_lookup_commitments = circuit_description.nb_lookup_commitments();
 
@@ -102,7 +100,7 @@ impl CircuitRepresentation {
             // Extracting compiled_gate_equations
             vk.cs().gates().iter().for_each(|gate| {
                 gate.polynomials().iter().for_each(|poly| {
-                    circuit_description.gate_expression(poly.clone());
+                    circuit_description.expressions.gate(poly.clone());
                 })
             });
 
@@ -110,7 +108,7 @@ impl CircuitRepresentation {
             vk.cs().lookups().iter().for_each(|argument| {
                 let inputs = argument.input_expressions().to_vec();
                 let tables = argument.table_expressions().to_vec();
-                circuit_description.lookup_expression(inputs, tables);
+                circuit_description.expressions.lookup(inputs, tables);
             });
 
             // Extracting permutations_evaluated_terms
@@ -136,7 +134,9 @@ impl CircuitRepresentation {
                 .iter()
                 .enumerate()
                 .for_each(|(query_index, &(column, at))| {
-                    circuit_description.advice_query(column.index() + 1, query_index + 1, at.0);
+                    circuit_description
+                        .queries
+                        .advice(column.index() + 1, query_index + 1, at.0);
                 });
 
             // Extracting fixed_queries
@@ -145,50 +145,57 @@ impl CircuitRepresentation {
                 .iter()
                 .enumerate()
                 .for_each(|(query_index, &(column, at))| {
-                    circuit_description.fixed_query(column.index() + 1, query_index + 1, at.0);
+                    circuit_description
+                        .queries
+                        .fixed(column.index() + 1, query_index + 1, at.0);
                 });
 
             // Extracting permutation_queries (for current, next and last rotations)
-            for (i, set) in sets.into_iter().enumerate() {
-                circuit_description.permutation_query(set, 1, RotationDescription::Current);
-                circuit_description.permutation_query(set, 2, RotationDescription::Next);
-
-                if i != sets_len - 1 {
-                    circuit_description.permutation_query(set, 3, RotationDescription::Last);
-                }
+            for set in sets.iter() {
+                circuit_description
+                    .queries
+                    .permutation(*set, 1, RotationDescription::Current);
+                circuit_description
+                    .queries
+                    .permutation(*set, 2, RotationDescription::Next);
+            }
+            for set in sets.iter().rev().skip(1) {
+                circuit_description
+                    .queries
+                    .permutation(*set, 3, RotationDescription::Last);
             }
 
             // Extracting (permutation) common_queries
             (0..nb_permutation_common).for_each(|idx| {
-                circuit_description.common_query(idx + 1);
+                circuit_description.queries.common(idx + 1);
             });
 
             // Extracting vanishing_queries
-            circuit_description.vanishing_queries();
+            circuit_description.queries.vanishing_queries();
 
             // Extracting lookup_queries
             (0..nb_lookup_commitments).for_each(|idx| {
-                circuit_description.lookup_query(
+                circuit_description.queries.lookup(
                     Commitments::Lookup(idx + 1), //format!("lookupCommitment{:?}", idx + 1),
                     Evaluations::Lookup(idx + 1), //format!("product_eval_{:?}", idx + 1),
                     RotationDescription::Current,
                 );
-                circuit_description.lookup_query(
+                circuit_description.queries.lookup(
                     Commitments::PermutedInput(idx + 1), //format!("permutedInput{:?}", idx + 1),
                     Evaluations::PermutedInput(idx + 1), //format!("permuted_input_eval_{:?}", idx + 1),
                     RotationDescription::Current,
                 );
-                circuit_description.lookup_query(
+                circuit_description.queries.lookup(
                     Commitments::PermutedTable(idx + 1), //format!("permutedTable{:?}", idx + 1),
                     Evaluations::PermutedTable(idx + 1), //format!("permuted_table_eval_{:?}", idx + 1),
                     RotationDescription::Current,
                 );
-                circuit_description.lookup_query(
+                circuit_description.queries.lookup(
                     Commitments::PermutedInput(idx + 1), //format!("permutedInput{:?}", idx + 1),
                     Evaluations::PermutedInputInverse(idx + 1), //format!("permuted_input_inv_eval_{:?}", idx + 1),
                     RotationDescription::Previous,
                 );
-                circuit_description.lookup_query(
+                circuit_description.queries.lookup(
                     Commitments::Lookup(idx + 1), //format!("lookupCommitment{:?}", idx + 1),
                     Evaluations::LookupNext(idx + 1), //format!("product_next_eval_{:?}", idx + 1),
                     RotationDescription::Next,

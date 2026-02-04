@@ -1,16 +1,14 @@
 //! InstantiationData type
 //! This type
 
-use super::CircuitRepresentation;
-
 use blstrs::{Bls12, G1Affine, G1Projective, G2Affine, Scalar};
 
+use halo2_proofs::halo2curves::group::Curve;
 use halo2_proofs::plonk::VerifyingKey;
 use halo2_proofs::poly::commitment::PolynomialCommitmentScheme;
 use halo2_proofs::poly::kzg::params::ParamsKZG;
 
 use ff::Field;
-use halo2_proofs::halo2curves::group::Curve;
 #[cfg(feature = "plutus_debug")]
 use log::info;
 
@@ -39,61 +37,53 @@ pub struct InstantiationSpecificData {
     pub transcript_representation: Scalar,
 
     pub public_inputs_count: usize,
-
-    // pub w_values_count: usize,
-    pub q_evaluations_count: usize,
 }
 
-impl CircuitRepresentation {
-    pub fn extract_q_evaluations_count(&mut self, number: usize) {
-        self.instantiation_data.q_evaluations_count = number;
-    }
-
-    pub fn extract_instantiation_data<S>(
+impl InstantiationSpecificData {
+    pub fn extract<PCS>(
         &mut self,
         params: &ParamsKZG<Bls12>,
-        vk: &VerifyingKey<Scalar, S>,
+        vk: &VerifyingKey<Scalar, PCS>,
         instances: &[&[&[Scalar]]],
         rotations: usize,
-    ) -> ()
-    where
-        S: PolynomialCommitmentScheme<Scalar, Commitment = G1Projective>,
+    ) where
+        PCS: PolynomialCommitmentScheme<Scalar, Commitment = G1Projective>,
     {
         // Importing data from vk (not vk.cs() and params)
-        self.instantiation_data.fixed_commitments = vk
+        self.fixed_commitments = vk
             .fixed_commitments()
             .iter()
             .map(|p| p.to_affine())
             .collect();
-        self.instantiation_data.permutation_commitments = vk
+        self.permutation_commitments = vk
             .permutation()
             .commitments()
             .iter()
             .map(|p| p.to_affine())
             .collect();
 
-        // self.instantiation_data.scalar_delta - not vk specific
-        // self.instantiation_data.scalar_zero - not vk specific
-        // self.instantiation_data.scalar_one - not vk specific
+        // self.scalar_delta - not vk specific
+        // self.scalar_zero - not vk specific
+        // self.scalar_one - not vk specific
 
-        self.instantiation_data.omega = vk.get_domain().get_omega();
-        self.instantiation_data.inverted_omega = vk.get_domain().get_omega_inv();
-        self.instantiation_data.barycentric_weight = Scalar::from(vk.n())
+        self.omega = vk.get_domain().get_omega();
+        self.inverted_omega = vk.get_domain().get_omega_inv();
+        self.barycentric_weight = Scalar::from(vk.n())
             .invert()
             .expect("there should be an inverse");
 
-        self.instantiation_data.s_g2 = params.s_g2().to_affine();
+        self.s_g2 = params.s_g2().to_affine();
 
-        self.instantiation_data.omega_rotation_count_for_instances = rotations;
-        // self.instantiation_data.mega_rotation_count_for_vanishing - not needed
+        self.omega_rotation_count_for_instances = rotations;
+        // self.mega_rotation_count_for_vanishing - not needed
 
-        self.instantiation_data.n_coefficient = vk.n();
+        self.n_coefficient = vk.n();
 
-        self.instantiation_data.blinding_factors = vk.cs().blinding_factors();
+        self.blinding_factors = vk.cs().blinding_factors();
 
-        self.instantiation_data.transcript_representation = vk.transcript_repr();
+        self.transcript_representation = vk.transcript_repr();
 
-        self.instantiation_data.public_inputs_count = {
+        self.public_inputs_count = {
             if instances[0].len() == 1 {
                 instances[0][0].len()
             } else {
@@ -101,9 +91,5 @@ impl CircuitRepresentation {
                 instances[0][1].len()
             }
         };
-
-        // self.instantiation_data.w_values_count - not needed
-
-        // self.instantiation_data.q_evaluations_count - Computed in kzg
     }
 }
