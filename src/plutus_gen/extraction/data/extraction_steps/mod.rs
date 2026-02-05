@@ -1,4 +1,5 @@
-//! Code for extracting the expressions for the proof different steps:
+//! Code for extracting the expressions and steps for the proof different
+//! building blocks:
 //! - general steps in proof.rs
 //! - permutation argument in permutation.rs
 //! - vanishing argument in vanishing.rs

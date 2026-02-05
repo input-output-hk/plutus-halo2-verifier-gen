@@ -17,9 +17,9 @@ pub use circuit_types::CircuitRepresentation;
 // Naming constants used across the codebase
 pub(crate) mod constants;
 
-// Expressions of Plonk's steps, that is challenges and commitment extraction,
-// as well as permutation, and vanishing, arguments.
-pub(crate) mod expression_steps;
+// Extraction of Plonk's expressions and steps, that is challenges and
+// commitment extraction, as well as permutation, and vanishing, arguments.
+pub(crate) mod extraction_steps;
 
 // Supported languages
 pub(crate) mod languages;

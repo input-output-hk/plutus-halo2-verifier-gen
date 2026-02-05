@@ -17,7 +17,7 @@ pub(crate) mod data;
 pub use data::CircuitRepresentation;
 use data::{
     Commitments, Evaluations, RotationDescription,
-    expression_steps::{
+    extraction_steps::{
         evaluate_permutations_terms, extract_proof_steps, permutation_terms_both,
         vanishing_expressions,
     },
