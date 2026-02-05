@@ -1,10 +1,17 @@
-pub mod base_types;
-pub mod circuit_types;
+// Base types, such as commitments and evaluations.
+pub(crate) mod base_types;
+pub(crate) use base_types::*;
+
+// Circuit (representation) types, built on top of the base types.
+pub(crate) mod circuit_types;
+pub use circuit_types::CircuitRepresentation;
+
+// Naming constants used across the codebase
 pub(crate) mod constants;
-pub mod expression_steps;
+
+// Expressions of Plonk's steps, that is challenges and commitment extraction,
+// as well as permutation, and vanishing, arguments.
+pub(crate) mod expression_steps;
 
 // Supported languages
-pub mod languages;
-
-pub use base_types::*;
-pub use circuit_types::*;
+pub(crate) mod languages;

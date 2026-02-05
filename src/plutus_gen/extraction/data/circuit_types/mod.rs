@@ -1,7 +1,7 @@
-pub mod circuit_expressions;
-pub mod circuit_queries;
-pub mod circuit_representation;
-pub mod instantiation_data;
+mod circuit_expressions;
+mod circuit_queries;
+mod circuit_representation;
+mod instantiation_data;
 
 pub(crate) use circuit_expressions::*;
 pub(crate) use circuit_queries::*;

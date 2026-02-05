@@ -9,12 +9,18 @@ use log::debug;
 #[cfg(feature = "plutus_debug")]
 use log::info;
 
-pub mod data;
-pub use data::*;
+pub(crate) mod data;
+pub use data::CircuitRepresentation;
+use data::{
+    Commitments, Evaluations, RotationDescription,
+    expression_steps::{
+        evaluate_permutations_terms, extract_proof_steps, permutation_terms_both,
+        vanishing_expressions,
+    },
+};
 
-pub mod pcs;
-
-use crate::plutus_gen::extraction::pcs::ExtractPCS;
+pub(crate) mod pcs;
+pub use pcs::ExtractPCS;
 
 impl<PCS: ExtractPCS + PolynomialCommitmentScheme<Scalar, Commitment = G1Projective>>
     CircuitRepresentation<PCS>
@@ -95,7 +101,7 @@ impl<PCS: ExtractPCS + PolynomialCommitmentScheme<Scalar, Commitment = G1Project
         }
 
         // Extracting proof_extraction_steps
-        circuit_description.extract_proof_steps(vk);
+        extract_proof_steps(&mut circuit_description, vk);
 
         let sets = circuit_description.compute_sets();
         let nb_permutation_common = circuit_description.nb_permutation_common();
@@ -118,10 +124,11 @@ impl<PCS: ExtractPCS + PolynomialCommitmentScheme<Scalar, Commitment = G1Project
             });
 
             // Extracting permutations_evaluated_terms
-            circuit_description.evaluate_permutations_terms(&sets);
+            evaluate_permutations_terms(&mut circuit_description, &sets);
 
             // Extracting permutation_terms_left and permutation_terms_right
-            circuit_description.permutation_terms_both(
+            permutation_terms_both(
+                &mut circuit_description,
                 &vk,
                 chunk_len,
                 &sets,
@@ -129,7 +136,7 @@ impl<PCS: ExtractPCS + PolynomialCommitmentScheme<Scalar, Commitment = G1Project
             );
 
             // Extracting h_commitments
-            circuit_description.vanishing_expressions();
+            vanishing_expressions(&mut circuit_description);
         }
 
         debug!("---- Extracting queries");

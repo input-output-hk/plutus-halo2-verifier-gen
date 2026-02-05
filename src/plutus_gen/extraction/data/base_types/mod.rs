@@ -1,10 +1,10 @@
-pub mod commitment;
-pub mod commitment_data;
-pub mod evaluation;
-pub mod expression;
-pub mod proof_step;
-pub mod query;
-pub mod rotation_description;
+mod commitment;
+mod commitment_data;
+mod evaluation;
+mod expression;
+mod proof_step;
+mod query;
+mod rotation_description;
 
 pub(crate) use commitment::*;
 pub(crate) use commitment_data::*;

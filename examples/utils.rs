@@ -1,10 +1,8 @@
 use anyhow::{Context as _, Result};
 
 use plutus_halo2_verifier_gen::plutus_gen::{
-    ExtractPCS,
-    adjusted_types::CardanoFriendlyBlake2b,
-    generate_aiken_verifier, generate_plinth_verifier,
-    proof_serialization::{export_proof, export_public_inputs, serialize_proof},
+    CardanoFriendlyBlake2b, ExtractPCS, export_proof, export_public_inputs,
+    generate_aiken_verifier, generate_plinth_verifier, serialize_proof,
 };
 
 use blstrs::{Bls12, G1Projective, Scalar};
