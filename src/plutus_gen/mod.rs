@@ -8,9 +8,9 @@ pub use emitters::{
     aiken::{emit_verifier_code as emit_verifier_aiken, emit_vk_code as emit_vk_aiken},
     plinth::{emit_verifier_code as emit_verifier_plinth, emit_vk_code as emit_vk_plinth},
 };
-pub use extraction::CircuitRepresentation;
 pub use extraction::pcs::ExtractPCS;
 pub use extraction::pcs::PCSType;
+pub use extraction::{CircuitRepresentation, extract_circuit};
 pub(crate) mod proof_serialization;
 pub use proof_serialization::{export_proof, export_public_inputs, serialize_proof};
 
@@ -57,7 +57,7 @@ where
         Path::new("plinth-verifier/plutus-halo2/src/Plutus/Crypto/Halo2/Generic/VKConstants.hs");
 
     // Step 1: extract circuit representation
-    let circuit_representation = CircuitRepresentation::extract_circuit(params, vk, instances)
+    let circuit_representation = extract_circuit(params, vk, instances)
         .context("Failed to extract the circuit representation")?;
 
     // Step 2: Based on the circuit repr generate Plinth verifier and verification key constants
@@ -94,7 +94,7 @@ pub fn generate_aiken_verifier<PCS>(
 where
     PCS: ExtractPCS + PolynomialCommitmentScheme<Scalar, Commitment = G1Projective>,
 {
-    let circuit_representation = CircuitRepresentation::extract_circuit(params, vk, instances)
+    let circuit_representation = extract_circuit(params, vk, instances)
         .context("Failed to extract the circuit representation")?;
 
     // static locations of files in aiken directory
