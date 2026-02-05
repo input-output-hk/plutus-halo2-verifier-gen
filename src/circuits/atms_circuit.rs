@@ -119,9 +119,9 @@ impl Circuit<Base> for AtmsSignatureCircuit {
 
 /// Generates `num_parties` random key pairs, `threshold` number signatures forv `msg`, and Merkle Tree commitment to public keys
 /// Returns:
-///     `threshold` number of signatures for `msg`
-///     `num_parties` public keys
-///     MT commitment to public keys
+/// - `threshold` number of signatures for `msg`
+/// - `num_parties` public keys
+/// - MT commitment to public keys
 pub fn prepare_test_signatures(
     num_parties: usize,
     threshold: usize,
@@ -177,9 +177,11 @@ mod tests {
 
     #[test]
     fn test_atms_circuit() {
-        // const NUM_PARTIES: usize = 2001; // todo: multiple of three so Rescue does not complain. We should do some padding
+        // Long test
+        // const NUM_PARTIES: usize = 2001;
         // const THRESHOLD: usize = 1602;
 
+        // Short test
         const NUM_PARTIES: usize = 6;
         const THRESHOLD: usize = 3;
 

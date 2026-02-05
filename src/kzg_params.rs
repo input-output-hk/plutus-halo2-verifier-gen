@@ -1,3 +1,5 @@
+//! Module for managing KZG parameters, including caching and generation.
+
 use anyhow::{Context, Result};
 use blstrs::Bls12;
 use halo2_proofs::poly::kzg::params::ParamsKZG;
@@ -34,7 +36,10 @@ pub fn get_or_create_kzg_params(k: u32, rng: impl RngCore) -> Result<ParamsKZG<B
     if path.exists() {
         read_params(&path)
     } else {
-        warn!("Generating unsafe KZG params with k={}. Use only for testing.", k);
+        warn!(
+            "Generating unsafe KZG params with k={}. Use only for testing.",
+            k
+        );
         let params = ParamsKZG::<Bls12>::unsafe_setup(k, rng);
         write_params(&path, &params)?;
         Ok(params)
@@ -43,8 +48,8 @@ pub fn get_or_create_kzg_params(k: u32, rng: impl RngCore) -> Result<ParamsKZG<B
 
 /// Reads KZG parameters from a file.
 fn read_params(path: &Path) -> Result<ParamsKZG<Bls12>> {
-    let file = File::open(path)
-        .with_context(|| format!("Failed to open KZG params file: {:?}", path))?;
+    let file =
+        File::open(path).with_context(|| format!("Failed to open KZG params file: {:?}", path))?;
     let params =
         ParamsKZG::<Bls12>::read_custom(&mut BufReader::new(file), SerdeFormat::RawBytesUnchecked)
             .with_context(|| format!("Failed to read KZG params from: {:?}", path))?;

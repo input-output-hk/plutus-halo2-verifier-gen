@@ -25,7 +25,7 @@ pub struct Pow2RangeConfig {
     tag_col: Column<Fixed>,
     /// The columns where the range-checked values are placed.
     val_cols: [Column<Advice>; NB_POW2RANGE_COLS],
-    // fixed columns of lookup table
+    // Fixed columns of lookup table
     t_tag: TableColumn,
     t_val: TableColumn,
 }
@@ -98,7 +98,7 @@ impl<F: PrimeField> Circuit<F> for LookupTest<F> {
             },
         )?;
 
-        // todo check offsets, as it was incremented 2 times before next iteration
+        // TODO check offsets, as it was incremented 2 times before next iteration
         layouter.assign_region(
             || "pow2range test",
             |mut region| {

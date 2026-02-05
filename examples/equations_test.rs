@@ -1,16 +1,18 @@
 use anyhow::{Context as _, Result, anyhow};
-use blstrs::{Base, Bls12, Scalar};
-use halo2_proofs::plonk::{VerifyingKey, k_from_circuit, keygen_vk};
-use halo2_proofs::poly::kzg::KZGCommitmentScheme;
-use halo2_proofs::poly::kzg::params::ParamsKZG;
-use plutus_halo2_verifier_gen::circuits::atms_circuit::prepare_test_signatures;
-use plutus_halo2_verifier_gen::circuits::atms_with_lookups_circuit::AtmsLookupCircuit;
-use plutus_halo2_verifier_gen::kzg_params::get_or_create_kzg_params;
-use plutus_halo2_verifier_gen::plutus_gen::emit_verifier_code_aiken;
-use plutus_halo2_verifier_gen::plutus_gen::extraction::{ExtractKZG, extract_circuit};
 use rand::prelude::StdRng;
 use rand_core::SeedableRng;
 use std::path::Path;
+
+use blstrs::{Base, Bls12, Scalar};
+
+use plutus_halo2_verifier_gen::circuits::atms_circuit::prepare_test_signatures;
+use plutus_halo2_verifier_gen::circuits::atms_with_lookups_circuit::AtmsLookupCircuit;
+use plutus_halo2_verifier_gen::kzg_params::get_or_create_kzg_params;
+use plutus_halo2_verifier_gen::plutus_gen::{emit_verifier_aiken, extract_circuit};
+
+use halo2_proofs::plonk::{VerifyingKey, k_from_circuit, keygen_vk};
+use halo2_proofs::poly::kzg::KZGCommitmentScheme;
+use halo2_proofs::poly::kzg::params::ParamsKZG;
 
 fn main() -> Result<()> {
     type KZG = KZGCommitmentScheme<Bls12>;
@@ -44,10 +46,7 @@ fn main() -> Result<()> {
         .map_err(|e| anyhow!("{e}"))
         .context("Circuit extraction failed")?;
 
-    // Step 2: extract KZG steps specific to used commitment scheme
-    let circuit_representation = KZG::extract_kzg_steps(circuit_representation);
-
-    emit_verifier_code_aiken(
+    emit_verifier_aiken(
         Path::new("aiken-verifier/templates/gates_test.hbs"),
         Path::new("aiken-verifier/aiken_halo2/lib/gates_test.ak"),
         None,
