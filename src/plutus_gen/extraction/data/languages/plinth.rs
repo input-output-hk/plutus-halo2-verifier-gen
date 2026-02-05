@@ -16,7 +16,7 @@ pub trait PlinthExpression {
 // - folding : ACC = (acc * theta + eval)
 //   where eval is subsequent expressions
 //   separate for input and for table expression
-pub fn combine_plinth_expressions(lookup_expressions: Vec<Expression<Scalar>>) -> String {
+pub(crate) fn combine_plinth_expressions(lookup_expressions: Vec<Expression<Scalar>>) -> String {
     let compiled: Vec<_> = lookup_expressions
         .iter()
         .map(PlinthExpression::compile_expression)

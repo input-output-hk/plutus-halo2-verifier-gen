@@ -11,7 +11,7 @@ pub trait AikenExpression {
     fn compile_expression(&self) -> String;
 }
 
-pub fn combine_aiken_expressions(lookup_expressions: Vec<Expression<Scalar>>) -> String {
+pub(crate) fn combine_aiken_expressions(lookup_expressions: Vec<Expression<Scalar>>) -> String {
     let compiled: Vec<_> = lookup_expressions
         .iter()
         .map(AikenExpression::compile_expression)

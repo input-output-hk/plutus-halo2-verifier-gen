@@ -6,7 +6,7 @@ use crate::plutus_gen::extraction::pcs::ExtractPCS;
 #[cfg(feature = "plutus_debug")]
 use log::info;
 
-pub fn vanishing_expressions<PCS>(circuit_repr: &mut CircuitRepresentation<PCS>)
+pub(crate) fn vanishing_expressions<PCS>(circuit_repr: &mut CircuitRepresentation<PCS>)
 where
     PCS: ExtractPCS,
 {

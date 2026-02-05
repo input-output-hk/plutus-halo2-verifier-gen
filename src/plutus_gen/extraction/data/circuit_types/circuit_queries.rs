@@ -5,13 +5,13 @@ use super::super::{Commitments, Evaluations, Query, RotationDescription};
 /// CircuitQueries structure
 /// This structure contains all circuit's queries.
 #[derive(Clone, Debug, Default)]
-pub struct CircuitQueries {
-    pub advice: Vec<Query>,
-    pub fixed: Vec<Query>,
-    pub permutation: Vec<Query>,
-    pub common: Vec<Query>,
-    pub vanishing: Vec<Query>,
-    pub lookup: Vec<Query>,
+pub(crate) struct CircuitQueries {
+    pub(crate) advice: Vec<Query>,
+    pub(crate) fixed: Vec<Query>,
+    pub(crate) permutation: Vec<Query>,
+    pub(crate) common: Vec<Query>,
+    pub(crate) vanishing: Vec<Query>,
+    pub(crate) lookup: Vec<Query>,
 }
 
 impl CircuitQueries {
@@ -23,7 +23,7 @@ impl CircuitQueries {
     // 5. COMMON
     // 6. VANISHING
     /// Returns all queries ordered by type.
-    pub fn all_ordered(&self) -> [Vec<Query>; 6] {
+    pub(crate) fn all_ordered(&self) -> [Vec<Query>; 6] {
         [
             self.advice.clone(),
             self.permutation.clone(),
@@ -35,7 +35,12 @@ impl CircuitQueries {
     }
 
     /// Extract an advice query to the CircuitQueries structure.
-    pub fn advice(&mut self, commitment_index: usize, evaluation_index: usize, point: i32) -> () {
+    pub(crate) fn advice(
+        &mut self,
+        commitment_index: usize,
+        evaluation_index: usize,
+        point: i32,
+    ) -> () {
         let query = Query::new(
             Commitments::Advice(commitment_index), //format!("a{:?}", column.index() + 1),
             Evaluations::Advice(evaluation_index), //format!("adviceEval{:?}", query_index + 1),
@@ -45,7 +50,12 @@ impl CircuitQueries {
     }
 
     /// Extract a fixed query to the CircuitQueries structure.
-    pub fn fixed(&mut self, commitment_index: usize, evaluation_index: usize, point: i32) -> () {
+    pub(crate) fn fixed(
+        &mut self,
+        commitment_index: usize,
+        evaluation_index: usize,
+        point: i32,
+    ) -> () {
         let query = Query::new(
             Commitments::Fixed(commitment_index), //format!("f{:?}_commitment", column.index() + 1),
             Evaluations::Fixed(evaluation_index), //format!("fixedEval{:?}", query_index + 1),
@@ -55,7 +65,7 @@ impl CircuitQueries {
     }
 
     /// Extract a permutation query to the CircuitQueries structure.
-    pub fn permutation(
+    pub(crate) fn permutation(
         &mut self,
         index: char,
         evaluation_subindex: usize,
@@ -70,7 +80,7 @@ impl CircuitQueries {
     }
 
     /// Extract a common permutation query to the CircuitQueries structure.
-    pub fn common(&mut self, index: usize) -> () {
+    pub(crate) fn common(&mut self, index: usize) -> () {
         let query = Query::new(
             Commitments::PermutationsCommon(index), //format!("p{:?}_commitment", idx + 1),
             Evaluations::PermutationsCommon(index), //format!("permutationCommon{:?}", idx + 1),
@@ -80,7 +90,7 @@ impl CircuitQueries {
     }
 
     /// Extract a vanishing query to the CircuitQueries structure.
-    pub fn vanishing_queries(&mut self) -> () {
+    pub(crate) fn vanishing_queries(&mut self) -> () {
         let query = Query::new(
             Commitments::VanishingG, //"vanishing_g".to_string(),
             Evaluations::VanishingS, //"vanishing_s".to_string()
@@ -97,7 +107,7 @@ impl CircuitQueries {
     }
 
     /// Extract a lookup query to the CircuitQueries structure.
-    pub fn lookup(
+    pub(crate) fn lookup(
         &mut self,
         commitment: Commitments,
         evaluation: Evaluations,

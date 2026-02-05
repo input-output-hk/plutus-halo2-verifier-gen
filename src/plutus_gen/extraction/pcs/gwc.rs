@@ -49,7 +49,7 @@ impl ExtractPCS for GWC19Scheme {
             .join(" ,\n")
     }
 
-    fn extract_pcs_steps(circuit_repr: &mut CircuitRepresentation<Self>) {
+    fn extract_pcs(circuit_repr: &mut CircuitRepresentation<Self>) {
         circuit_repr.pcs_extraction_steps.push(GWC19Steps::V);
 
         // TODO double check if number of final witnesses is equal to number of different X rotations

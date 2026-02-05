@@ -13,7 +13,7 @@ use halo2_proofs::halo2curves::group::prime::PrimeCurveAffine;
 #[cfg(feature = "plutus_debug")]
 use log::info;
 
-pub fn extract_proof_steps<PCS>(
+pub(crate) fn extract_proof_steps<PCS>(
     circuit_repr: &mut CircuitRepresentation<PCS>,
     vk: &VerifyingKey<Scalar, PCS>,
 ) where

@@ -15,24 +15,24 @@ use log::info;
 
 /// Type listing all instantiation specific data
 #[derive(Clone, Debug, Default)]
-pub struct InstantiationSpecificData {
-    pub fixed_commitments: Vec<G1Affine>,
-    pub permutation_commitments: Vec<G1Affine>,
-    pub omega: Scalar,
-    pub inverted_omega: Scalar,
-    pub barycentric_weight: Scalar,
-    pub s_g2: G2Affine,
-    pub omega_rotation_count_for_instances: usize,
-    pub n_coefficient: u64,
-    pub blinding_factors: usize,
-    pub transcript_representation: Scalar,
-    pub public_inputs_count: usize,
+pub(crate) struct InstantiationSpecificData {
+    pub(crate) fixed_commitments: Vec<G1Affine>,
+    pub(crate) permutation_commitments: Vec<G1Affine>,
+    pub(crate) omega: Scalar,
+    pub(crate) inverted_omega: Scalar,
+    pub(crate) barycentric_weight: Scalar,
+    pub(crate) s_g2: G2Affine,
+    pub(crate) omega_rotation_count_for_instances: usize,
+    pub(crate) n_coefficient: u64,
+    pub(crate) blinding_factors: usize,
+    pub(crate) transcript_representation: Scalar,
+    pub(crate) public_inputs_count: usize,
 }
 
 impl InstantiationSpecificData {
     /// Function to extract the instantiation specific data from the vk, public
     /// inputs and params.
-    pub fn extract<PCS>(
+    pub(crate) fn extract<PCS>(
         &mut self,
         params: &ParamsKZG<Bls12>,
         vk: &VerifyingKey<Scalar, PCS>,

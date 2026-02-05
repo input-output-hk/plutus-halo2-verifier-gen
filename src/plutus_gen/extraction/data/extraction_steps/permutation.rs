@@ -77,7 +77,7 @@ where
     }
 }
 
-pub fn evaluate_permutations_terms<PCS>(
+pub(crate) fn evaluate_permutations_terms<PCS>(
     circuit_repr: &mut CircuitRepresentation<PCS>,
     sets: &Vec<char>,
 ) where
@@ -142,7 +142,7 @@ pub fn evaluate_permutations_terms<PCS>(
     }
 }
 
-pub fn permutation_terms_both<PCS>(
+pub(crate) fn permutation_terms_both<PCS>(
     circuit_repr: &mut CircuitRepresentation<PCS>,
     vk: &VerifyingKey<Scalar, PCS>,
     chunk_len: usize,

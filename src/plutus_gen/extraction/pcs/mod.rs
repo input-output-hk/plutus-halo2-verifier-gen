@@ -25,7 +25,7 @@ pub enum PCSType {
 }
 
 /// Type for permutation point sets and related committed data.
-pub type IntermediateSets = (Vec<Vec<RotationDescription>>, Vec<CommitmentData>);
+pub(crate) type IntermediateSets = (Vec<Vec<RotationDescription>>, Vec<CommitmentData>);
 
 /// Generic trait for extracting PCS steps and data, as well as emitting them
 /// in the supported languages.
@@ -108,7 +108,7 @@ pub trait ExtractPCS {
 
     /// Function for extracting the PCS steps to the circuit representation
     /// structure.
-    fn extract_pcs_steps(circuit_repr: &mut CircuitRepresentation<Self>);
+    fn extract_pcs(circuit_repr: &mut CircuitRepresentation<Self>);
     /// Function for emitting the PCS steps in Aiken.
     fn step_to_aiken(step: Self::PCSExtractionSteps, number: usize) -> String;
     /// Function for emitting the PCS steps in Plinth.

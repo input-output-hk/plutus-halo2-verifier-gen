@@ -225,7 +225,7 @@ where
     }
 
     // Extracting PCS steps
-    PCS::extract_pcs_steps(&mut circuit_description);
+    PCS::extract_pcs(&mut circuit_description);
 
     Ok(circuit_description)
 }

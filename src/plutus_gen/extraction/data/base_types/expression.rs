@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 
 /// Operations and types for Scalars
 #[derive(Clone, PartialEq, Eq, Debug, Deserialize, Serialize)]
-pub enum ScalarExpression<F> {
+pub(crate) enum ScalarExpression<F> {
     Constant(F),
     Variable(String),
     Advice(usize),
@@ -21,7 +21,7 @@ pub enum ScalarExpression<F> {
 
 /// Operations and types for G1 elements
 #[derive(Clone, PartialEq, Eq, Debug)]
-pub enum ExpressionG1<F> {
+pub(crate) enum ExpressionG1<F> {
     Zero,
     Sum(Box<ExpressionG1<F>>, Box<ExpressionG1<F>>),
     Scale(Box<ExpressionG1<F>>, ScalarExpression<F>),

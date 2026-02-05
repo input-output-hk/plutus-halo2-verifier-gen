@@ -9,7 +9,7 @@
 // Base types, such as commitments and evaluations.
 pub(crate) mod base_types;
 pub(crate) use base_types::*;
-
+pub use base_types::{CommitmentData, RotationDescription};
 // Circuit (representation) types, built on top of the base types.
 pub(crate) mod circuit_types;
 pub use circuit_types::CircuitRepresentation;

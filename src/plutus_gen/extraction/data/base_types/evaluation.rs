@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 /// Evaluations' types
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, Eq, PartialEq, Hash)]
-pub enum Evaluations {
+pub(crate) enum Evaluations {
     Advice(usize),
     Fixed(usize),
     Permutation(char, usize),

@@ -55,7 +55,7 @@ impl ExtractPCS for Halo2MultiOpenScheme {
             .join(", ")
     }
 
-    fn extract_pcs_steps(circuit_repr: &mut CircuitRepresentation<Self>) {
+    fn extract_pcs(circuit_repr: &mut CircuitRepresentation<Self>) {
         circuit_repr.pcs_extraction_steps.push(HMOSteps::X1);
 
         circuit_repr.pcs_extraction_steps.push(HMOSteps::X2);
