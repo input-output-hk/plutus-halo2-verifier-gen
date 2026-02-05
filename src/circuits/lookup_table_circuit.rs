@@ -25,7 +25,7 @@ pub struct Pow2RangeConfig {
     tag_col: Column<Fixed>,
     /// The columns where the range-checked values are placed.
     val_cols: [Column<Advice>; NB_POW2RANGE_COLS],
-    // ixed columns of lookup table
+    // Fixed columns of lookup table
     t_tag: TableColumn,
     t_val: TableColumn,
 }
