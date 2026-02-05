@@ -1,9 +1,9 @@
-//! Query type and associated functions
+//! Query structure and associated functions
 
 use super::{Commitments, Evaluations, RotationDescription};
 use serde::{Deserialize, Serialize};
-/// This type is used to store the relation between commitments and evaluations
-/// as well as the associated rotation.
+/// This structure is used to store the relation between commitments and
+/// evaluations as well as the associated rotation.
 #[derive(Clone, Copy, Debug, Default, Serialize, Deserialize)]
 pub struct Query {
     pub commitment: Commitments,
@@ -12,7 +12,7 @@ pub struct Query {
 }
 
 impl Query {
-    pub fn new(
+    pub(crate) fn new(
         commitment: Commitments,
         evaluation: Evaluations,
         point: RotationDescription,

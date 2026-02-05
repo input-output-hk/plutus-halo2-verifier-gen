@@ -20,7 +20,6 @@ pub enum RotationDescription {
 }
 
 impl RotationDescription {
-    // Common functions to all languages
     pub(crate) fn to_string(&self) -> String {
         match self {
             RotationDescription::Last => "x_last".to_string(),

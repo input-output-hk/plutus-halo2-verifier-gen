@@ -1,4 +1,5 @@
-//! All functions related to writing Plinth code
+//! High level code for generating Halo2 verifier in Plinth
+//! PCS related code is in `pcs` module directly.
 
 use crate::plutus_gen::extraction::data::languages::plinth::*;
 use crate::plutus_gen::extraction::data::{
@@ -11,7 +12,6 @@ use halo2_proofs::halo2curves::group::prime::PrimeCurveAffine;
 
 use handlebars::{Handlebars, RenderError};
 use itertools::Itertools;
-use log::debug;
 use std::{collections::HashMap, fs::File, path::Path};
 
 pub fn emit_verifier_code<PCS>(
@@ -895,8 +895,6 @@ where
     data.insert("PERMUTATION_COMMITMENTS_EXPORTS".to_string(), exports);
     data.insert("PERMUTATION_COMMITMENT_G1".to_string(), assignment);
     let compressed_sg2 = hex::encode(circuit.proof_instantiation_data.s_g2.to_bytes());
-
-    debug!("compressed_sg2: {}", compressed_sg2);
 
     data.insert(
         "G2_DEFINITIONS".to_string(),

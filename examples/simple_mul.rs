@@ -1,6 +1,6 @@
 use anyhow::{Context as _, Result, anyhow, bail};
 use ff::Field;
-use log::{debug, info};
+use log::info;
 use rand::prelude::StdRng;
 use rand_core::SeedableRng;
 use std::env;
@@ -72,7 +72,6 @@ fn compile_simple_mul_circuit<
 
     // Instantiate the circuit with the private inputs.
     let circuit = SimpleMulCircuit::init(constant, a, b, c);
-    debug!("circuit: {:?}", circuit);
 
     let seed = [0u8; 32]; // UNSAFE, constant seed is used for testing purposes
     let mut rng: StdRng = SeedableRng::from_seed(seed);
@@ -83,7 +82,6 @@ fn compile_simple_mul_circuit<
     let pk: ProvingKey<Scalar, PCS> = keygen_pk(vk.clone(), &circuit)?;
 
     let mut transcript = CTranscript::init();
-    debug!("transcript: {:?}", transcript);
 
     // no instances, just dummy 42 to make prover and verifier happy
     let instances: &[&[&[Scalar]]] =

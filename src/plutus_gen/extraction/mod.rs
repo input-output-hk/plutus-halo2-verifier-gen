@@ -1,3 +1,8 @@
+//! Module for extracting the steps and data necessary to verify a Halo2 proof.
+//! We made the arbitrary choice to implement the `extract_circuit` function in
+//! this file as this is the main function to be used outside the library and
+//! for ease of reading.
+
 use anyhow::{Error, anyhow};
 use blstrs::{Bls12, G1Projective, Scalar};
 
@@ -5,7 +10,6 @@ use halo2_proofs::plonk::VerifyingKey;
 use halo2_proofs::poly::commitment::PolynomialCommitmentScheme;
 use halo2_proofs::poly::kzg::params::ParamsKZG;
 
-use log::debug;
 #[cfg(feature = "plutus_debug")]
 use log::info;
 
@@ -25,6 +29,7 @@ pub use pcs::ExtractPCS;
 impl<PCS: ExtractPCS + PolynomialCommitmentScheme<Scalar, Commitment = G1Projective>>
     CircuitRepresentation<PCS>
 {
+    /// Function returning the minimal and maximal rotations.
     fn rotations(vk: &VerifyingKey<Scalar, PCS>) -> (i32, i32) {
         vk.cs()
             .instance_queries()
@@ -40,6 +45,7 @@ impl<PCS: ExtractPCS + PolynomialCommitmentScheme<Scalar, Commitment = G1Project
             })
     }
 
+    /// Function returning the maximal length of the instances.
     fn instance_max_length(instances: &[&[&[Scalar]]]) -> usize {
         instances
             .iter()
@@ -48,6 +54,8 @@ impl<PCS: ExtractPCS + PolynomialCommitmentScheme<Scalar, Commitment = G1Project
             .unwrap_or_default()
     }
 
+    /// Function extracting the circuit description from a verification key,
+    /// parameters and instances.
     pub fn extract_circuit(
         params: &ParamsKZG<Bls12>,
         vk: &VerifyingKey<Scalar, PCS>,
@@ -90,12 +98,8 @@ impl<PCS: ExtractPCS + PolynomialCommitmentScheme<Scalar, Commitment = G1Project
         // Extracting (number of) public_inputs
         for instance in instances.iter() {
             for instance in instance.iter() {
-                for value in instance.iter() {
-                    // transcript.common(value)?;
-                    debug!("write public input (instance) into the transcript");
+                for _value in instance.iter() {
                     circuit_description.increment_public_inputs();
-                    debug!("{:?}", value);
-                    debug!("--------------------------------");
                 }
             }
         }
@@ -107,7 +111,8 @@ impl<PCS: ExtractPCS + PolynomialCommitmentScheme<Scalar, Commitment = G1Project
         let nb_permutation_common = circuit_description.nb_permutation_common();
         let nb_lookup_commitments = circuit_description.nb_lookup_commitments();
 
-        debug!("---- Extracting expressions");
+        #[cfg(feature = "plutus_debug")]
+        info!("---- Extracting expressions");
         {
             // Extracting compiled_gate_equations
             vk.cs().gates().iter().for_each(|gate| {
@@ -139,9 +144,10 @@ impl<PCS: ExtractPCS + PolynomialCommitmentScheme<Scalar, Commitment = G1Project
             vanishing_expressions(&mut circuit_description);
         }
 
-        debug!("---- Extracting queries");
+        #[cfg(feature = "plutus_debug")]
+        info!("---- Extracting queries");
         {
-            // Extracting advice_queries
+            // Extracting advice queries
             vk.cs()
                 .advice_queries()
                 .iter()
@@ -152,7 +158,7 @@ impl<PCS: ExtractPCS + PolynomialCommitmentScheme<Scalar, Commitment = G1Project
                         .advice(column.index() + 1, query_index + 1, at.0);
                 });
 
-            // Extracting fixed_queries
+            // Extracting fixed queries
             vk.cs()
                 .fixed_queries()
                 .iter()
@@ -163,7 +169,10 @@ impl<PCS: ExtractPCS + PolynomialCommitmentScheme<Scalar, Commitment = G1Project
                         .fixed(column.index() + 1, query_index + 1, at.0);
                 });
 
-            // Extracting permutation_queries (for current, next and last rotations)
+            // Extracting permutation queries
+            // /!\ the ordering of the queries is important, as changing it may
+            // /!\ break the verifier by disssociating the variables names from
+            // /!\ their use.
             for set in sets.iter() {
                 circuit_description
                     .queries
@@ -178,15 +187,15 @@ impl<PCS: ExtractPCS + PolynomialCommitmentScheme<Scalar, Commitment = G1Project
                     .permutation(*set, 3, RotationDescription::Last);
             }
 
-            // Extracting (permutation) common_queries
+            // Extracting (permutation) common queries
             (0..nb_permutation_common).for_each(|idx| {
                 circuit_description.queries.common(idx + 1);
             });
 
-            // Extracting vanishing_queries
+            // Extracting vanishing queries
             circuit_description.queries.vanishing_queries();
 
-            // Extracting lookup_queries
+            // Extracting lookup queries
             (0..nb_lookup_commitments).for_each(|idx| {
                 circuit_description.queries.lookup(
                     Commitments::Lookup(idx + 1), //format!("lookupCommitment{:?}", idx + 1),
@@ -215,6 +224,9 @@ impl<PCS: ExtractPCS + PolynomialCommitmentScheme<Scalar, Commitment = G1Project
                 );
             });
         }
+
+        // Extracting PCS steps
+        PCS::extract_pcs_steps(&mut circuit_description);
 
         Ok(circuit_description)
     }

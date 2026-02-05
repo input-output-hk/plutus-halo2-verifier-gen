@@ -1,3 +1,4 @@
+//! Module for extracting the Halo2 variant of KZG PCS' steps and data.
 use crate::plutus_gen::extraction::data::CircuitRepresentation;
 
 use super::{ExtractPCS, PCSType};
@@ -12,11 +13,14 @@ use itertools::Itertools;
 
 type Halo2MultiOpenScheme = KZGCommitmentScheme<Bls12>;
 
+/// Halo2 Multi-Open PCS data comprises the number of q evaluations only.
 #[derive(Default)]
 pub struct HMOData {
     q_evaluations_count: usize,
 }
 
+/// The Halo2 Multi-Open PCS steps comprise five challenge generation (x1 to x4
+/// and pi) and the handling of the f commitment and the q evaluations.
 #[derive(PartialEq, Clone, Debug)]
 pub enum HMOSteps {
     X1,

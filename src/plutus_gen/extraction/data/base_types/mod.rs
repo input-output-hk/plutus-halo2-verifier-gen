@@ -1,3 +1,5 @@
+//! Base structures and related functions used in a circuit.
+
 mod commitment;
 mod commitment_data;
 mod evaluation;

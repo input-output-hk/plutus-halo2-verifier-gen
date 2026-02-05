@@ -4,7 +4,7 @@
 
 use serde::{Deserialize, Serialize};
 
-/// Operations on Scalars
+/// Operations and types for Scalars
 #[derive(Clone, PartialEq, Eq, Debug, Deserialize, Serialize)]
 pub enum ScalarExpression<F> {
     Constant(F),
@@ -19,7 +19,7 @@ pub enum ScalarExpression<F> {
     PowMod(Box<ScalarExpression<F>>, usize),
 }
 
-/// Operations on G1 elements
+/// Operations and types for G1 elements
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum ExpressionG1<F> {
     Zero,

@@ -1,3 +1,11 @@
+//! Polynomial commitment scheme (PCS) module
+//! This module contains the code related to the extraction of the polynomial
+//! commitment scheme (PCS) steps and data from a Halo2 circuit, as well as the
+//! code for emitting in these in the supported languages.
+//! It includes the definition of generic type and trait that all supported PCS
+//! must implement, as well as the implementation of the trait for the supported
+//! KZG based PCS.
+
 use super::data::{CircuitRepresentation, CommitmentData, Commitments, Query, RotationDescription};
 
 #[cfg(feature = "plutus_debug")]
@@ -9,19 +17,24 @@ use std::collections::HashMap;
 pub(crate) mod gwc;
 pub(crate) mod kzg;
 
+/// List of all supported PCS.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum PCSType {
     GWC19,
     Halo2MultiOpen,
 }
 
+/// Type for permutation point sets and related committed data.
 pub type IntermediateSets = (Vec<Vec<RotationDescription>>, Vec<CommitmentData>);
 
+/// Generic trait for extracting PCS steps and data, as well as emitting them
+/// in the supported languages.
 pub trait ExtractPCS {
     type PCSExtractionSteps: PartialEq + Clone;
 
     type PCSData: Default;
 
+    /// Function to precompute the permutation sets and related committed data.
     fn precompute_intermediate_sets(
         circuit_repr: &CircuitRepresentation<Self>,
     ) -> IntermediateSets {
@@ -93,13 +106,22 @@ pub trait ExtractPCS {
         (unique_grouped_points, commitment_data)
     }
 
+    /// Function for extracting the PCS steps to the circuit representation
+    /// structure.
     fn extract_pcs_steps(circuit_repr: &mut CircuitRepresentation<Self>);
+    /// Function for emitting the PCS steps in Aiken.
     fn step_to_aiken(step: Self::PCSExtractionSteps, number: usize) -> String;
+    /// Function for emitting the PCS steps in Plinth.
     fn step_to_plinth(step: Self::PCSExtractionSteps, number: usize) -> String;
 
+    /// Function for extracting the PCS data to the circuit representation
+    /// structure.
     fn pcs_data(circuit_repr: &CircuitRepresentation<Self>) -> usize;
+    /// Function for emitting the PCS data in Aiken.
     fn pcs_data_aiken(circuit_repr: &CircuitRepresentation<Self>) -> String;
+    /// Function for emitting the PCS data in Plinth.
     fn pcs_data_plinth(circuit_repr: &CircuitRepresentation<Self>) -> String;
 
+    /// Function for determining the type of PCS used in the circuit.
     fn pcs_type() -> PCSType;
 }

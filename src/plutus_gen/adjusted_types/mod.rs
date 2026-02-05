@@ -1,15 +1,17 @@
 use blake2b_simd::{Params, State};
 use blstrs::{G1Projective, Scalar};
 use halo2_proofs::transcript::{Hashable, Sampleable, TranscriptHash};
-use log::debug;
 use std::io;
 use std::io::Read;
 
+/// Prefix when squeezing challenges from the transcript
 const BLAKE2B_PREFIX_CHALLENGE: u8 = 0;
 
-/// Prefix to a prover's message
+/// Prefix when updating state with prover's messages
 const BLAKE2B_PREFIX_COMMON: u8 = 1;
 
+/// Cardano-compatible transcript implementation and related traits for
+/// Fiat-Shamir transformation.
 #[derive(Debug)]
 pub struct CardanoFriendlyBlake2b {
     state: State,
@@ -18,8 +20,10 @@ pub struct CardanoFriendlyBlake2b {
 /// Cardano-compatible transcript hash for Fiat-Shamir transformation.
 ///
 /// This differs from halo2's default `blake2b_simd::State` implementation:
-/// - Uses 32-byte outputs (blake2b-256) instead of 64-byte, since Plutus only exposes `blake2b_256` builtin
-/// - Unkeyed hash (no domain separator key), as Plutus doesn't support keyed blake2b
+/// - Uses 32-byte outputs (blake2b-256) instead of 64-byte, since Plutus only
+///   exposes `blake2b_256` builtin
+/// - Unkeyed hash (no domain separator key), as Plutus doesn't support keyed
+///   blake2b
 ///
 /// The prefix bytes (0x00 for squeeze, 0x01 for absorb) match halo2's domain separation scheme.
 impl TranscriptHash for CardanoFriendlyBlake2b {
@@ -32,7 +36,6 @@ impl TranscriptHash for CardanoFriendlyBlake2b {
         }
     }
     fn absorb(&mut self, input: &Self::Input) {
-        debug!("adding to transcript {:?}", hex::encode(input.clone()));
         self.state.update(&[BLAKE2B_PREFIX_COMMON]);
         self.state.update(input);
     }
@@ -42,7 +45,8 @@ impl TranscriptHash for CardanoFriendlyBlake2b {
         let result = self.state.finalize();
         let result = result.as_bytes();
 
-        // Re-hashing the result to get 32 extra bytes.
+        // Re-hashing the result to get 32 extra bytes for more randomness for
+        // sampling challenges.
         let mut state = Params::new().hash_length(32).to_state();
         state.update(result);
         let digest = state.finalize();
@@ -55,7 +59,7 @@ impl TranscriptHash for CardanoFriendlyBlake2b {
     }
 }
 
-/// Standard implementation for Scalar as in halo2
+/// Standard implementation for Scalar hashing, done as in halo2
 impl Hashable<CardanoFriendlyBlake2b> for Scalar {
     fn to_input(&self) -> <CardanoFriendlyBlake2b as TranscriptHash>::Input {
         <Scalar as Hashable<State>>::to_input(self)
@@ -70,14 +74,14 @@ impl Hashable<CardanoFriendlyBlake2b> for Scalar {
     }
 }
 
-/// Standard implementation for Scalar as in halo2
+/// Standard implementation for Scalar sampling, done as in halo2
 impl Sampleable<CardanoFriendlyBlake2b> for Scalar {
     fn sample(hash_output: <CardanoFriendlyBlake2b as TranscriptHash>::Output) -> Self {
         <Scalar as Sampleable<State>>::sample(hash_output)
     }
 }
 
-/// Standard implementation for G1Projective as in halo2
+/// Standard implementation for G1Projective hashing, done as in halo2
 impl Hashable<CardanoFriendlyBlake2b> for G1Projective {
     fn to_input(&self) -> <CardanoFriendlyBlake2b as TranscriptHash>::Input {
         <G1Projective as Hashable<State>>::to_input(self)

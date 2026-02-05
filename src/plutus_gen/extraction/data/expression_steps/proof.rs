@@ -1,3 +1,5 @@
+//! Code for extracting common expressions.
+
 use super::super::{CircuitRepresentation, ProofExtractionSteps};
 use crate::plutus_gen::extraction::pcs::ExtractPCS;
 
@@ -28,13 +30,6 @@ pub fn extract_proof_steps<PCS>(
         .max()
         .expect("No max_phase for phases found");
     let all_phases = 0..=(*max_phase);
-
-    #[cfg(feature = "plutus_debug")]
-    info!(
-        "proofs: vk phases{} ?= all phases {}",
-        Vec::from_iter(vk.cs().phases()).len(),
-        all_phases.len()
-    );
 
     for current_phase in all_phases {
         for (phase, _commitment) in vk
@@ -93,17 +88,9 @@ pub fn extract_proof_steps<PCS>(
 
     circuit_repr.extract_step(ProofExtractionSteps::RandomEval);
 
-    // for each commitment do a PermutationCommon
-    #[cfg(feature = "plutus_debug")]
-    info!("nb PermCom: {}", vk.permutation().commitments().len());
-
-    vk.permutation()
-        .commitments()
-        .iter()
-        .enumerate()
-        .for_each(|_| {
-            circuit_repr.extract_step(ProofExtractionSteps::PermutationCommon);
-        });
+    (0..vk.permutation().commitments().len()).for_each(|_| {
+        circuit_repr.extract_step(ProofExtractionSteps::PermutationCommon);
+    });
 
     let letters = 'a'..='z';
     let last_index = nb_permutation_commitments - 1;

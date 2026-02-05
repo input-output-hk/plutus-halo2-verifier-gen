@@ -2,7 +2,7 @@
 
 use serde::{Deserialize, Serialize};
 
-/// Type listing all types of commitments
+/// Commitments' types
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, Eq, PartialEq, Hash)]
 pub enum Commitments {
     Advice(usize),

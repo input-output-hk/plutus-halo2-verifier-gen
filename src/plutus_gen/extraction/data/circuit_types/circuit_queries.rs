@@ -1,14 +1,12 @@
-//! Query type
+//! Circuit query structure and associated functions.
 
 use super::super::{Commitments, Evaluations, Query, RotationDescription};
 
-/// CircuitQueries type
-/// This type contains all circuit's queries, that is the expressions' values
-/// extracted from the proof.
+/// CircuitQueries structure
+/// This structure contains all circuit's queries.
 #[derive(Clone, Debug, Default)]
 pub struct CircuitQueries {
     pub advice: Vec<Query>,
-    // pub instance: Vec<Query>,
     pub fixed: Vec<Query>,
     pub permutation: Vec<Query>,
     pub common: Vec<Query>,
@@ -18,12 +16,13 @@ pub struct CircuitQueries {
 
 impl CircuitQueries {
     // Order of queries from halo2:
-    // 1.ADVICE
+    // 1. ADVICE
     // 2. PERMUTATION
     // 3. LOOKUP
     // 4. FIXED
     // 5. COMMON
     // 6. VANISHING
+    /// Returns all queries ordered by type.
     pub fn all_ordered(&self) -> [Vec<Query>; 6] {
         [
             self.advice.clone(),
@@ -34,9 +33,8 @@ impl CircuitQueries {
             self.vanishing.clone(),
         ]
     }
-}
 
-impl CircuitQueries {
+    /// Extract an advice query to the CircuitQueries structure.
     pub fn advice(&mut self, commitment_index: usize, evaluation_index: usize, point: i32) -> () {
         let query = Query::new(
             Commitments::Advice(commitment_index), //format!("a{:?}", column.index() + 1),
@@ -46,6 +44,7 @@ impl CircuitQueries {
         self.advice.push(query);
     }
 
+    /// Extract a fixed query to the CircuitQueries structure.
     pub fn fixed(&mut self, commitment_index: usize, evaluation_index: usize, point: i32) -> () {
         let query = Query::new(
             Commitments::Fixed(commitment_index), //format!("f{:?}_commitment", column.index() + 1),
@@ -55,6 +54,7 @@ impl CircuitQueries {
         self.fixed.push(query);
     }
 
+    /// Extract a permutation query to the CircuitQueries structure.
     pub fn permutation(
         &mut self,
         index: char,
@@ -69,6 +69,7 @@ impl CircuitQueries {
         self.permutation.push(query);
     }
 
+    /// Extract a common permutation query to the CircuitQueries structure.
     pub fn common(&mut self, index: usize) -> () {
         let query = Query::new(
             Commitments::PermutationsCommon(index), //format!("p{:?}_commitment", idx + 1),
@@ -78,6 +79,7 @@ impl CircuitQueries {
         self.common.push(query);
     }
 
+    /// Extract a vanishing query to the CircuitQueries structure.
     pub fn vanishing_queries(&mut self) -> () {
         let query = Query::new(
             Commitments::VanishingG, //"vanishing_g".to_string(),
@@ -94,6 +96,7 @@ impl CircuitQueries {
         self.vanishing.push(query);
     }
 
+    /// Extract a lookup query to the CircuitQueries structure.
     pub fn lookup(
         &mut self,
         commitment: Commitments,

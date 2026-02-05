@@ -11,11 +11,11 @@ pub trait PlinthExpression {
     fn compile_expression(&self) -> String;
 }
 
-// fold expressions for particular lookup
-// initial ACC = ZERO
-// folding : ACC = (acc * theta + eval)
-// where eval is subsequent expressions
-// separate for input and for table expression
+// Fold expressions for particular lookup:
+// - initial state: ACC = ZERO
+// - folding : ACC = (acc * theta + eval)
+//   where eval is subsequent expressions
+//   separate for input and for table expression
 pub fn combine_plinth_expressions(lookup_expressions: Vec<Expression<Scalar>>) -> String {
     let compiled: Vec<_> = lookup_expressions
         .iter()

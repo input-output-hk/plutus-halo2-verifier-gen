@@ -1,3 +1,5 @@
+//! Code for extracting vasnishing related expressions.
+
 use super::super::{CircuitRepresentation, ExpressionG1, ScalarExpression, constants::*};
 use crate::plutus_gen::extraction::pcs::ExtractPCS;
 
@@ -10,7 +12,6 @@ where
 {
     let nb_vanishing_splits = circuit_repr.nb_vanishing_splits();
 
-    // Raphael: Not sure this works for more splits
     // !hCommitment1 = scale xn_one G1_zero + vanishingSplit{:?}", nb_vanishing_splits
     // a + b
     {
@@ -24,7 +25,7 @@ where
         circuit_repr.expressions.vanishing(h_com_str(1), init_expr);
     }
 
-    // render last on as vanishing_g
+    // Render last on as vanishing_g
     // !hCommitment{:?} = scale xn hCommitment{:?} + vanishingSplit{:?}
     // a + b
     for i in 1..(nb_vanishing_splits - 1) {

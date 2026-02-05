@@ -1,3 +1,5 @@
+//! Module for extracting the GWC19 paper variant of KZG PCS' steps and data.
+
 use crate::plutus_gen::extraction::data::CircuitRepresentation;
 use itertools::Itertools;
 
@@ -11,11 +13,14 @@ use log::info;
 
 type GWC19Scheme = GwcKZGCommitmentScheme<Bls12>;
 
+/// GWC data comprises the number of w values only.
 #[derive(Default)]
 pub struct GWC19Data {
     w_values_count: usize,
 }
 
+/// The GWC19 PCS steps comprise the generation of u and v challenges, and the
+/// handling of the w witnesses.
 #[derive(PartialEq, Clone, Debug)]
 pub enum GWC19Steps {
     U,

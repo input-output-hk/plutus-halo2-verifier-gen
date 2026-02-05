@@ -1,5 +1,6 @@
-//! InstantiationData type
-//! This type
+//! InstantiationSpecificData struture and associated functions.
+//! This structure contains the high level data that is specific to the
+//! instantiation of a circuit.
 
 use blstrs::{Bls12, G1Affine, G1Projective, G2Affine, Scalar};
 
@@ -17,29 +18,20 @@ use log::info;
 pub struct InstantiationSpecificData {
     pub fixed_commitments: Vec<G1Affine>,
     pub permutation_commitments: Vec<G1Affine>,
-
-    // values as hex
-    // pub scalar_delta: Scalar,
-    // pub scalar_zero: Scalar,
-    // pub scalar_one: Scalar,
     pub omega: Scalar,
     pub inverted_omega: Scalar,
     pub barycentric_weight: Scalar,
-
     pub s_g2: G2Affine,
-
     pub omega_rotation_count_for_instances: usize,
-    // pub omega_rotation_count_for_vanishing: usize,
     pub n_coefficient: u64,
-
     pub blinding_factors: usize,
-
     pub transcript_representation: Scalar,
-
     pub public_inputs_count: usize,
 }
 
 impl InstantiationSpecificData {
+    /// Function to extract the instantiation specific data from the vk, public
+    /// inputs and params.
     pub fn extract<PCS>(
         &mut self,
         params: &ParamsKZG<Bls12>,
@@ -61,10 +53,6 @@ impl InstantiationSpecificData {
             .iter()
             .map(|p| p.to_affine())
             .collect();
-
-        // self.scalar_delta - not vk specific
-        // self.scalar_zero - not vk specific
-        // self.scalar_one - not vk specific
 
         self.omega = vk.get_domain().get_omega();
         self.inverted_omega = vk.get_domain().get_omega_inv();

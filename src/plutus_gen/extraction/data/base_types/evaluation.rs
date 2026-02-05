@@ -2,7 +2,7 @@
 
 use serde::{Deserialize, Serialize};
 
-/// Type listing all types of evaluations
+/// Evaluations' types
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, Eq, PartialEq, Hash)]
 pub enum Evaluations {
     Advice(usize),

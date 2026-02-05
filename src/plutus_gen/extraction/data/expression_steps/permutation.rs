@@ -1,3 +1,5 @@
+//! Code for extracting permutation related expressions.
+
 use super::super::{ScalarExpression, constants::*};
 use crate::plutus_gen::CircuitRepresentation;
 use crate::plutus_gen::extraction::pcs::ExtractPCS;
@@ -86,7 +88,7 @@ pub fn evaluate_permutations_terms<PCS>(
     let last_set = sets.last().unwrap();
     let shifted_sets: Vec<_> = sets.iter().skip(1).zip(sets.iter()).collect();
 
-    //evaluation_at_0 * (scalarOne - permutations_evaluated_{}_1)
+    // evaluation_at_0 * (scalarOne - permutations_evaluated_{}_1)
     //a * (b - c)
     {
         let a = ScalarExpression::Variable(EVAL_0_STR.to_string());
@@ -103,7 +105,7 @@ pub fn evaluate_permutations_terms<PCS>(
         circuit_repr.expressions.permutation_eval(term);
     }
 
-    //last_evaluation * (permutations_evaluated_{}_1 * permutations_evaluated_{}_1 - permutations_evaluated_{}_1)
+    // last_evaluation * (permutations_evaluated_{}_1 * permutations_evaluated_{}_1 - permutations_evaluated_{}_1)
     //a * (b * b - b)
     {
         let a = ScalarExpression::Variable(EVAL_LAST_STR.to_string());

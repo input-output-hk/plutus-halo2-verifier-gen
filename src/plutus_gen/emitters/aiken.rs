@@ -1,4 +1,5 @@
-//! All functions related to writing Aiken code
+//! High level code for generating Halo2 verifier in Aiken
+//! PCS related code is in `pcs` module directly.
 
 use crate::plutus_gen::extraction::data::languages::aiken::*;
 use crate::plutus_gen::extraction::data::{
@@ -14,7 +15,6 @@ use halo2_proofs::halo2curves::group::GroupEncoding;
 
 use handlebars::{Handlebars, RenderError};
 use itertools::Itertools;
-use log::debug;
 use std::ops::Neg;
 use std::{collections::HashMap, fs::File, iter::once, path::Path};
 
@@ -729,8 +729,6 @@ where
     data.insert("PERMUTATION_COMMITMENTS".to_string(), points);
 
     let compressed_sg2 = hex::encode(circuit.proof_instantiation_data.s_g2.to_bytes());
-
-    debug!("compressed_sg2: {}", compressed_sg2);
 
     data.insert(
         "G2_DEFINITIONS".to_string(),

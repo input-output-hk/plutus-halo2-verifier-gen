@@ -1,6 +1,6 @@
-/// Example circuit implementing ATMS signature verification and a lookup table.
-/// The lookup table does not serve a functional purpose and is included only to evaluate
-/// the complexity of Plutus verification for this type of circuit.
+/// ATMS circuit using a lookup table.
+/// The lookup table does not serve a functional purpose and is included only
+/// to evaluate the complexity of Plutus verification for this type of circuit.
 use atms_halo2::{
     ecc::chip::EccInstructions,
     instructions::MainGateInstructions,
@@ -23,7 +23,7 @@ pub struct AtmsLookupCircuit {
     pub inputs: Vec<(u64, usize)>, // (values, bit_len)
     pub max_bit_len: usize,
 
-    // atms inputs
+    // ATMS inputs
     pub signatures: Vec<Option<SchnorrSig>>,
     pub pks: Vec<JubjubAffine>,
     pub pks_comm: Base,
@@ -46,9 +46,9 @@ pub struct Pow2RangeConfig {
     //instance: Column<Instance>,
     q_pow2range: Selector,
     tag_col: Column<Fixed>,
-    /// The columns where the range-checked values are placed.
+    // The columns where the range-checked values are placed.
     val_cols: [Column<Advice>; NB_POW2RANGE_COLS],
-    // fixed columns of lookup table
+    // Fixed columns of lookup table
     t_tag: TableColumn,
     t_val: TableColumn,
 }
@@ -72,8 +72,8 @@ impl Circuit<Base> for AtmsLookupCircuit {
             })
             .collect::<Vec<_>>();
 
-        ///////// let instance = meta.instance_column();
-        ///////// meta.enable_equality(instance);
+        // let instance = meta.instance_column();
+        // meta.enable_equality(instance);
         let q_pow2range = meta.complex_selector();
         let tag_col = meta.fixed_column();
         let t_tag = meta.lookup_table_column();
@@ -140,7 +140,7 @@ impl Circuit<Base> for AtmsLookupCircuit {
             },
         )?;
 
-        // todo check offsets, as it was incremented 2 times before next iteration
+        // TODO check offsets, as it was incremented 2 times before next iteration
         layouter.assign_region(
             || "pow2range test",
             |mut region| {
@@ -281,7 +281,7 @@ mod tests {
 
     #[test]
     fn test_circuit() {
-        // const NUM_PARTIES: usize = 2001; // todo: multiple of three so Rescue does not complain. We should do some padding
+        // const NUM_PARTIES: usize = 2001;
         // const THRESHOLD: usize = 1602;
 
         const NUM_PARTIES: usize = 6;

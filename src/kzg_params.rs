@@ -1,3 +1,5 @@
+//! Module for managing KZG parameters, including caching and generation.
+
 use anyhow::{Context, Result};
 use blstrs::Bls12;
 use halo2_proofs::poly::kzg::params::ParamsKZG;

@@ -1,3 +1,5 @@
+//! Module for proof and pulic input serialization.
+
 use anyhow::{Context as _, Result, anyhow};
 use blstrs::Scalar;
 use std::fs::File;
