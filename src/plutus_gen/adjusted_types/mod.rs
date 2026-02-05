@@ -18,9 +18,8 @@ pub struct CardanoFriendlyBlake2b {
 /// Cardano-compatible transcript hash for Fiat-Shamir transformation.
 ///
 /// This differs from halo2's default `blake2b_simd::State` implementation:
-/// - Uses 32-byte output (blake2b-256) instead of 64-byte, since Plutus only exposes `blake2b_256` builtin
+/// - Uses 32-byte outputs (blake2b-256) instead of 64-byte, since Plutus only exposes `blake2b_256` builtin
 /// - Unkeyed hash (no domain separator key), as Plutus doesn't support keyed blake2b
-/// - Output is zero-padded to 64 bytes to satisfy `Sampleable` requirements for field element sampling
 ///
 /// The prefix bytes (0x00 for squeeze, 0x01 for absorb) match halo2's domain separation scheme.
 impl TranscriptHash for CardanoFriendlyBlake2b {
