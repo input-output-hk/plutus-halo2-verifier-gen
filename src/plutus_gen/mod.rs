@@ -27,7 +27,6 @@ use halo2_proofs::poly::kzg::params::ParamsKZG;
 /// * `params` - Parameters for the KZG polynomial commitment scheme
 /// * `vk` - Verifying key for the circuit, it can have either GWC19, or halo2 based KZG
 /// * `instances` - Public inputs to the circuit
-/// * `g2_encoder` - Encoding function for G2Affine points
 ///
 /// # Returns
 /// * `Result<(), String>` - Ok(()) if the generation is successful, Err(String) otherwise
