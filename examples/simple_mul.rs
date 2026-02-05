@@ -4,9 +4,9 @@ use log::info;
 use rand::prelude::StdRng;
 use rand_core::SeedableRng;
 use std::env;
+use std::fs::File;
 
 use blstrs::{Base, Bls12, G1Projective, Scalar};
-
 use halo2_proofs::{
     plonk::{
         ProvingKey, VerifyingKey, create_proof, k_from_circuit, keygen_pk, keygen_vk, prepare,
@@ -14,19 +14,25 @@ use halo2_proofs::{
     poly::{
         commitment::{Guard, PolynomialCommitmentScheme},
         gwc_kzg::GwcKZGCommitmentScheme,
-        kzg::KZGCommitmentScheme,
+        kzg::{
+            KZGCommitmentScheme,
+            params::{ParamsKZG, ParamsVerifierKZG},
+        },
     },
-    transcript::Transcript,
+    transcript::{CircuitTranscript, Transcript},
 };
 
+use plutus_halo2_verifier_gen::plutus_gen::{
+    CardanoFriendlyBlake2b, ExtractPCS, export_proof, export_public_inputs,
+    generate_aiken_verifier, generate_plinth_verifier, serialize_proof,
+};
 use plutus_halo2_verifier_gen::{
     circuits::simple_mul_circuit::SimpleMulCircuit, kzg_params::get_or_create_kzg_params,
-    plutus_gen::ExtractPCS,
 };
 
-#[path = "./utils.rs"]
-mod utils;
-use utils::{CTranscript, Params, ParamsVK, export_all};
+pub type Params = ParamsKZG<Bls12>;
+pub type ParamsVK = ParamsVerifierKZG<Bls12>;
+pub type CTranscript = CircuitTranscript<CardanoFriendlyBlake2b>;
 
 fn main() -> Result<()> {
     env_logger::init_from_env(env_logger::Env::default().filter_or("RUST_LOG", "info"));
@@ -121,5 +127,42 @@ fn compile_simple_mul_circuit<
         .map_err(|e| anyhow!("{e:?}"))
         .context("verify failed")?;
 
-    export_all(proof, kzg_params, &vk, instances, invalid_proof)
+    let instances_file =
+        "./plinth-verifier/plutus-halo2/test/Generic/serialized_public_input.hex".to_string();
+    let mut output = File::create(instances_file).context("failed to create instances file")?;
+    export_public_inputs(instances, &mut output).context("failed to export public inputs")?;
+
+    serialize_proof(
+        "./plinth-verifier/plutus-halo2/test/Generic/serialized_proof.json".to_string(),
+        proof.clone(),
+    )
+    .context("json proof serialization failed")?;
+
+    export_proof(
+        "./plinth-verifier/plutus-halo2/test/Generic/serialized_proof.hex".to_string(),
+        proof.clone(),
+    )
+    .context("hex proof serialization failed")?;
+
+    generate_plinth_verifier(&kzg_params, &vk, instances)
+        .context("Plinth verifier generation failed")?;
+
+    generate_aiken_verifier(
+        &kzg_params,
+        &vk,
+        instances,
+        Some((proof.clone(), invalid_proof)),
+    )
+    .context("Aiken verifier generation failed")?;
+    export_proof(
+        "./aiken-verifier/submitter/serialized_proof.hex".to_string(),
+        proof,
+    )
+    .context("hex proof serialization failed")?;
+
+    let instances_file = "./aiken-verifier/submitter/serialized_public_input.hex".to_string();
+    let mut output = File::create(instances_file).context("failed to create instances file")?;
+    export_public_inputs(instances, &mut output).context("Failed to export the public inputs")?;
+
+    Ok(())
 }
