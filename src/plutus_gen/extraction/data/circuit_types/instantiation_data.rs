@@ -2,12 +2,13 @@
 //! This structure contains the high level data that is specific to the
 //! instantiation of a circuit.
 
-use blstrs::{Bls12, G1Affine, G1Projective, G2Affine, Scalar};
+use midnight_curves::{Bls12, BlsScalar as Scalar, G1Affine, G1Projective, G2Affine};
 
-use halo2_proofs::halo2curves::group::Curve;
-use halo2_proofs::plonk::VerifyingKey;
-use halo2_proofs::poly::commitment::PolynomialCommitmentScheme;
-use halo2_proofs::poly::kzg::params::ParamsKZG;
+use group::Curve;
+
+use midnight_proofs::plonk::VerifyingKey;
+use midnight_proofs::poly::commitment::PolynomialCommitmentScheme;
+use midnight_proofs::poly::kzg::params::ParamsKZG;
 
 use ff::Field;
 #[cfg(feature = "plutus_debug")]

@@ -17,10 +17,10 @@ pub use proof_serialization::{export_proof, export_public_inputs, serialize_proo
 use anyhow::{Context as _, Result};
 use std::path::Path;
 
-use blstrs::{Bls12, G1Projective, Scalar};
-use halo2_proofs::plonk::VerifyingKey;
-use halo2_proofs::poly::commitment::PolynomialCommitmentScheme;
-use halo2_proofs::poly::kzg::params::ParamsKZG;
+use midnight_curves::{Bls12, BlsScalar as Scalar, G1Projective};
+use midnight_proofs::plonk::VerifyingKey;
+use midnight_proofs::poly::commitment::PolynomialCommitmentScheme;
+use midnight_proofs::poly::kzg::params::ParamsKZG;
 
 /// Generates a Plinth verifier for a specific circuit and saves the generated
 /// code to the specified file paths.
@@ -28,7 +28,7 @@ use halo2_proofs::poly::kzg::params::ParamsKZG;
 ///
 /// # Arguments
 /// * `params` - Parameters for the KZG polynomial commitment scheme
-/// * `vk` - Verifying key for the circuit, it can have either GWC19, or halo2 based KZG
+/// * `vk` - Verifying key for the circuit
 /// * `instances` - Public inputs to the circuit
 ///
 /// # Returns
@@ -44,7 +44,6 @@ where
     // static locations of files in plutus directory
     // let verifier_template_file = Path::new("plinth-verifier/templates/verification_halo2_kzg.hbs");
     let verifier_template_file = match PCS::pcs_type() {
-        PCSType::GWC19 => Path::new("plinth-verifier/templates/verification_gwc19_kzg.hbs"),
         PCSType::Halo2MultiOpen => {
             Path::new("plinth-verifier/templates/verification_halo2_kzg.hbs")
         }
@@ -80,7 +79,7 @@ where
 ///
 /// # Arguments
 /// * `params` - Parameters for the KZG polynomial commitment scheme
-/// * `vk` - Verifying key for the circuit, it can have either GWC19, or halo2 based KZG
+/// * `vk` - Verifying key for the circuit
 /// * `instances` - Public inputs to the circuit
 ///
 /// # Returns
@@ -99,7 +98,6 @@ where
 
     // static locations of files in aiken directory
     let verifier_template_file = match PCS::pcs_type() {
-        PCSType::GWC19 => Path::new("aiken-verifier/templates/verification_gwc19.hbs"),
         PCSType::Halo2MultiOpen => Path::new("aiken-verifier/templates/verification_h2.hbs"),
     };
 

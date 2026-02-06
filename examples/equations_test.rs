@@ -3,16 +3,16 @@ use rand::prelude::StdRng;
 use rand_core::SeedableRng;
 use std::path::Path;
 
-use blstrs::{Base, Bls12, Scalar};
+use midnight_curves::{Base, Bls12, BlsScalar as Scalar};
 
 use plutus_halo2_verifier_gen::circuits::atms_circuit::prepare_test_signatures;
 use plutus_halo2_verifier_gen::circuits::atms_with_lookups_circuit::AtmsLookupCircuit;
 use plutus_halo2_verifier_gen::kzg_params::get_or_create_kzg_params;
 use plutus_halo2_verifier_gen::plutus_gen::{emit_verifier_aiken, extract_circuit};
 
-use halo2_proofs::plonk::{VerifyingKey, k_from_circuit, keygen_vk};
-use halo2_proofs::poly::kzg::KZGCommitmentScheme;
-use halo2_proofs::poly::kzg::params::ParamsKZG;
+use midnight_proofs::plonk::{VerifyingKey, k_from_circuit, keygen_vk};
+use midnight_proofs::poly::kzg::KZGCommitmentScheme;
+use midnight_proofs::poly::kzg::params::ParamsKZG;
 
 fn main() -> Result<()> {
     type KZG = KZGCommitmentScheme<Bls12>;

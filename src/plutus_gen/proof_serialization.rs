@@ -1,7 +1,8 @@
 //! Module for proof and pulic input serialization.
 
 use anyhow::{Context as _, Result, anyhow};
-use blstrs::Scalar;
+use midnight_curves::BlsScalar as Scalar;
+
 use std::fs::File;
 use std::io::Write;
 

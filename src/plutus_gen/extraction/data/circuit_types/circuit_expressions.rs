@@ -2,8 +2,9 @@
 
 use super::super::{ExpressionG1, ScalarExpression};
 
-use blstrs::Scalar;
-use halo2_proofs::plonk::Expression;
+use midnight_curves::BlsScalar as Scalar;
+use midnight_proofs::plonk::Expression;
+
 /// CircuitExpressions structure
 /// This structure contains all expressions a circuit must satisfy.
 /// These are extracted from the verifying key.

@@ -1,19 +1,17 @@
-use anyhow::{Context as _, Result, anyhow, bail};
+use anyhow::{Context as _, Result, anyhow};
 use log::info;
 use rand::prelude::StdRng;
 use rand_core::SeedableRng;
-use std::env;
 use std::fs::File;
 use std::marker::PhantomData;
 
-use blstrs::{Base, Bls12, G1Projective, Scalar};
-use halo2_proofs::{
+use midnight_curves::{Base, Bls12, Fq as Scalar};
+use midnight_proofs::{
     plonk::{
         ProvingKey, VerifyingKey, create_proof, k_from_circuit, keygen_pk, keygen_vk, prepare,
     },
     poly::{
-        commitment::{Guard, PolynomialCommitmentScheme},
-        gwc_kzg::GwcKZGCommitmentScheme,
+        commitment::Guard,
         kzg::{
             KZGCommitmentScheme,
             params::{ParamsKZG, ParamsVerifierKZG},
@@ -23,46 +21,19 @@ use halo2_proofs::{
 };
 
 use plutus_halo2_verifier_gen::plutus_gen::{
-    CardanoFriendlyBlake2b, ExtractPCS, export_proof, export_public_inputs,
-    generate_aiken_verifier, generate_plinth_verifier, serialize_proof,
+    CardanoFriendlyBlake2b, export_proof, export_public_inputs, generate_aiken_verifier,
+    generate_plinth_verifier, serialize_proof,
 };
 use plutus_halo2_verifier_gen::{
     circuits::lookup_table_circuit::LookupTest, kzg_params::get_or_create_kzg_params,
 };
 
+pub type KZG = KZGCommitmentScheme<Bls12>;
 pub type Params = ParamsKZG<Bls12>;
 pub type ParamsVK = ParamsVerifierKZG<Bls12>;
 pub type CTranscript = CircuitTranscript<CardanoFriendlyBlake2b>;
 
 fn main() -> Result<()> {
-    env_logger::init_from_env(env_logger::Env::default().filter_or("RUST_LOG", "info"));
-    let args: Vec<String> = env::args().collect();
-
-    match &args[1..] {
-        [] => compile_lookup_table_circuit::<KZGCommitmentScheme<Bls12>>(),
-        [command] if command == "gwc_kzg" => {
-            compile_lookup_table_circuit::<GwcKZGCommitmentScheme<Bls12>>()
-        }
-        _ => {
-            println!("Usage:");
-            println!("- to run the example: `cargo run --example example_name`");
-            println!(
-                "- to run the example using the GWC19 version of multi-open KZG, run: `cargo run --example example_name gwc_kzg`"
-            );
-
-            bail!("Invalid command line arguments")
-        }
-    }
-}
-
-pub fn compile_lookup_table_circuit<
-    PCS: PolynomialCommitmentScheme<
-            Scalar,
-            Commitment = G1Projective,
-            Parameters = Params,
-            VerifierParameters = ParamsVK,
-        > + ExtractPCS,
->() -> Result<()> {
     let seed = [0u8; 32]; // UNSAFE, constant seed is used for testing purposes
     let mut rng: StdRng = SeedableRng::from_seed(seed);
 
@@ -74,8 +45,8 @@ pub fn compile_lookup_table_circuit<
 
     let k: u32 = k_from_circuit(&circuit);
     let kzg_params: Params = get_or_create_kzg_params(k, rng.clone())?;
-    let vk: VerifyingKey<Scalar, PCS> = keygen_vk(&kzg_params, &circuit)?;
-    let pk: ProvingKey<Scalar, PCS> = keygen_pk(vk.clone(), &circuit)?;
+    let vk: VerifyingKey<Scalar, KZG> = keygen_vk(&kzg_params, &circuit)?;
+    let pk: ProvingKey<Scalar, KZG> = keygen_pk(vk.clone(), &circuit)?;
 
     // no instances, just dummy 42 to make prover and verifier happy
     let instances: &[&[&[Scalar]]] =
@@ -84,10 +55,12 @@ pub fn compile_lookup_table_circuit<
 
     let mut transcript = CTranscript::init();
 
+    let nb_committed_instances = 0;
     create_proof(
         &kzg_params,
         &pk,
         &[circuit.clone()],
+        nb_committed_instances,
         instances,
         &mut rng,
         &mut transcript,
@@ -100,7 +73,7 @@ pub fn compile_lookup_table_circuit<
 
     let mut transcript_verifier = CTranscript::init_from_bytes(&proof);
 
-    let verifier = prepare::<_, PCS, CTranscript>(&vk, instances, &mut transcript_verifier)
+    let verifier = prepare(&vk, &[&[]], instances, &mut transcript_verifier)
         .context("prepare verification failed")?;
 
     verifier
@@ -114,6 +87,7 @@ pub fn compile_lookup_table_circuit<
         &kzg_params,
         &pk,
         &[circuit.clone()],
+        nb_committed_instances,
         &[&[&[Base::from(1u64), Base::from(1u64), Base::from(1u64)]]],
         &mut rng,
         &mut invalid_transcript,

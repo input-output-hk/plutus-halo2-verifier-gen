@@ -2,13 +2,13 @@
 
 use super::super::{CircuitRepresentation, ProofExtractionSteps};
 use crate::plutus_gen::extraction::pcs::ExtractPCS;
+use group::prime::PrimeCurveAffine;
 
-use blstrs::{G1Affine, G1Projective, Scalar};
-use halo2_proofs::plonk::VerifyingKey;
-use halo2_proofs::poly::commitment::PolynomialCommitmentScheme;
+use midnight_curves::{BlsScalar as Scalar, G1Affine, G1Projective};
+use midnight_proofs::plonk::VerifyingKey;
+use midnight_proofs::poly::commitment::PolynomialCommitmentScheme;
 
 use ff::Field;
-use halo2_proofs::halo2curves::group::prime::PrimeCurveAffine;
 
 #[cfg(feature = "plutus_debug")]
 use log::info;

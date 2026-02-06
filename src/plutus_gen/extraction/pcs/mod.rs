@@ -14,13 +14,11 @@ use log::info;
 use itertools::Itertools;
 use std::collections::HashMap;
 
-pub(crate) mod gwc;
 pub(crate) mod kzg;
 
 /// List of all supported PCS.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum PCSType {
-    GWC19,
     Halo2MultiOpen,
 }
 
