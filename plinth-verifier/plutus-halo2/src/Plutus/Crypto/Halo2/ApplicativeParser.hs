@@ -5,6 +5,7 @@ module Plutus.Crypto.Halo2.ApplicativeParser (
     readPoint,
     readScalar,
     commonScalar,
+    commonG1,
     squeezeChallenge,
     Parser (runParser),
     State,
@@ -58,12 +59,19 @@ squeezeChallenge = Parser $ \(proof, transcript) ->
     let (scalar, transcript') = Transcript.squeezeChallenge transcript
      in (scalar, (proof, transcript'))
 
--- handle public inputs
+-- handle scalar public inputs
 {-# INLINE commonScalar #-}
 commonScalar :: Scalar -> Parser Scalar
 commonScalar scalar = Parser $ \(proof, transcript) ->
     let transcript' = Transcript.addCommonScalarToTranscript transcript scalar
      in (scalar, (proof, transcript'))
+
+-- handle G1 public inputs
+{-# INLINE commonG1 #-}
+commonG1 :: BuiltinBLS12_381_G1_Element -> Parser BuiltinBLS12_381_G1_Element
+commonG1 point = Parser $ \(proof, transcript) ->
+    let transcript' = Transcript.addPointToTranscript transcript point
+     in (point, (proof, transcript'))
 
 instance Functor Parser where
     {-# INLINE fmap #-}

@@ -44,7 +44,7 @@ where
         // Writing committed instances names in verify function's interface
         data.insert("COMMITTED_INSTANCES_NAMES".to_string(), {
             let cins = (1..=nb_committed_instances)
-                .map(|name| format!("{}: State<ByteArray>", name))
+                .map(|name| format!("{}: G1Element", name))
                 .join(", ");
             let mut suffix = "";
             if nb_committed_instances > 0 && nb_public_inputs > 0 {
@@ -68,7 +68,7 @@ where
 
             let committed_instances = committed_instance_names
                 .iter()
-                .map(|n| format!("    let transcript = common_point({}, transcript)\n", n))
+                .map(|n| format!("    let transcript = common_g1({}, transcript)\n", n))
                 .join("");
 
             let mut to_write_down = String::with_capacity(
