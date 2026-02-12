@@ -21,8 +21,8 @@ use midnight_proofs::{
 };
 
 use plutus_halo2_verifier_gen::plutus_gen::{
-    CardanoFriendlyBlake2b, export_proof, export_public_inputs,
-    generate_aiken_verifier, generate_plinth_verifier, serialize_proof,
+    CardanoFriendlyBlake2b, export_proof, export_public_inputs, generate_aiken_verifier,
+    generate_plinth_verifier, serialize_proof,
 };
 use plutus_halo2_verifier_gen::{
     circuits::simple_mul_circuit::SimpleMulCircuit, kzg_params::get_or_create_kzg_params,
@@ -34,6 +34,8 @@ pub type ParamsVK = ParamsVerifierKZG<Bls12>;
 pub type CTranscript = CircuitTranscript<CardanoFriendlyBlake2b>;
 
 fn main() -> Result<()> {
+    env_logger::init();
+
     // Prepare the private and public inputs to the circuit!
     let constant = Scalar::from(7);
     let a = Scalar::from(2);

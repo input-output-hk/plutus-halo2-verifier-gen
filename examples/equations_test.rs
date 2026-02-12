@@ -16,6 +16,7 @@ use midnight_proofs::poly::kzg::params::ParamsKZG;
 
 fn main() -> Result<()> {
     type KZG = KZGCommitmentScheme<Bls12>;
+    env_logger::init();
 
     let seed = [0u8; 32];
     let rng: StdRng = SeedableRng::from_seed(seed);

@@ -34,6 +34,8 @@ pub type ParamsVK = ParamsVerifierKZG<Bls12>;
 pub type CTranscript = CircuitTranscript<CardanoFriendlyBlake2b>;
 
 fn main() -> Result<()> {
+    env_logger::init();
+
     let seed = [0u8; 32]; // UNSAFE, constant seed is used for testing purposes
     let rng: StdRng = SeedableRng::from_seed(seed);
 
