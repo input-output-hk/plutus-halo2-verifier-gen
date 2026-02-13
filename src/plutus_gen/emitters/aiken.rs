@@ -3,8 +3,7 @@
 
 use crate::plutus_gen::extraction::data::languages::aiken::*;
 use crate::plutus_gen::extraction::data::{
-    CircuitRepresentation, CommitmentData, Commitments, Evaluations, ProofExtractionSteps, Query,
-    RotationDescription, constants::*,
+    CircuitRepresentation, CommitmentData, ProofExtractionSteps, RotationDescription, constants::*,
 };
 use crate::plutus_gen::extraction::pcs::{ExtractPCS, PCSType};
 
@@ -758,103 +757,4 @@ where
     let mut output_file = File::create(aiken_file)?;
     handlebars.render_to_write("aiken_template", &data, &mut output_file)?;
     handlebars.render("aiken_template", &data)
-}
-
-#[derive(Clone, Eq, PartialEq, Debug)]
-enum ScalarOperation {
-    Zero,
-    Mul(Box<ScalarOperation>, Evaluations),
-    MulS(Box<ScalarOperation>, Box<ScalarOperation>),
-    Power(char, i32),
-    Add(Box<ScalarOperation>, Box<ScalarOperation>),
-    Rotation(RotationDescription),
-}
-
-#[derive(Clone, Eq, PartialEq)]
-enum MsmOperations {
-    Empty,
-    Append(Box<MsmOperations>, ScalarOperation, Commitments),
-    AppendW(Box<MsmOperations>, ScalarOperation, usize),
-    AppendNegatedG1(Box<MsmOperations>, ScalarOperation),
-    Add(Box<MsmOperations>, Box<MsmOperations>),
-    Scale(Box<MsmOperations>, ScalarOperation),
-}
-
-impl AikenExpression for OptimizedMSM {
-    fn compile_expression(&self) -> String {
-        let elements = self
-            .elements
-            .iter()
-            .map(|element| match element {
-                ElementMSM::Element(scalar, commitment) => format!(
-                    "\n\t\t\t\tMSMElement {{ scalar: {}, g1: {} }}",
-                    scalar.compile_expression(),
-                    commitment.compile_expression(),
-                ),
-                ElementMSM::ElementW(scalar, index) => format!(
-                    "\n\t\t\t\tMSMElement {{ scalar: {}, g1: w{} }}",
-                    scalar.compile_expression(),
-                    index + 1,
-                ),
-                ElementMSM::ElementNegatedG1(scalar) => {
-                    format!(
-                        "\n\t\t\t\tMSMElement {{ scalar: {}, g1: neg_g1_generator }}",
-                        scalar.compile_expression(),
-                    )
-                }
-            })
-            .join(", ");
-        format!("MSM{{elements: [ {} ]}}", elements)
-    }
-}
-
-impl AikenExpression for ScalarOperation {
-    fn compile_expression(&self) -> String {
-        match self {
-            //if rules are for eliminating operations that outcome can be predicted
-            Self::Mul(scalar, evaluation) if matches!(**scalar, Self::Power(_, 0)) => {
-                evaluation.compile_expression()
-            }
-            Self::MulS(scalar_a, scalar_b) if matches!(**scalar_a, Self::Power(_, 0)) => {
-                scalar_b.compile_expression()
-            }
-            Self::MulS(scalar_a, scalar_b) if matches!(**scalar_b, Self::Power(_, 0)) => {
-                scalar_a.compile_expression()
-            }
-            Self::Power(_name, exponent) if *exponent == 0 => ONE_STR.to_string(),
-            Self::Add(scalar_a, scalar_b) if **scalar_a == Self::Zero => {
-                scalar_b.compile_expression()
-            }
-
-            Self::Zero => ZERO_STR.to_string(),
-            Self::Mul(scalar, evaluation) => {
-                format!(
-                    "mul({}, {})",
-                    scalar.compile_expression(),
-                    evaluation.compile_expression()
-                )
-            }
-            Self::MulS(scalar_a, scalar_b) => {
-                format!(
-                    "mul({}, {})",
-                    scalar_a.compile_expression(),
-                    scalar_b.compile_expression()
-                )
-            }
-            Self::Power(name, exponent) => {
-                // All powers of `v` and `u` are pre-computed to avoid duplication
-                // so here instead of calling `scale(v, X)` we just refer to `vX` variable
-                // format!("scale({}, {})", name, exponent)
-                format!("{}{}", name, exponent)
-            }
-            Self::Add(scalar_a, scalar_b) => {
-                format!(
-                    "add({}, {})",
-                    scalar_a.compile_expression(),
-                    scalar_b.compile_expression()
-                )
-            }
-            Self::Rotation(x) => RotationDescription::to_string(x),
-        }
-    }
 }
