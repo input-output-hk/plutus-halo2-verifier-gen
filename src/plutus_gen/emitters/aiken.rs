@@ -8,11 +8,10 @@ use crate::plutus_gen::extraction::data::{
 };
 use crate::plutus_gen::extraction::pcs::{ExtractPCS, PCSType};
 
-use blstrs::Scalar;
+use midnight_curves::BlsScalar as Scalar;
+
 use ff::Field;
-
-use halo2_proofs::halo2curves::group::GroupEncoding;
-
+use group::GroupEncoding;
 use handlebars::{Handlebars, RenderError};
 use itertools::Itertools;
 use std::ops::Neg;
@@ -116,6 +115,7 @@ where
                         + &format!("    let (permuted_table_eval_{}, transcript) = read_scalar(transcript)\n", number + 1)
                 })
                 .join(""),
+            ProofExtractionSteps::Trash => "    let (trash_challenge, transcript) = squeeze_challenge(transcript)\n".to_string(),
         })
         .collect();
 
@@ -510,54 +510,6 @@ where
 
         let kzg_halo2_point_sets = format!("     let point_sets = [[{}]]", kzg_halo2_point_sets);
         data.insert("HALO2_POINT_SETS".to_string(), kzg_halo2_point_sets);
-    }
-
-    if PCS::pcs_type() == PCSType::GWC19 {
-        let kzg_gwc19_intermediate_sets =
-            construct_intermediate_sets(circuit.queries.all_ordered());
-        let (left, right) = construct_msm(kzg_gwc19_intermediate_sets);
-
-        let optimized_left = flatten_msm(&left).optimize_msm();
-        let optimized_right = flatten_msm(&right).optimize_msm();
-
-        let kzg_gwc19_msm = format!(
-            "    let el = eval({})\n    let er = eval({})",
-            optimized_left.compile_expression(),
-            optimized_right.compile_expression()
-        );
-        data.insert("GWC19_MSM".to_string(), kzg_gwc19_msm.clone());
-
-        // Extract max powers of v and u by traversing scalar operations in optimized MSMs
-        let max_v_power = optimized_left
-            .find_max_power('v')
-            .max(optimized_right.find_max_power('v'));
-        let max_u_power = optimized_left
-            .find_max_power('u')
-            .max(optimized_right.find_max_power('u'));
-
-        let generate_powers = |var_name: char, max_power: i32| -> String {
-            (2..=max_power)
-                .map(|i| {
-                    format!(
-                        "\tlet {}{} = mul({}{}, {})",
-                        var_name,
-                        i,
-                        var_name,
-                        i - 1,
-                        var_name
-                    )
-                })
-                .join("\n")
-        };
-
-        data.insert(
-            "GWC19_V_POWERS".to_string(),
-            generate_powers('v', max_v_power),
-        );
-        data.insert(
-            "GWC19_U_POWERS".to_string(),
-            generate_powers('u', max_u_power),
-        );
     }
 
     let fixed_commitments_imports = (1..=circuit.proof_instantiation_data.fixed_commitments.len())

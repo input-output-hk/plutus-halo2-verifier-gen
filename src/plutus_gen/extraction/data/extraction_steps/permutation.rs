@@ -4,11 +4,11 @@ use super::super::{ScalarExpression, constants::*};
 use crate::plutus_gen::CircuitRepresentation;
 use crate::plutus_gen::extraction::pcs::ExtractPCS;
 
-use blstrs::{G1Projective, Scalar};
+use midnight_curves::{BlsScalar as Scalar, G1Projective};
 
-use halo2_proofs::halo2curves::group::Curve;
-use halo2_proofs::plonk::{Advice, Any, Column, Fixed, Instance, VerifyingKey};
-use halo2_proofs::poly::{Rotation, commitment::PolynomialCommitmentScheme};
+use group::Curve;
+use midnight_proofs::plonk::{Advice, Any, Column, Fixed, Instance, VerifyingKey};
+use midnight_proofs::poly::{Rotation, commitment::PolynomialCommitmentScheme};
 
 fn get_any_query_index<PCS>(
     vk: &VerifyingKey<Scalar, PCS>,

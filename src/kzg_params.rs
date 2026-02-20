@@ -1,10 +1,10 @@
 //! Module for managing KZG parameters, including caching and generation.
 
 use anyhow::{Context, Result};
-use blstrs::Bls12;
-use halo2_proofs::poly::kzg::params::ParamsKZG;
-use halo2_proofs::utils::helpers::SerdeFormat;
 use log::warn;
+use midnight_curves::Bls12;
+use midnight_proofs::poly::kzg::params::ParamsKZG;
+use midnight_proofs::utils::helpers::SerdeFormat;
 use rand_core::RngCore;
 use std::fs::{self, File};
 use std::io::{BufReader, BufWriter, Write};

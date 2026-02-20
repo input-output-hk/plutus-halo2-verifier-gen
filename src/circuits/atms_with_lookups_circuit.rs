@@ -8,13 +8,14 @@ use atms_halo2::{
     signatures::schnorr::SchnorrSig,
     util::RegionCtx,
 };
-use blstrs::{Base, JubjubAffine};
+use midnight_curves::{Base, JubjubAffine};
+
 use ff::Field;
-use halo2_proofs::circuit::{Layouter, SimpleFloorPlanner, Value};
-use halo2_proofs::plonk::{
+use midnight_proofs::circuit::{Layouter, SimpleFloorPlanner, Value};
+use midnight_proofs::plonk::{
     Advice, Circuit, Column, ConstraintSystem, Error, Fixed, Selector, TableColumn,
 };
-use halo2_proofs::poly::Rotation;
+use midnight_proofs::poly::Rotation;
 use std::convert::TryInto;
 
 #[derive(Clone, Default)]
@@ -272,10 +273,11 @@ impl Circuit<Base> for AtmsLookupCircuit {
 mod tests {
     use super::*;
     use crate::circuits::atms_circuit::prepare_test_signatures;
-    use blstrs::Base;
+    use midnight_curves::Base;
+
     use ff::Field;
-    use halo2_proofs::dev::MockProver;
-    use halo2_proofs::plonk::k_from_circuit;
+    use midnight_proofs::dev::MockProver;
+    use midnight_proofs::plonk::k_from_circuit;
     use rand::SeedableRng;
     use rand::prelude::StdRng;
 

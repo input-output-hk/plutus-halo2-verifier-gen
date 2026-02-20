@@ -29,4 +29,5 @@ pub(crate) enum ProofExtractionSteps {
     Theta,
     Beta,
     Gamma,
+    Trash,
 }

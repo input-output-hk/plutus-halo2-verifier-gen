@@ -2,8 +2,8 @@
 
 use super::super::{Commitments, Evaluations, ExpressionG1, ScalarExpression, constants::*};
 
-use blstrs::Scalar;
-use halo2_proofs::plonk::Expression;
+use midnight_curves::BlsScalar as Scalar;
+use midnight_proofs::plonk::Expression;
 
 use std::io::{BufWriter, Result, Write};
 

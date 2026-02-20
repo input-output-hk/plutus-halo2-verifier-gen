@@ -4,11 +4,11 @@
 //! for ease of reading.
 
 use anyhow::{Error, anyhow};
-use blstrs::{Bls12, G1Projective, Scalar};
+use midnight_curves::{Bls12, BlsScalar as Scalar, G1Projective};
 
-use halo2_proofs::plonk::VerifyingKey;
-use halo2_proofs::poly::commitment::PolynomialCommitmentScheme;
-use halo2_proofs::poly::kzg::params::ParamsKZG;
+use midnight_proofs::plonk::VerifyingKey;
+use midnight_proofs::poly::commitment::PolynomialCommitmentScheme;
+use midnight_proofs::poly::kzg::params::ParamsKZG;
 
 #[cfg(feature = "plutus_debug")]
 use log::info;

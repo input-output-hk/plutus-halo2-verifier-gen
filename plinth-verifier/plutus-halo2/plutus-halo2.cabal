@@ -32,7 +32,6 @@ library
     Plutus.Crypto.Halo2.Generic.VKConstants
     Plutus.Crypto.Halo2.LagrangePolynomialEvaluation
     Plutus.Crypto.Halo2.MSMEval
-    Plutus.Crypto.Halo2.GwcMultiOpenMSM
     Plutus.Crypto.Halo2.MSMTypes
     Plutus.Crypto.Halo2.Halo2MultiOpenMSM
     Plutus.Crypto.Halo2.Proof

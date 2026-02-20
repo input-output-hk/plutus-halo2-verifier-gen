@@ -3,11 +3,8 @@ use crate::plutus_gen::extraction::data::CircuitRepresentation;
 
 use super::{ExtractPCS, PCSType};
 
-use blstrs::Bls12;
-use halo2_proofs::poly::kzg::KZGCommitmentScheme;
-
-#[cfg(feature = "plutus_debug")]
-use log::info;
+use midnight_curves::Bls12;
+use midnight_proofs::poly::kzg::KZGCommitmentScheme;
 
 use itertools::Itertools;
 
