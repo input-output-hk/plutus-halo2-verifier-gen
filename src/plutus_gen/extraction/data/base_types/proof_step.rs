@@ -6,6 +6,9 @@ use serde::{Deserialize, Serialize};
 /// It is used to emit the right number of phases in the given language.
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub(crate) enum ProofExtractionSteps {
+    // (Committed) Instance evaluation steps
+    CommittedInstanceEval,
+    InstanceEval,
     // Advice and fixed column related steps
     AdviceCommitments,
     AdviceEval,

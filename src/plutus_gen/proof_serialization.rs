@@ -37,7 +37,13 @@ pub fn serialize_proof(proof_file: String, proof: Vec<u8>) -> Result<()> {
 }
 
 pub fn export_public_inputs(instances: &[&[&[Scalar]]], output: &mut File) -> Result<()> {
-    for instance in instances[0][0].iter() {
+    let public_inputs = if instances[0].len() == 2 {
+        instances[0][1]
+    } else {
+        instances[0][0]
+    };
+
+    for instance in public_inputs.iter() {
         let mut value = instance.to_bytes_le();
         value.reverse();
         output

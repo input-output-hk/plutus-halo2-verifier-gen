@@ -44,6 +44,10 @@ where
         ));
     }
 
+    // Checking that the number of committed instances and public inputs equal
+    // the number of instance columns and that their number does not vary
+    // across instances.
+    let default_lenghts: Vec<usize> = instances[0].iter().map(|i| i.len()).collect();
     for instances in instances.iter() {
         if instances.len() != vk.cs().num_instance_columns() {
             return Err(anyhow!(
@@ -52,14 +56,16 @@ where
                 vk.cs().num_instance_columns()
             ));
         }
-    }
-
-    // We suppose we only are verifying a single proof
-    if instances.len() > 1 {
-        return Err(anyhow!(
-            "Only one proof can be processed at a time, {} were received",
-            instances.len()
-        ));
+        if instances
+            .iter()
+            .map(|i| i.len())
+            .zip(default_lenghts.iter())
+            .all(|(l1, &l2)| l1 != l2)
+        {
+            return Err(anyhow!(
+                "Committed instances and public inputs across instances do not have the same lengths."
+            ));
+        }
     }
 
     let chunk_len = vk.cs().degree() - 2;
@@ -124,6 +130,24 @@ where
     #[cfg(feature = "plutus_debug")]
     info!("---- Extracting queries");
     {
+        // Extracting instance queries
+        vk.cs()
+            .instance_queries()
+            .iter()
+            .enumerate()
+            .for_each(|(query_index, &(column, at))| {
+                // Only extracting instance queries for committed instances
+                if column.index()
+                    < circuit_description
+                        .proof_instantiation_data
+                        .committed_instances_count
+                {
+                    circuit_description
+                        .queries
+                        .instance(column.index() + 1, query_index + 1, at.0);
+                }
+            });
+
         // Extracting advice queries
         vk.cs()
             .advice_queries()

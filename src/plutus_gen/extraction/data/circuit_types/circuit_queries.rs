@@ -6,6 +6,7 @@ use super::super::{Commitments, Evaluations, Query, RotationDescription};
 /// This structure contains all circuit's queries.
 #[derive(Clone, Debug, Default)]
 pub(crate) struct CircuitQueries {
+    pub(crate) instance: Vec<Query>,
     pub(crate) advice: Vec<Query>,
     pub(crate) fixed: Vec<Query>,
     pub(crate) permutation: Vec<Query>,
@@ -17,16 +18,18 @@ pub(crate) struct CircuitQueries {
 
 impl CircuitQueries {
     // Order of queries from halo2:
-    // 1. ADVICE
-    // 2. PERMUTATION
-    // 3. LOOKUP
-    // 4. TRASHCAN
-    // 5. FIXED
-    // 6. COMMON
-    // 7. VANISHING
+    // 1. INSTANCE
+    // 2. ADVICE
+    // 3. PERMUTATION
+    // 4. LOOKUP
+    // 5. TRASHCAN
+    // 6. FIXED
+    // 7. COMMON
+    // 8. VANISHING
     /// Returns all queries ordered by type.
-    pub(crate) fn all_ordered(&self) -> [Vec<Query>; 7] {
+    pub(crate) fn all_ordered(&self) -> [Vec<Query>; 8] {
         [
+            self.instance.clone(),
             self.advice.clone(),
             self.permutation.clone(),
             self.lookup.clone(),
@@ -35,6 +38,21 @@ impl CircuitQueries {
             self.common.clone(),
             self.vanishing.clone(),
         ]
+    }
+
+    /// Extract an advice query to the CircuitQueries structure.
+    pub(crate) fn instance(
+        &mut self,
+        commitment_index: usize,
+        evaluation_index: usize,
+        point: i32,
+    ) -> () {
+        let query = Query::new(
+            Commitments::Instance(commitment_index), //format!("ci{:?}", column.index() + 1),
+            Evaluations::Instance(evaluation_index), //format!("instanceEval{:?}", query_index + 1),
+            RotationDescription::from_i32(point),
+        );
+        self.instance.push(query);
     }
 
     /// Extract an advice query to the CircuitQueries structure.

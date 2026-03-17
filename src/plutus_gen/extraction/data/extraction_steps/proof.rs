@@ -84,6 +84,32 @@ pub(crate) fn extract_proof_steps<PCS>(
 
     circuit_repr.extract_step(ProofExtractionSteps::XCoordinate);
 
+    // Contrary to midnight-zk where the condition is strictly smaller than,
+    // we added the case where we have no committed instance and the query's
+    // index equals 0 as we need to emit an additional instance_evaluation.
+    vk.cs()
+        .instance_queries()
+        .iter()
+        .for_each(|(column, _rotation)| {
+            if circuit_repr
+                .proof_instantiation_data
+                .committed_instances_supported
+                && (column.index()
+                    < circuit_repr
+                        .proof_instantiation_data
+                        .committed_instances_count
+                    || (circuit_repr
+                        .proof_instantiation_data
+                        .committed_instances_count
+                        == 0
+                        && column.index() == 0))
+            {
+                circuit_repr.extract_step(ProofExtractionSteps::CommittedInstanceEval);
+            } else {
+                circuit_repr.extract_step(ProofExtractionSteps::InstanceEval);
+            }
+        });
+
     (0..vk.cs().advice_queries().len()).for_each(|_| {
         circuit_repr.extract_step(ProofExtractionSteps::AdviceEval);
     });

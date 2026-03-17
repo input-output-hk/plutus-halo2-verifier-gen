@@ -28,6 +28,8 @@ pub(crate) struct InstantiationSpecificData {
     pub(crate) blinding_factors: usize,
     pub(crate) transcript_representation: Scalar,
     pub(crate) public_inputs_count: usize,
+    pub(crate) committed_instances_supported: bool,
+    pub(crate) committed_instances_count: usize,
 }
 
 /// Function returning the maximal length of the instances.
@@ -102,6 +104,23 @@ impl InstantiationSpecificData {
 
         self.transcript_representation = vk.transcript_repr();
 
-        self.public_inputs_count = instances[0][0].len();
+        // The committed instances and public inputs are both stored in the
+        // instances. More precisely, we have either:
+        // -  instances  = &[&[public_inputs]] or
+        // -  instances  = &[&[committed_instances, public_inputs]]
+        // depending on whether the commited instances are supported.
+
+        // Extracting number of committed instances
+        if instances[0].len() == 2 {
+            self.committed_instances_supported = true;
+            self.committed_instances_count = instances[0][0].len()
+        }
+
+        // Extracting number of public_inputs
+        let mut index_public_inputs = 0;
+        if self.committed_instances_supported {
+            index_public_inputs = 1;
+        }
+        self.public_inputs_count = instances[0][index_public_inputs].len();
     }
 }

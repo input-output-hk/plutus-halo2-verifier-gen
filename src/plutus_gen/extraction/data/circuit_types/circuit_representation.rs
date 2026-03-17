@@ -83,6 +83,12 @@ impl<PCS: ExtractPCS> CircuitRepresentation<PCS> {
     /// Extract most proof steps to the circuit representation.
     pub(crate) fn extract_step(&mut self, step: ProofExtractionSteps) -> () {
         match step {
+            ProofExtractionSteps::InstanceEval => self
+                .proof_extraction_steps
+                .push(ProofExtractionSteps::InstanceEval),
+            ProofExtractionSteps::CommittedInstanceEval => self
+                .proof_extraction_steps
+                .push(ProofExtractionSteps::CommittedInstanceEval),
             ProofExtractionSteps::PermutationEval(_) => panic!("Not supported"),
             ProofExtractionSteps::AdviceCommitments => self
                 .proof_extraction_steps
