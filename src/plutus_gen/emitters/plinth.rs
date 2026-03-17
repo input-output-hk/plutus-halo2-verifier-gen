@@ -175,7 +175,19 @@ where
                         + &format!("  !permuted_table_eval_{} <- M.readScalar\n", number + 1)
                 })
                 .join(""),
-            ProofExtractionSteps::Trash => "  !trash_challenge <- M.squeezeChallenge\n".to_string(),
+            ProofExtractionSteps::Trash => "  !trash <- M.squeezeChallenge\n".to_string(),
+            ProofExtractionSteps::TrashCommitment => section
+                .enumerate()
+                .map(|(number, _trashcan)| {
+                    format!("  !trashcanCommitment{} <- M.readPoint\n\n", number + 1)
+                })
+                .join(""),
+            ProofExtractionSteps::TrashEval => section
+                .enumerate()
+                .map(|(number, _trashcan)| {
+                    format!("  !trashcanEval{} <- M.readScalar\n", number + 1)
+                })
+                .join(""),
         })
         .collect();
 
@@ -225,7 +237,7 @@ where
                 format!(
                     "      !lookup_table_eq{:?} = {}\n",
                     id + 1,
-                    combine_plinth_expressions(gate.clone())
+                    combine_plinth_expressions(gate.clone(), THETA_STR)
                 )
             })
             .join("");
@@ -389,11 +401,32 @@ where
         };
         data.insert("PERMUTATIONS_COMBINED".to_string(), permutations_combined);
 
+        // Adding trashcan expressions
+        let trashcans = circuit
+            .expressions
+            .compiled_trashcans
+            .iter()
+            .enumerate()
+            .map(|(id, trash_info)| {
+                let (_name, selector, expression) = trash_info;
+                format!(
+                    "      !trashcanExp{} = {} - (({} - {}) * trashcanEval{})\n",
+                    id + 1,
+                    combine_plinth_expressions(expression.clone(), TRASH_STR),
+                    ONE_STR,
+                    selector.compile_expression(),
+                    id + 1
+                )
+            })
+            .join("");
+        data.insert("TRASHCANS".to_string(), trashcans);
+
         // Computing vanishing expressions by relisting all gates and step expressions
         let gates_count = circuit.expressions.compiled_gate_equations.len();
         let permutations_eval_count = circuit.expressions.permutations_evaluated_terms.len();
         let sets_count = sets_lhs.len();
         let lookups_count = circuit.expressions.compiled_lookups_equations.0.len();
+        let trashcans_count = circuit.expressions.compiled_trashcans.len();
 
         let mut total_nb_expressions = 0;
 
@@ -462,6 +495,19 @@ where
             })
             .collect::<Vec<_>>();
         total_nb_expressions += lookups_count * 5;
+        vanishing_expressions.extend(expressions);
+
+        // Adding trashcan expressions to vanishing
+        let expressions = (1..=trashcans_count)
+            .map(|n| {
+                format!(
+                    "      !expression{} = trashcanExp{}\n",
+                    n + total_nb_expressions,
+                    n
+                )
+            })
+            .collect::<Vec<_>>();
+        total_nb_expressions += trashcans_count;
         vanishing_expressions.extend(expressions);
 
         data.insert(
