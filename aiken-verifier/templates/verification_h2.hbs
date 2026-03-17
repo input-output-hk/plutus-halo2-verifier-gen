@@ -18,31 +18,23 @@ use aiken/crypto/bls12_381/pairing.{miller_loop, final_exponentiation}
 
 pub fn verifier(proof: Data, {{{PUBLIC_INPUTS_NAMES}}}) -> Bool {
 
-    let rotations_for_vanishing =
-        rotate_omegas(omega, omega_inv, -(blinding_factors + 1), 0)
-
     let scalarZero = from_int(0)
     let scalarOne = from_int(1)
     let scalarDelta = from_int(0x08634d0aa021aaf843cab354fabb0062f6502437c6a09c006c083479590189d7)
 
-    let inputs_count = from_int({{{PUBLIC_INPUTS_COUNT}}})
-
     let transcript = construct_transcript(proof, transcript_rep)
-    let transcript = common_scalar(inputs_count, transcript)
 
-{{{PUBLIC_INPUTS}}}
+{{{ABSORB_PUBLIC_INPUTS}}}
 
 {{{PES}}}
-
-
-    let n = {{X_EXPONENT}}
-    let xn_minus_one = scale(x, n-1)
-    let xn = mul(xn_minus_one, x)
 
     let x_prev = rotate_omega(omega, omega_inv, x, (-1))
     let x_current = rotate_omega(omega, omega_inv, x, 0)
     let x_next = rotate_omega(omega, omega_inv, x, 1)
     let x_last = rotate_omega(omega, omega_inv, x, (-(blinding_factors + 1)))
+
+    let rotations_for_vanishing =
+        rotate_omegas(omega, omega_inv, -(blinding_factors + 1), 0)
 
     let evaluations_of_lagrange_polynomial =
         lagrange_polynomial_basis(
@@ -64,10 +56,6 @@ pub fn verifier(proof: Data, {{{PUBLIC_INPUTS_NAMES}}}) -> Bool {
     let active_rows =
         sub(scalarOne, add(last_evaluation, sum_of_evaluation_for_blinding_factors))
     // -----------------------------------------------------------------------------------------------
-
-    let rotations_for_instances = rotate_omegas(omega, omega_inv, 0, {{{PUBLIC_INPUTS_COUNT}}})
-    let lagrange_polynomial_instances = lagrange_polynomial_basis( x, xn, barycentric_weight, rotations_for_instances)
-    let instance_eval_1 = inner_product(lagrange_polynomial_instances, [{{{PUBLIC_INPUTS_LAGRANGE}}}])
 
 {{{GATES}}}
 

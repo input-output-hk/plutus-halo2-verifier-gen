@@ -15,7 +15,6 @@ use crate::plutus_gen::extraction::pcs::ExtractPCS;
 pub struct CircuitRepresentation<PCS: ExtractPCS + ?Sized> {
     pub(crate) proof_instantiation_data: InstantiationSpecificData,
     pub(crate) pcs_instantiation_data: PCS::PCSData,
-    pub(crate) public_inputs: i32, // public_inputs are scalars
     pub(crate) proof_extraction_steps: Vec<ProofExtractionSteps>,
     pub(crate) pcs_extraction_steps: Vec<PCS::PCSExtractionSteps>,
     pub(crate) expressions: CircuitExpressions,
@@ -28,7 +27,6 @@ impl<PCS: ExtractPCS> CircuitRepresentation<PCS> {
         CircuitRepresentation {
             proof_instantiation_data: InstantiationSpecificData::default(),
             pcs_instantiation_data: PCS::PCSData::default(),
-            public_inputs: 0,
             proof_extraction_steps: vec![],
             pcs_extraction_steps: vec![],
             expressions: CircuitExpressions::default(),
@@ -74,11 +72,6 @@ impl<PCS: ExtractPCS> CircuitRepresentation<PCS> {
             .iter()
             .filter(|e| **e == ProofExtractionSteps::VanishingSplit)
             .count()
-    }
-
-    /// Increment the number of public inputs.
-    pub(crate) fn increment_public_inputs(&mut self) {
-        self.public_inputs += 1;
     }
 
     /// Extract the permutation evaluation step to the circuit representation.

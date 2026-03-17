@@ -20,6 +20,67 @@ pub fn emit_verifier_code<PCS>(
 where
     PCS: ExtractPCS,
 {
+    // Data structure we write the code in and bind with mustache template
+    let mut data: HashMap<String, String> = HashMap::new();
+
+    // Lifting verification key information
+    {
+        let fixed_commitments_lifts = (1..=circuit.proof_instantiation_data.fixed_commitments.len()).map(|id| {
+        format!("f{}_commitment :: BuiltinBLS12_381_G1_Element\nf{}_commitment = $(lift VKConstants.f{}_commitment)\n\n", id, id, id)
+    }).join("");
+        data.insert(
+            "FIXED_COMMITMENT_LIFTS".to_string(),
+            fixed_commitments_lifts,
+        );
+
+        let permutation_commitments_lifts = (1..=circuit.proof_instantiation_data.permutation_commitments.len()).map(|id| {
+        format!("p{}_commitment :: BuiltinBLS12_381_G1_Element\np{}_commitment = $(lift VKConstants.p{}_commitment)\n\n", id, id, id)
+    }).join("");
+
+        data.insert(
+            "PERMUTATION_COMMITMENT_LIFTS".to_string(),
+            permutation_commitments_lifts,
+        );
+    }
+
+    let nb_public_inputs = circuit.proof_instantiation_data.public_inputs_count;
+
+    // Handling public inputs
+    {
+        data.insert(
+            "PUBLIC_INPUTS_COUNT".to_string(),
+            nb_public_inputs.to_string(),
+        );
+
+        let public_inputs_names: Vec<String> =
+            (1..=nb_public_inputs).map(|n| format!("p{}", n)).collect();
+
+        data.insert(
+            "PUBLIC_INPUTS_TYPES".to_string(),
+            (1..=nb_public_inputs)
+                .map(|_| "Scalar ->".to_string())
+                .join(" "),
+        );
+
+        data.insert(
+            "PUBLIC_INPUTS_NAMES".to_string(),
+            public_inputs_names.iter().join(" "),
+        );
+
+        let absorb_nb_public_inputs =
+            format!("  _ <- M.commonScalar (mkScalar {})\n", nb_public_inputs);
+
+        let absorb_public_inputs = (1..=nb_public_inputs)
+            .map(|n| format!("  !i{} <- M.commonScalar p{}\n", n, n))
+            .join("");
+
+        let mut public_inputs =
+            String::with_capacity(absorb_nb_public_inputs.len() + absorb_public_inputs.len());
+        public_inputs.push_str(&absorb_nb_public_inputs);
+        public_inputs.push_str(&absorb_public_inputs);
+        data.insert("ABSORB_PUBLIC_INPUTS".to_string(), public_inputs);
+    }
+
     let letters = 'a'..='z';
     let proof_extraction: Vec<_> = circuit
         .proof_extraction_steps
@@ -48,7 +109,22 @@ where
                     format!("  !vanishingSplit_{} <- M.readPoint\n", number + 1)
                 })
                 .join(""),
-            ProofExtractionSteps::XCoordinate => "  !x <- M.squeezeChallenge\n".to_string(),
+            ProofExtractionSteps::XCoordinate => {
+                let squeezing_x = "  !x <- M.squeezeChallenge\n".to_string();
+                let scaling_x = format!(
+                    "  let !xn_minus_one = powMod x ({}-1)\n",
+                    circuit.proof_instantiation_data.n_coefficient.to_string()
+                )
+                .to_string();
+                let scaling_x_again = "  let !xn = xn_minus_one * x\n".to_string();
+                let mut to_write_down = String::with_capacity(
+                    squeezing_x.len() + scaling_x.len() + scaling_x_again.len(),
+                );
+                to_write_down.push_str(&squeezing_x);
+                to_write_down.push_str(&scaling_x);
+                to_write_down.push_str(&scaling_x_again);
+                to_write_down
+            }
             ProofExtractionSteps::AdviceEval => section
                 .enumerate()
                 .map(|(number, _advice_eval)| {
@@ -116,69 +192,64 @@ where
         })
         .collect::<Vec<_>>();
 
-    let mut data: HashMap<String, String> = HashMap::new(); // data to bind to mustache template
-
-    data.insert(
-        "PUBLIC_INPUTS_COUNT".to_string(),
-        circuit.public_inputs.to_string(),
-    );
-
     let proof_extraction_stage = proof_extraction.join("") + &pcs_extraction.join("");
     data.insert("PES".to_string(), proof_extraction_stage);
 
-    data.insert(
-        "X_EXPONENT".to_string(),
-        circuit.proof_instantiation_data.n_coefficient.to_string(),
-    );
+    // Adding expressions for gates, lookups, permutations and trashcans
+    {
+        // Adding gate expressions
+        // For gates, the selector is already included in the constraint/expression
+        let gates = circuit
+            .expressions
+            .compiled_gate_equations
+            .iter()
+            .enumerate()
+            .map(|(id, gate)| {
+                format!(
+                    "      !gate_eq{:?} = {}\n",
+                    id + 1,
+                    gate.compile_expression()
+                )
+            })
+            .join("");
+        data.insert("GATES".to_string(), gates);
 
-    let gates = circuit
-        .expressions
-        .compiled_gate_equations
-        .iter()
-        .enumerate()
-        .map(|(id, gate)| {
-            format!(
-                "      !gate_eq{:?} = {}\n",
-                id + 1,
-                gate.compile_expression()
-            )
-        })
-        .join("");
-    data.insert("GATES".to_string(), gates);
+        // Adding lookup table expressions
+        let lookup_tables = circuit
+            .expressions
+            .compiled_lookups_equations
+            .1
+            .iter()
+            .enumerate()
+            .map(|(id, gate)| {
+                format!(
+                    "      !lookup_table_eq{:?} = {}\n",
+                    id + 1,
+                    combine_plinth_expressions(gate.clone())
+                )
+            })
+            .join("");
+        data.insert("LOOKUP_TABLES_EXPRESSIONS".to_string(), lookup_tables);
 
-    let lookup_tables = circuit
-        .expressions
-        .compiled_lookups_equations
-        .1
-        .iter()
-        .enumerate()
-        .map(|(id, gate)| {
-            format!(
-                "      !lookup_table_eq{:?} = {}\n",
-                id + 1,
-                combine_plinth_expressions(gate.clone())
-            )
-        })
-        .join("");
-    data.insert("LOOKUP_TABLES_EXPRESSIONS".to_string(), lookup_tables);
+        // Adding lookup input expressions
+        let lookup_inputs = circuit
+            .expressions
+            .compiled_lookups_equations
+            .0
+            .iter()
+            .enumerate()
+            .map(|(id, gate)| {
+                format!(
+                    "      !lookup_input_eq{:?} = {}\n",
+                    id + 1,
+                    combine_plinth_expressions(gate.clone(), THETA_STR)
+                )
+            })
+            .join("");
+        data.insert("LOOKUP_INPUTS_EXPRESSIONS".to_string(), lookup_inputs);
 
-    let lookup_inputs = circuit
-        .expressions
-        .compiled_lookups_equations
-        .0
-        .iter()
-        .enumerate()
-        .map(|(id, gate)| {
-            format!(
-                "      !lookup_input_eq{:?} = {}\n",
-                id + 1,
-                combine_plinth_expressions(gate.clone())
-            )
-        })
-        .join("");
-    data.insert("LOOKUP_INPUTS_EXPRESSIONS".to_string(), lookup_inputs);
-
-    let lookup_equations = (1..=circuit.expressions.compiled_lookups_equations.0.len())
+        // Combining lookup expressions
+        let lookup_equations = (1..=circuit.expressions.compiled_lookups_equations.0.len())
         .map(|id| {
             // !l1 = evaluation_at_0 * (scalarOne - product_eval_1)
             // !l2 = last_evaluation * (product_eval_1 * product_eval_1 - product_eval_1)
@@ -210,201 +281,214 @@ where
         })
         .join("");
 
-    data.insert("LOOKUPS".to_string(), lookup_equations);
+        data.insert("LOOKUPS".to_string(), lookup_equations);
 
-    let permutation_evals = circuit
-        .expressions
-        .permutations_evaluated_terms
-        .iter()
-        .enumerate()
-        .map(|(id, expression)| {
-            let term = expression.compile_expression();
-            format!("      !term{:?} = {}\n", id + 1, term)
-        })
-        .join("");
-    data.insert("PERMUTATIONS_EVALS".to_string(), permutation_evals);
+        // Adding permutation evaluation expressions
+        let permutation_evals = circuit
+            .expressions
+            .permutations_evaluated_terms
+            .iter()
+            .enumerate()
+            .map(|(id, expression)| {
+                let term = expression.compile_expression();
+                format!("      !term{:?} = {}\n", id + 1, term)
+            })
+            .join("");
+        data.insert("PERMUTATIONS_EVALS".to_string(), permutation_evals);
 
-    let mut sets_lhs: HashMap<char, String> = HashMap::new();
-    let mut sets_rhs: HashMap<char, String> = HashMap::new();
+        let mut sets_lhs: HashMap<char, String> = HashMap::new();
+        let mut sets_rhs: HashMap<char, String> = HashMap::new();
 
-    let permutation_lhs = circuit
-        .expressions
-        .permutation_terms_left
-        .iter()
-        .enumerate()
-        .map(|(id, (set, expression))| {
-            if sets_lhs.contains_key(set) {
-                let existing = sets_lhs
-                    .get(set)
-                    .unwrap_or_else(|| panic!("set {} not found", set));
-                sets_lhs.insert(*set, format!("{} * left{:?}", existing, id + 1));
-            } else {
-                sets_lhs.insert(*set, format!("left{:?}", id + 1));
-            };
-            let term = expression.compile_expression();
-            format!("      !left{:?} = {} --part of set {}\n", id + 1, term, set)
-        })
-        .join("");
-    data.insert("PERMUTATIONS_LHS".to_string(), permutation_lhs);
+        // Adding left permutation expressions
+        let permutation_lhs = circuit
+            .expressions
+            .permutation_terms_left
+            .iter()
+            .enumerate()
+            .map(|(id, (set, expression))| {
+                if sets_lhs.contains_key(set) {
+                    let existing = sets_lhs
+                        .get(set)
+                        .unwrap_or_else(|| panic!("set {} not found", set));
+                    sets_lhs.insert(*set, format!("{} * left{:?}", existing, id + 1));
+                } else {
+                    sets_lhs.insert(*set, format!("left{:?}", id + 1));
+                };
+                let term = expression.compile_expression();
+                format!("      !left{:?} = {} --part of set {}\n", id + 1, term, set)
+            })
+            .join("");
+        data.insert("PERMUTATIONS_LHS".to_string(), permutation_lhs);
 
-    let lhf_sets = sets_lhs
-        .iter()
-        .sorted_by_key(|(c, _)| **c)
-        .enumerate()
-        .map(|(set_number, (set_id, terms))| {
-            format!(
-                "      !left_set{:?} = {} * {} \n",
-                set_number + 1,
-                perm_eval_str(set_id, 2),
-                terms
-            )
-        })
-        .join("");
-    data.insert("LHS_SETS".to_string(), lhf_sets);
+        // Combining left permutation expressions
+        let lhf_sets = sets_lhs
+            .iter()
+            .sorted_by_key(|(c, _)| **c)
+            .enumerate()
+            .map(|(set_number, (set_id, terms))| {
+                format!(
+                    "      !left_set{:?} = {} * {} \n",
+                    set_number + 1,
+                    perm_eval_str(set_id, 2),
+                    terms
+                )
+            })
+            .join("");
+        data.insert("LHS_SETS".to_string(), lhf_sets);
 
-    let permutation_rhs = circuit
-        .expressions
-        .permutation_terms_right
-        .iter()
-        .enumerate()
-        .map(|(id, (set, expression))| {
-            if sets_rhs.contains_key(set) {
-                let existing = sets_rhs
-                    .get(set)
-                    .unwrap_or_else(|| panic!("set {} not found", set));
-                sets_rhs.insert(*set, format!("{} * right{:?}", existing, id + 1));
-            } else {
-                sets_rhs.insert(*set, format!("right{:?}", id + 1));
-            };
-            let term = expression.compile_expression();
-            format!(
-                "      !right{:?} = {} --part of set {}\n",
-                id + 1,
-                term,
-                set
-            )
-        })
-        .join("");
-    data.insert("PERMUTATIONS_RHS".to_string(), permutation_rhs);
+        // Adding right permutation expressions
+        let permutation_rhs = circuit
+            .expressions
+            .permutation_terms_right
+            .iter()
+            .enumerate()
+            .map(|(id, (set, expression))| {
+                if sets_rhs.contains_key(set) {
+                    let existing = sets_rhs
+                        .get(set)
+                        .unwrap_or_else(|| panic!("set {} not found", set));
+                    sets_rhs.insert(*set, format!("{} * right{:?}", existing, id + 1));
+                } else {
+                    sets_rhs.insert(*set, format!("right{:?}", id + 1));
+                };
+                let term = expression.compile_expression();
+                format!(
+                    "      !right{:?} = {} --part of set {}\n",
+                    id + 1,
+                    term,
+                    set
+                )
+            })
+            .join("");
+        data.insert("PERMUTATIONS_RHS".to_string(), permutation_rhs);
 
-    let rhf_sets = sets_rhs
-        .iter()
-        .sorted_by_key(|(c, _)| **c)
-        .enumerate()
-        .map(|(set_number, (set_id, terms))| {
-            format!(
-                "      !right_set{:?} = {} * {} \n",
-                set_number + 1,
-                perm_eval_str(set_id, 1),
-                terms
-            )
-        })
-        .join("");
-    data.insert("RHS_SETS".to_string(), rhf_sets);
+        // Combining right permutation expressions
+        let rhf_sets = sets_rhs
+            .iter()
+            .sorted_by_key(|(c, _)| **c)
+            .enumerate()
+            .map(|(set_number, (set_id, terms))| {
+                format!(
+                    "      !right_set{:?} = {} * {} \n",
+                    set_number + 1,
+                    perm_eval_str(set_id, 1),
+                    terms
+                )
+            })
+            .join("");
+        data.insert("RHS_SETS".to_string(), rhf_sets);
 
-    let permutations_combined = if sets_lhs.len() == sets_rhs.len() {
-        let sets_number = sets_lhs.len();
-        (1..=sets_number).map(|n| {
+        // Combining left and right permutation expressions
+        let permutations_combined = if sets_lhs.len() == sets_rhs.len() {
+            let sets_number = sets_lhs.len();
+            (1..=sets_number).map(|n| {
             format!("      !permutations{} = (left_set{} - right_set{}) * ({} - ({} + sum_of_evaluation_for_blinding_factors))\n", n, n, n, ONE_STR, EVAL_LAST_STR)
         }).join("")
-    } else {
-        panic!("permutations sets have to be equal length")
-    };
+        } else {
+            panic!("permutations sets have to be equal length")
+        };
+        data.insert("PERMUTATIONS_COMBINED".to_string(), permutations_combined);
 
-    data.insert("PERMUTATIONS_COMBINED".to_string(), permutations_combined);
+        // Computing vanishing expressions by relisting all gates and step expressions
+        let gates_count = circuit.expressions.compiled_gate_equations.len();
+        let permutations_eval_count = circuit.expressions.permutations_evaluated_terms.len();
+        let sets_count = sets_lhs.len();
+        let lookups_count = circuit.expressions.compiled_lookups_equations.0.len();
 
-    let gates_count = circuit.expressions.compiled_gate_equations.len();
-    let permutations_eval_count = circuit.expressions.permutations_evaluated_terms.len();
-    let sets_count = sets_lhs.len();
-    let lookups_count = circuit.expressions.compiled_lookups_equations.0.len();
+        let mut total_nb_expressions = 0;
 
-    let mut total_nb_expressions = 0;
+        // Adding gate expressions to vanishing
+        let mut vanishing_expressions = (1..=gates_count)
+            .map(|n| format!("      !expression{} = gate_eq{}\n", n, n))
+            .collect::<Vec<_>>();
+        total_nb_expressions += gates_count;
 
-    let mut vanishing_expressions = (1..=gates_count)
-        .map(|n| format!("      !expression{} = gate_eq{}\n", n, n))
-        .collect::<Vec<_>>();
-    total_nb_expressions += gates_count;
-
-    let expressions = (1..=permutations_eval_count)
-        .map(|n| {
-            format!(
-                "      !expression{} = term{}\n",
-                n + total_nb_expressions,
-                n
-            )
-        })
-        .collect::<Vec<_>>();
-    vanishing_expressions.extend(expressions);
-    total_nb_expressions += permutations_eval_count;
-
-    let expressions = (1..=sets_count)
-        .map(|n| {
-            format!(
-                "      !expression{} = permutations{}\n",
-                n + total_nb_expressions,
-                n
-            )
-        })
-        .collect::<Vec<_>>();
-    vanishing_expressions.extend(expressions);
-    total_nb_expressions += sets_count;
-
-    let expressions = (1..=lookups_count)
-        .flat_map(|n| {
-            [
+        // Adding permutation evaluation expressions to vanishing
+        let expressions = (1..=permutations_eval_count)
+            .map(|n| {
                 format!(
-                    "      !expression{} = lookup_expression_1_{}\n",
-                    ((n - 1) * 5) + 1 + total_nb_expressions,
+                    "      !expression{} = term{}\n",
+                    n + total_nb_expressions,
                     n
-                ),
-                format!(
-                    "      !expression{} = lookup_expression_2_{}\n",
-                    ((n - 1) * 5) + 2 + total_nb_expressions,
-                    n
-                ),
-                format!(
-                    "      !expression{} = lookup_expression_3_{}\n",
-                    ((n - 1) * 5) + 3 + total_nb_expressions,
-                    n
-                ),
-                format!(
-                    "      !expression{} = lookup_expression_4_{}\n",
-                    ((n - 1) * 5) + 4 + total_nb_expressions,
-                    n
-                ),
-                format!(
-                    "      !expression{} = lookup_expression_5_{}\n",
-                    ((n - 1) * 5) + 5 + total_nb_expressions,
-                    n
-                ),
-            ]
-        })
-        .collect::<Vec<_>>();
-    vanishing_expressions.extend(expressions);
-    total_nb_expressions += lookups_count * 5;
+                )
+            })
+            .collect::<Vec<_>>();
+        total_nb_expressions += permutations_eval_count;
+        vanishing_expressions.extend(expressions);
 
-    data.insert(
-        "VANISHING_EXPRESSIONS".to_string(),
-        vanishing_expressions.join(""),
-    );
+        // Adding combined permutation expressions to vanishing
+        let expressions = (1..=sets_count)
+            .map(|n| {
+                format!(
+                    "      !expression{} = permutations{}\n",
+                    n + total_nb_expressions,
+                    n
+                )
+            })
+            .collect::<Vec<_>>();
+        vanishing_expressions.extend(expressions);
+        total_nb_expressions += sets_count;
 
-    let mut vanishing_evaluation = format!("({} * y + expression1)", ZERO_STR);
-    for n in 2..=total_nb_expressions {
-        vanishing_evaluation = format!("({} * y + expression{})", vanishing_evaluation, n)
+        // Adding lookup expressions to vanishing
+        let expressions = (1..=lookups_count)
+            .flat_map(|n| {
+                [
+                    format!(
+                        "      !expression{} = lookup_expression_1_{}\n",
+                        ((n - 1) * 5) + 1 + total_nb_expressions,
+                        n
+                    ),
+                    format!(
+                        "      !expression{} = lookup_expression_2_{}\n",
+                        ((n - 1) * 5) + 2 + total_nb_expressions,
+                        n
+                    ),
+                    format!(
+                        "      !expression{} = lookup_expression_3_{}\n",
+                        ((n - 1) * 5) + 3 + total_nb_expressions,
+                        n
+                    ),
+                    format!(
+                        "      !expression{} = lookup_expression_4_{}\n",
+                        ((n - 1) * 5) + 4 + total_nb_expressions,
+                        n
+                    ),
+                    format!(
+                        "      !expression{} = lookup_expression_5_{}\n",
+                        ((n - 1) * 5) + 5 + total_nb_expressions,
+                        n
+                    ),
+                ]
+            })
+            .collect::<Vec<_>>();
+        total_nb_expressions += lookups_count * 5;
+        vanishing_expressions.extend(expressions);
+
+        data.insert(
+            "VANISHING_EXPRESSIONS".to_string(),
+            vanishing_expressions.join(""),
+        );
+
+        // Adding vanishing evaluations
+        let mut vanishing_evaluation = format!("({} * y + expression1)", ZERO_STR);
+        for n in 2..=total_nb_expressions {
+            vanishing_evaluation = format!("({} * y + expression{})", vanishing_evaluation, n)
+        }
+        let vanishing_evaluation = format!("      !hEval = {}\n", vanishing_evaluation);
+        data.insert("VANISHING_EVALUATION".to_string(), vanishing_evaluation);
+
+        // Adding vanishing_g and h_commitments expressions
+        let h_commitments = circuit
+            .expressions
+            .h_commitments
+            .iter()
+            .map(|(variable_name, expression)| {
+                let term = expression.compile_expression();
+                format!("      !{} = {}\n", variable_name, term)
+            })
+            .join("");
+        data.insert("H_COMMITMENTS".to_string(), h_commitments);
     }
-    let vanishing_evaluation = format!("      !hEval = {}\n", vanishing_evaluation);
-    data.insert("VANISHING_EVALUATION".to_string(), vanishing_evaluation);
-
-    let h_commitments = circuit
-        .expressions
-        .h_commitments
-        .iter()
-        .map(|(variable_name, expression)| {
-            let term = expression.compile_expression();
-            format!("      !{} = {}\n", variable_name, term)
-        })
-        .join("");
-    data.insert("H_COMMITMENTS".to_string(), h_commitments);
 
     let (unique_grouped_points, commitment_data) = PCS::precompute_intermediate_sets(circuit);
 
@@ -429,6 +513,7 @@ where
         })
         .join("),(");
 
+    // Adding commtment map
     let commitment_map = format!("      !commitment_data = [({})]", commitment_data_str);
     data.insert("COMMITMENT_MAP".to_string(), commitment_map);
 
@@ -437,6 +522,7 @@ where
         .map(|set| set.iter().map(RotationDescription::to_string).join(","))
         .join("],[");
 
+    // Adding point sets
     let point_sets = format!("      !point_sets = [[{}]]", point_sets);
     data.insert("POINT_SETS".to_string(), point_sets);
 
@@ -467,42 +553,6 @@ where
         let q_evaluations = PCS::pcs_data_plinth(&circuit);
         data.insert("Q_EVALS_FROM_PROOF".to_string(), q_evaluations);
     }
-
-    let fixed_commitments_lifts = (1..=circuit.proof_instantiation_data.fixed_commitments.len()).map(|id| {
-        format!("f{}_commitment :: BuiltinBLS12_381_G1_Element\nf{}_commitment = $(lift VKConstants.f{}_commitment)\n\n", id, id, id)
-    }).join("");
-    let permutation_commitments_lifts = (1..=circuit.proof_instantiation_data.permutation_commitments.len()).map(|id| {
-        format!("p{}_commitment :: BuiltinBLS12_381_G1_Element\np{}_commitment = $(lift VKConstants.p{}_commitment)\n\n", id, id, id)
-    }).join("");
-    let public_inputs = (1..=circuit.proof_instantiation_data.public_inputs_count)
-        .map(|n| format!("  !i{} <- M.commonScalar p{}\n", n, n))
-        .join("");
-
-    let public_inputs_types = (1..=circuit.proof_instantiation_data.public_inputs_count)
-        .map(|_| "Scalar ->".to_string())
-        .join(" ");
-    let public_inputs_names = (1..=circuit.proof_instantiation_data.public_inputs_count)
-        .map(|n| format!("p{}", n))
-        .join(" ");
-
-    let public_inputs_lagrange = (1..=circuit.proof_instantiation_data.public_inputs_count)
-        .map(|n| format!("i{}", n))
-        .join(", ");
-
-    data.insert(
-        "FIXED_COMMITMENT_LIFTS".to_string(),
-        fixed_commitments_lifts,
-    );
-    data.insert(
-        "PERMUTATION_COMMITMENT_LIFTS".to_string(),
-        permutation_commitments_lifts,
-    );
-
-    data.insert("PUBLIC_INPUTS_TYPES".to_string(), public_inputs_types);
-    data.insert("PUBLIC_INPUTS_NAMES".to_string(), public_inputs_names);
-
-    data.insert("PUBLIC_INPUTS".to_string(), public_inputs);
-    data.insert("PUBLIC_INPUTS_LAGRANGE".to_string(), public_inputs_lagrange);
 
     // Include traces only in debug mode, because they increase cost of the Plutus verifier
     #[cfg(feature = "plutus_debug")]

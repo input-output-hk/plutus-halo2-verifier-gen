@@ -30,6 +30,34 @@ pub(crate) struct InstantiationSpecificData {
     pub(crate) public_inputs_count: usize,
 }
 
+/// Function returning the maximal length of the instances.
+fn instance_max_length(instances: &[&[&[Scalar]]]) -> usize {
+    instances
+        .iter()
+        .flat_map(|instance| instance.iter().map(|instance| instance.len()))
+        .max_by(Ord::cmp)
+        .unwrap_or_default()
+}
+
+/// Function returning the minimal and maximal rotations.
+fn rotations<PCS>(vk: &VerifyingKey<Scalar, PCS>) -> (i32, i32)
+where
+    PCS: PolynomialCommitmentScheme<Scalar, Commitment = G1Projective>,
+{
+    vk.cs()
+        .instance_queries()
+        .iter()
+        .fold((0, 0), |(min, max), (_, rotation)| {
+            if rotation.0 < min {
+                (rotation.0, max)
+            } else if rotation.0 > max {
+                (min, rotation.0)
+            } else {
+                (min, max)
+            }
+        })
+}
+
 impl InstantiationSpecificData {
     /// Function to extract the instantiation specific data from the vk, public
     /// inputs and params.
@@ -38,7 +66,6 @@ impl InstantiationSpecificData {
         params: &ParamsKZG<Bls12>,
         vk: &VerifyingKey<Scalar, PCS>,
         instances: &[&[&[Scalar]]],
-        rotations: usize,
     ) where
         PCS: PolynomialCommitmentScheme<Scalar, Commitment = G1Projective>,
     {
@@ -63,7 +90,10 @@ impl InstantiationSpecificData {
 
         self.s_g2 = params.s_g2().to_affine();
 
-        self.omega_rotation_count_for_instances = rotations;
+        let (min_rotation, max_rotation) = rotations(vk);
+        let max_instance_len = instance_max_length(instances) as i32;
+        let rotations = -max_rotation..max_instance_len + min_rotation.abs();
+        self.omega_rotation_count_for_instances = rotations.len();
         // self.mega_rotation_count_for_vanishing - not needed
 
         self.n_coefficient = vk.n();

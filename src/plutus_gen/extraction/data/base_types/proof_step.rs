@@ -10,7 +10,7 @@ pub(crate) enum ProofExtractionSteps {
     AdviceCommitments,
     AdviceEval,
     FixedEval,
-    // Lookup steps
+    // Permutation steps
     PermutationsCommitted,
     PermutationEval(char),
     PermutationCommon,
@@ -18,7 +18,7 @@ pub(crate) enum ProofExtractionSteps {
     LookupPermuted,
     LookupCommitment,
     LookupEval,
-    // Vanishing polynoial steps
+    // Vanishing polynomial steps
     VanishingRand,
     RandomEval,
     VanishingSplit,
