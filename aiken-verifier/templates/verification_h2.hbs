@@ -16,13 +16,14 @@ use verifier_key.{barycentric_weight, blinding_factors, omega, omega_inv, g2_con
 use halo2_kzg.{compute_msm}
 use aiken/crypto/bls12_381/pairing.{miller_loop, final_exponentiation}
 
-pub fn verifier(proof: Data, {{{PUBLIC_INPUTS_NAMES}}}) -> Bool {
+pub fn verifier(proof: Data, {{{COMMITTED_INSTANCES_NAMES}}}{{{PUBLIC_INPUTS_NAMES}}}) -> Bool {
 
     let scalarZero = from_int(0)
     let scalarOne = from_int(1)
     let scalarDelta = from_int(0x08634d0aa021aaf843cab354fabb0062f6502437c6a09c006c083479590189d7)
 
     let transcript = construct_transcript(proof, transcript_rep)
+{{{ABSORB_COMMITTED_INSTANCES}}}
 
 {{{ABSORB_PUBLIC_INPUTS}}}
 

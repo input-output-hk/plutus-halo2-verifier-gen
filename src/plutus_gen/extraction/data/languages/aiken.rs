@@ -27,6 +27,9 @@ pub(crate) fn combine_aiken_expressions(
 impl AikenExpression for Evaluations {
     fn compile_expression(&self) -> String {
         match self {
+            Evaluations::Instance(index) => {
+                format!("instance_eval_{:?}", index)
+            }
             Evaluations::Advice(index) => {
                 format!("advice_eval_{:?}", index)
             }
@@ -64,6 +67,9 @@ impl AikenExpression for Evaluations {
 impl AikenExpression for Commitments {
     fn compile_expression(&self) -> String {
         match self {
+            Commitments::Instance(index) => {
+                format!("ci{:?}", index)
+            }
             Commitments::Advice(index) => {
                 format!("a{:?}", index)
             }

@@ -30,6 +30,61 @@ where
     let mut data: HashMap<String, String> = HashMap::new();
 
     let nb_public_inputs = circuit.proof_instantiation_data.public_inputs_count;
+    let nb_committed_instances = circuit.proof_instantiation_data.committed_instances_count;
+    let committed_instances_supported = circuit
+        .proof_instantiation_data
+        .committed_instances_supported;
+
+    // Handling committed instances
+    if committed_instances_supported {
+        let committed_instance_names: Vec<String> = (1..=nb_committed_instances)
+            .map(|n| format!("ci_{}", n))
+            .collect();
+
+        // Writing committed instances names in verify function's interface
+        data.insert("COMMITTED_INSTANCES_NAMES".to_string(), {
+            let cins = (1..=nb_committed_instances)
+                .map(|name| format!("{}: State<ByteArray>", name))
+                .join(", ");
+            let mut suffix = "";
+            if nb_committed_instances > 0 && nb_public_inputs > 0 {
+                suffix = " ,";
+            }
+            let mut to_write_down = String::with_capacity(cins.len() + suffix.len());
+            to_write_down.push_str(&cins);
+            to_write_down.push_str(&suffix);
+            to_write_down
+        });
+
+        // Absorbing number and value of committed instances in transcript
+        data.insert("ABSORB_COMMITTED_INSTANCES".to_string(), {
+            let nb_committed_instances = format!(
+                "    let committed_instance_count = from_int({})\n",
+                nb_committed_instances.to_string()
+            );
+            let number_in_transcript = format!(
+                "    let transcript = common_scalar(committed_instance_count, transcript)\n"
+            );
+
+            let committed_instances = committed_instance_names
+                .iter()
+                .map(|n| format!("    let transcript = common_point({}, transcript)\n", n))
+                .join("");
+
+            let mut to_write_down = String::with_capacity(
+                nb_committed_instances.len()
+                    + number_in_transcript.len()
+                    + committed_instances.len(),
+            );
+            to_write_down.push_str(&nb_committed_instances);
+            to_write_down.push_str(&number_in_transcript);
+            to_write_down.push_str(&committed_instances);
+            to_write_down
+        });
+    } else {
+        data.insert("COMMITTED_INSTANCES_NAMES".to_string(), "".to_string());
+        data.insert("ABSORB_COMMITTED_INSTANCES".to_string(), "".to_string());
+    }
 
     // Handling public inputs
     {
@@ -177,6 +232,34 @@ where
             ProofExtractionSteps::TrashEval => section.enumerate().map(|(number, _trashcan)| {
                 format!("    let (trashcan_eval_{}, transcript) = read_scalar(transcript)\n", number + 1)
             }).join(""),
+            ProofExtractionSteps::CommittedInstanceEval => section.enumerate().map(|(number, _ci)| {
+                match (committed_instances_supported,nb_committed_instances) {
+                    (false, _) => panic!("This case should never happen, as we should not have any CommittedInstanceEval"),
+                    (true, 0) => {assert!(number == 0); format!("\n    let instance_eval_1 = from_int(0)\n")},
+                    (true, _) => format!("    let (instance_eval_{}, transcript) = read_scalar(transcript)\n", number + 1)
+                }
+            }).join(""),
+            ProofExtractionSteps::InstanceEval => section.enumerate().map(|(number, _i)| {
+                let mut offset = nb_committed_instances;
+                // When we support committed instances but have none, we still
+                // create a dedicated null instance evaluation for them, as
+                // such we need to offset the public instances instance_eval's
+                // index.
+                if committed_instances_supported && nb_committed_instances == 0 {
+                    offset += 1;
+                }
+                let rotations = format!("\n    let rotations_for_instances = rotate_omegas(omega, omega_inv, 0, {})\n", nb_public_inputs);
+                let lagrange = format!("    let lagrange_polynomial_instances = lagrange_polynomial_basis( x, xn, barycentric_weight, rotations_for_instances)\n");
+                let instance = format!("    let instance_eval_{} = inner_product(lagrange_polynomial_instances, [{}])\n\n", number + offset + 1, public_inputs_lagrange);
+                let mut all_strings_instance = String::with_capacity(
+                    rotations.len() + lagrange.len() + instance.len(),
+                );
+                all_strings_instance.push_str(&rotations);
+                all_strings_instance.push_str(&lagrange);
+                all_strings_instance.push_str(&instance);
+                all_strings_instance
+            }).join("")
+            ,
         })
         .collect();
 
