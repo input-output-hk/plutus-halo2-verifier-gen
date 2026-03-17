@@ -110,9 +110,10 @@ rotations_for_vanishing =
    )
 
 {-# INLINEABLE verify #-}
-verify :: Proof -> {{{PUBLIC_INPUTS_TYPES}}} (Bool, [(BuiltinByteString, BlsUtils.Tracing)])
-verify proof {{{PUBLIC_INPUTS_NAMES}}} = fst $ flip (M.run VKConstants.transcriptRepr) proof $ M.do
+verify :: Proof -> {{{COMMITTED_INSTANCES_TYPES}}}{{{PUBLIC_INPUTS_TYPES}}} (Bool, [(BuiltinByteString, BlsUtils.Tracing)])
+verify proof {{{COMMITTED_INSTANCES_NAMES}}}{{{PUBLIC_INPUTS_NAMES}}} = fst $ flip (M.run VKConstants.transcriptRepr) proof $ M.do
   --  public inputs
+{{{ABSORB_COMMITTED_INSTANCES}}}
 
 {{{ABSORB_PUBLIC_INPUTS}}}
 

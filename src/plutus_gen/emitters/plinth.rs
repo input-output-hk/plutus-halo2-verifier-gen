@@ -44,6 +44,66 @@ where
     }
 
     let nb_public_inputs = circuit.proof_instantiation_data.public_inputs_count;
+    let nb_committed_instances = circuit.proof_instantiation_data.committed_instances_count;
+    let committed_instances_supported = circuit
+        .proof_instantiation_data
+        .committed_instances_supported;
+
+    // Handling committed instances
+    if committed_instances_supported {
+        let committed_instances_names: Vec<String> = (1..=nb_committed_instances)
+            .map(|n| format!("ci{}", n))
+            .collect();
+
+        let mut suffix = "";
+        if nb_committed_instances > 0 && nb_public_inputs > 0 {
+            suffix = " ";
+        }
+
+        // Writing committed instance types in verify function's definition
+        data.insert("COMMITTED_INSTANCES_TYPES".to_string(), {
+            let ci_types = (1..=nb_committed_instances)
+                .map(|_| "BuiltinBLS12_381_G1_Element ->".to_string())
+                .join(" ");
+            let mut to_write_down = String::with_capacity(ci_types.len() + suffix.len());
+            to_write_down.push_str(&ci_types);
+            to_write_down.push_str(suffix);
+            to_write_down
+        });
+
+        // Writing committed instance types in verify function's interface
+        data.insert("COMMITTED_INSTANCES_NAMES".to_string(), {
+            let ci_names = committed_instances_names.iter().join(" ");
+            let mut to_write_down = String::with_capacity(ci_names.len() + suffix.len());
+            to_write_down.push_str(&ci_names);
+            to_write_down.push_str(suffix);
+            to_write_down
+        });
+
+        // Absorbing number and value of committed instances in transcript
+        data.insert("ABSORB_COMMITTED_INSTANCES".to_string(), {
+            let absorb_nb_committed_instances = format!(
+                "  _ <- M.commonScalar (mkScalar {})\n",
+                nb_committed_instances
+            );
+
+            // TODO
+            let absorb_committed_instances = (1..=nb_committed_instances)
+                .map(|n| format!("  !i{} <- M.commonG1 ci{}\n", n, n))
+                .join("");
+
+            let mut to_write_down = String::with_capacity(
+                absorb_nb_committed_instances.len() + absorb_committed_instances.len(),
+            );
+            to_write_down.push_str(&absorb_nb_committed_instances);
+            to_write_down.push_str(&absorb_committed_instances);
+            to_write_down
+        });
+    } else {
+        data.insert("COMMITTED_INSTANCES_TYPES".to_string(), "".to_string());
+        data.insert("COMMITTED_INSTANCES_NAMES".to_string(), "".to_string());
+        data.insert("ABSORB_COMMITTED_INSTANCES".to_string(), "".to_string());
+    }
 
     // Handling public inputs
     {
@@ -188,6 +248,32 @@ where
                     format!("  !trashcanEval{} <- M.readScalar\n", number + 1)
                 })
                 .join(""),
+            ProofExtractionSteps::CommittedInstanceEval => section.enumerate().map(|(number, _ci)| {
+                match (committed_instances_supported,nb_committed_instances) {
+                    (false, _) => panic!("This case should never happen, as we should not have any CommittedInstanceEval"),
+                    (true, 0) => {assert!(number == 0); format!("\n  let !instanceEval1 = scalarZero\n")},
+                    (true, _) => format!("  !instanceEval{} <-  M.readScalar\n", number + 1)
+                }
+            }).join(""),
+            ProofExtractionSteps::InstanceEval => section.enumerate().map(|(number, _i)| {
+                let mut offset = nb_committed_instances;
+                // When we support committed instances but have none, we still
+                // create a dedicated null instance evaluation for them, as
+                // such we need to offset the public instances instance_eval's
+                // index.
+                if committed_instances_supported && nb_committed_instances == 0 {
+                    offset += 1;
+                }
+                let public_inputs_lagrange = (1..=nb_public_inputs).map(|n| format!("i{}", n)).join(", ");
+                let lagrange = format!("  let !lagrange_polynomial_instances = lagrangePolynomialBasis x xn barycentricWeight rotations_for_instances\n");
+                let instance = format!("  let !instanceEval{} = innerProduct lagrange_polynomial_instances  [{}]\n\n", number + offset + 1, public_inputs_lagrange);
+                let mut all_strings_instance = String::with_capacity(
+                    lagrange.len() + instance.len(),
+                );
+                all_strings_instance.push_str(&lagrange);
+                all_strings_instance.push_str(&instance);
+                all_strings_instance
+            }).join(""),
         })
         .collect();
 

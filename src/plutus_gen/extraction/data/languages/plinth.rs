@@ -32,6 +32,9 @@ pub(crate) fn combine_plinth_expressions(
 impl PlinthExpression for Commitments {
     fn compile_expression(&self) -> String {
         match self {
+            Commitments::Instance(index) => {
+                format!("ci{:?}", index)
+            }
             Commitments::Advice(index) => {
                 format!("a{:?}", index)
             }
@@ -63,6 +66,9 @@ impl PlinthExpression for Commitments {
 impl PlinthExpression for Evaluations {
     fn compile_expression(&self) -> String {
         match self {
+            Evaluations::Instance(index) => {
+                format!("instanceEval{:?}", index)
+            }
             Evaluations::Advice(index) => {
                 format!("adviceEval{:?}", index)
             }
