@@ -11,13 +11,16 @@ pub trait AikenExpression {
     fn compile_expression(&self) -> String;
 }
 
-pub(crate) fn combine_aiken_expressions(lookup_expressions: Vec<Expression<Scalar>>) -> String {
+pub(crate) fn combine_aiken_expressions(
+    lookup_expressions: Vec<Expression<Scalar>>,
+    batch_coeff: &str,
+) -> String {
     let compiled: Vec<_> = lookup_expressions
         .iter()
         .map(AikenExpression::compile_expression)
         .collect();
     compiled.iter().fold(ZERO_STR.to_string(), |acc, eval| {
-        format!("add(mul({}, {}), {})", acc, THETA_STR, eval)
+        format!("add(mul({}, {}), {})", acc, batch_coeff, eval)
     })
 }
 
@@ -51,6 +54,9 @@ impl AikenExpression for Evaluations {
             }
             Evaluations::VanishingS => "vanishing_s".to_string(),
             Evaluations::RandomEval => "random_eval".to_string(),
+            Evaluations::Trashcan(index) => {
+                format!("trashcan_eval_{:?}", index)
+            }
         }
     }
 }
@@ -81,6 +87,9 @@ impl AikenExpression for Commitments {
             }
             Commitments::VanishingG => VANISH_G_STR.to_string(),
             Commitments::VanishingRand => "vanishing_rand".to_string(),
+            Commitments::Trashcan(index) => {
+                format!("trashcan_commitment_{:?}", index)
+            }
         }
     }
 }

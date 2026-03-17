@@ -170,7 +170,13 @@ where
                         + &format!("    let (permuted_table_eval_{}, transcript) = read_scalar(transcript)\n", number + 1)
                 })
                 .join(""),
-            ProofExtractionSteps::Trash => "    let (trash_challenge, transcript) = squeeze_challenge(transcript)\n".to_string(),
+            ProofExtractionSteps::Trash => "    let (trash, transcript) = squeeze_challenge(transcript)\n".to_string(),
+            ProofExtractionSteps::TrashCommitment => section.enumerate().map(|(number, _trashcan)| {
+                format!("    let (trashcan_commitment_{}, transcript) =  read_point(transcript)\n", number + 1)
+            }).join(""),
+            ProofExtractionSteps::TrashEval => section.enumerate().map(|(number, _trashcan)| {
+                format!("    let (trashcan_eval_{}, transcript) = read_scalar(transcript)\n", number + 1)
+            }).join(""),
         })
         .collect();
 
@@ -220,7 +226,7 @@ where
                 format!(
                     "    let lookup_table_eq{:?} = {}\n",
                     id + 1,
-                    combine_aiken_expressions(gate.clone())
+                    combine_aiken_expressions(gate.clone(), THETA_STR)
                 )
             })
             .join("");
@@ -237,7 +243,7 @@ where
                 format!(
                     "    let lookup_input_eq{:?} = {}\n",
                     id + 1,
-                    combine_aiken_expressions(gate.clone())
+                    combine_aiken_expressions(gate.clone(), THETA_STR)
                 )
             })
             .join("");
@@ -389,11 +395,32 @@ where
         };
         data.insert("PERMUTATIONS_COMBINED".to_string(), permutations_combined);
 
+        // Adding trashcan expressions
+        let trashcans = circuit
+            .expressions
+            .compiled_trashcans
+            .iter()
+            .enumerate()
+            .map(|(id, trash_info)| {
+                let (_name, selector, expression) = trash_info;
+                format!(
+                    "    let trashcan_exp{:?} = sub({}, mul(sub({}, {}), trashcan_eval_{:?}))\n",
+                    id + 1,
+                    combine_aiken_expressions(expression.clone(), TRASH_STR),
+                    ONE_STR,
+                    selector.compile_expression(),
+                    id + 1
+                )
+            })
+            .join("");
+        data.insert("TRASHCANS".to_string(), trashcans);
+
         // Computing vanishing expressions by relisting all gates and step expressions
         let gates_count = circuit.expressions.compiled_gate_equations.len();
         let permutations_eval_count = circuit.expressions.permutations_evaluated_terms.len();
         let sets_count = sets_lhs.len();
         let lookups_count = circuit.expressions.compiled_lookups_equations.0.len();
+        let trashcans_count = circuit.expressions.compiled_trashcans.len();
 
         let mut total_nb_expressions = 0;
 
@@ -462,6 +489,19 @@ where
             })
             .collect::<Vec<_>>();
         total_nb_expressions += lookups_count * 5;
+        vanishing_expressions.extend(expressions);
+
+        // Adding trashcan expressions to vanishing
+        let expressions = (1..=trashcans_count)
+            .map(|n| {
+                format!(
+                    "    let expression{} = trashcan_exp{}\n",
+                    n + total_nb_expressions,
+                    n
+                )
+            })
+            .collect::<Vec<_>>();
+        total_nb_expressions += trashcans_count;
         vanishing_expressions.extend(expressions);
 
         data.insert(
