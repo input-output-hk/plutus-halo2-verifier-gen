@@ -14,6 +14,7 @@ pub(crate) enum Commitments {
     Lookup(usize),
     PermutedInput(usize),
     PermutedTable(usize),
+    Trashcan(usize),
 }
 
 impl Default for Commitments {

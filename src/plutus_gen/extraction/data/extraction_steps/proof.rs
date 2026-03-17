@@ -70,6 +70,10 @@ pub(crate) fn extract_proof_steps<PCS>(
 
     circuit_repr.extract_step(ProofExtractionSteps::Trash);
 
+    (0..vk.cs().trashcans().len()).for_each(|_| {
+        circuit_repr.extract_step(ProofExtractionSteps::TrashCommitment);
+    });
+
     circuit_repr.extract_step(ProofExtractionSteps::VanishingRand);
 
     circuit_repr.extract_step(ProofExtractionSteps::YCoordinate);
@@ -109,4 +113,8 @@ pub(crate) fn extract_proof_steps<PCS>(
         });
 
     (0..nb_lookups).for_each(|_| circuit_repr.extract_step(ProofExtractionSteps::LookupEval));
+
+    (0..vk.cs().trashcans().len()).for_each(|_| {
+        circuit_repr.extract_step(ProofExtractionSteps::TrashEval);
+    });
 }

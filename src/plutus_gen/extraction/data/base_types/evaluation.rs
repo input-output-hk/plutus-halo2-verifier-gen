@@ -16,6 +16,7 @@ pub(crate) enum Evaluations {
     PermutedTable(usize),
     PermutedInputInverse(usize),
     LookupNext(usize),
+    Trashcan(usize),
 }
 
 impl Default for Evaluations {
