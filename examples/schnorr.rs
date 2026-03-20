@@ -165,6 +165,7 @@ fn main() -> Result<()> {
         &params,
         &vk,
         instances,
+        None,
         Some((proof.clone(), invalid_proof)),
     )
     .context("Aiken verifier generation failed")?;

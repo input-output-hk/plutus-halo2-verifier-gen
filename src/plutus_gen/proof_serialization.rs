@@ -1,7 +1,10 @@
 //! Module for proof and pulic input serialization.
 
 use anyhow::{Context as _, Result, anyhow};
+use group::Curve;
+use group::GroupEncoding;
 use midnight_curves::BlsScalar as Scalar;
+use midnight_curves::G1Projective;
 
 use std::fs::File;
 use std::io::Write;
@@ -50,6 +53,20 @@ pub fn export_public_inputs(instances: &[&[&[Scalar]]], output: &mut File) -> Re
             .write((hex::encode(value) + "\n").as_bytes())
             .context("Failed to write encoded scalar to the output file")?;
     }
+
+    Ok(())
+}
+
+pub fn export_committed_inputs(
+    com_instances: Option<G1Projective>,
+    output: &mut File,
+) -> Result<()> {
+    if let Some(commit) = com_instances {
+        let value = commit.to_affine().to_bytes();
+        output
+            .write((hex::encode(value) + "\n").as_bytes())
+            .context("Failed to write encoded G1 element to the output file")?;
+    };
 
     Ok(())
 }

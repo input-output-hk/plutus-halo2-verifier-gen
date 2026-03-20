@@ -10,7 +10,9 @@ use serde::{Deserialize, Serialize};
 /// <https://blog.zksecurity.xyz/posts/halo2-query-collision/>,
 /// especially handle the case where rotation 2^k is used to check for
 /// wrapping of the trace table rows
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Default, Hash, Serialize, Deserialize)]
+#[derive(
+    Clone, Copy, Debug, PartialEq, Eq, Default, Hash, Serialize, Deserialize, PartialOrd, Ord,
+)]
 pub enum RotationDescription {
     Last,
     Previous,

@@ -113,7 +113,7 @@ impl InstantiationSpecificData {
         // Extracting number of committed instances
         if instances[0].len() == 2 {
             self.committed_instances_supported = true;
-            self.committed_instances_count = instances[0][0].len()
+            self.committed_instances_count = 1;
         }
 
         // Extracting number of public_inputs

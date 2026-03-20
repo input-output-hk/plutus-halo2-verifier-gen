@@ -24,6 +24,9 @@ midnight-proofs = { version = "0.7.0" }
 midnight-zk-stdlib = { version = "1.0.0" }
 group = "0.13"
 ff = "0.13.0"
+base64 = "0.13.1"
+num-bigint = "0.4.6"
+sha2 = "0.10.9"
 
 [features]
 plutus_debug = []

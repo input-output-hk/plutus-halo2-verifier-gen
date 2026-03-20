@@ -7,10 +7,10 @@ use crate::plutus_gen::extraction::data::{
 };
 use crate::plutus_gen::extraction::pcs::{ExtractPCS, PCSType};
 
-use midnight_curves::BlsScalar as Scalar;
+use midnight_curves::{BlsScalar as Scalar, G1Projective};
 
 use ff::Field;
-use group::GroupEncoding;
+use group::{Curve, Group, GroupEncoding};
 use handlebars::{Handlebars, RenderError};
 use itertools::Itertools;
 use std::ops::Neg;
@@ -21,7 +21,7 @@ pub fn emit_verifier_code<PCS>(
     aiken_file: &Path,    // generated aiken file, output
     profiler_file: Option<&Path>,
     circuit: &CircuitRepresentation<PCS>,
-    test_data: Option<(Vec<u8>, Vec<u8>, Vec<Scalar>)>,
+    test_data: Option<(Vec<u8>, Vec<u8>, Vec<Scalar>, Option<G1Projective>)>,
 ) -> Result<String, RenderError>
 where
     PCS: ExtractPCS,
@@ -38,13 +38,14 @@ where
     // Handling committed instances
     if committed_instances_supported {
         let committed_instance_names: Vec<String> = (1..=nb_committed_instances)
-            .map(|n| format!("ci_{}", n))
+            .map(|n| format!("ci{}", n))
             .collect();
 
         // Writing committed instances names in verify function's interface
         data.insert("COMMITTED_INSTANCES_NAMES".to_string(), {
-            let cins = (1..=nb_committed_instances)
-                .map(|name| format!("{}: G1Element", name))
+            let cins = committed_instance_names
+                .iter()
+                .map(|name| format!("{}: ByteArray", name))
                 .join(", ");
             let mut suffix = "";
             if nb_committed_instances > 0 && nb_public_inputs > 0 {
@@ -58,26 +59,12 @@ where
 
         // Absorbing number and value of committed instances in transcript
         data.insert("ABSORB_COMMITTED_INSTANCES".to_string(), {
-            let nb_committed_instances = format!(
-                "    let committed_instance_count = from_int({})\n",
-                nb_committed_instances.to_string()
-            );
-            let number_in_transcript = format!(
-                "    let transcript = common_scalar(committed_instance_count, transcript)\n"
-            );
-
             let committed_instances = committed_instance_names
                 .iter()
                 .map(|n| format!("    let transcript = common_g1({}, transcript)\n", n))
                 .join("");
 
-            let mut to_write_down = String::with_capacity(
-                nb_committed_instances.len()
-                    + number_in_transcript.len()
-                    + committed_instances.len(),
-            );
-            to_write_down.push_str(&nb_committed_instances);
-            to_write_down.push_str(&number_in_transcript);
+            let mut to_write_down = String::with_capacity(committed_instances.len());
             to_write_down.push_str(&committed_instances);
             to_write_down
         });
@@ -248,6 +235,9 @@ where
                 if committed_instances_supported && nb_committed_instances == 0 {
                     offset += 1;
                 }
+                if nb_public_inputs == 0 {
+                    format!("    let instance_eval_{} = from_int(0)\n", number + offset + 1)
+                } else {
                 let rotations = format!("\n    let rotations_for_instances = rotate_omegas(omega, omega_inv, 0, {})\n", nb_public_inputs);
                 let lagrange = format!("    let lagrange_polynomial_instances = lagrange_polynomial_basis( x, xn, barycentric_weight, rotations_for_instances)\n");
                 let instance = format!("    let instance_eval_{} = inner_product(lagrange_polynomial_instances, [{}])\n\n", number + offset + 1, public_inputs_lagrange);
@@ -258,6 +248,7 @@ where
                 all_strings_instance.push_str(&lagrange);
                 all_strings_instance.push_str(&instance);
                 all_strings_instance
+            }
             }).join("")
             ,
         })
@@ -719,14 +710,67 @@ where
                 "False".to_string(),
             );
         }
-        Some((proof, invalid_proof, public_inputs)) => {
+        Some((proof, invalid_proof, public_inputs, committed_instances_opt)) => {
+            let valid_pi = public_inputs
+                .iter()
+                .map(|e| format!("from_int(0x{})", hex::encode(e.to_bytes_be())))
+                .join(", ");
+
+            let invalid_pi = public_inputs
+                .iter()
+                .map(|e| {
+                    let invalid_input = e.neg();
+                    format!("from_int(0x{})", hex::encode(invalid_input.to_bytes_be()))
+                })
+                .join(", ");
+
+            let trivial_pi = public_inputs
+                .iter()
+                .map(|_e| format!("from_int(0x{})", hex::encode(Scalar::ONE.to_bytes_be())))
+                .join(", ");
+
+            let committed_inputs = committed_instances_opt.map_or("".to_string(), |p| {
+                format!("#\"{}\"", hex::encode(p.to_affine().to_bytes())).to_string()
+            });
+
+            let invalid_committed_inputs = committed_instances_opt.map_or("".to_string(), |p| {
+                format!(
+                    "#\"{}\"",
+                    hex::encode((G1Projective::generator() + p).to_affine().to_bytes())
+                )
+                .to_string()
+            });
+
+            let trivial_committed_inputs = committed_instances_opt.map_or("".to_string(), |_| {
+                format!(
+                    "#\"{}\"",
+                    hex::encode((G1Projective::generator()).to_affine().to_bytes())
+                )
+                .to_string()
+            });
+
+            let valid_inputs = [valid_pi, committed_inputs.clone()]
+                .into_iter()
+                .filter(|s| !s.is_empty())
+                .collect::<Vec<_>>()
+                .join(", ");
+
+            let invalid_inputs = [invalid_pi, invalid_committed_inputs.clone()]
+                .into_iter()
+                .filter(|s| !s.is_empty())
+                .collect::<Vec<_>>()
+                .join(", ");
+
+            let trivial_inputs = [trivial_pi, trivial_committed_inputs]
+                .into_iter()
+                .filter(|s| !s.is_empty())
+                .collect::<Vec<_>>()
+                .join(", ");
+
             let test_valid_proof_valid_inputs = format!(
                 "verifier(#\"{}\", {})",
                 hex::encode(proof.clone()),
-                public_inputs
-                    .iter()
-                    .map(|e| format!("from_int(0x{})", hex::encode(e.to_bytes_be())))
-                    .join(", ")
+                valid_inputs
             );
 
             data.insert(
@@ -747,13 +791,7 @@ where
             let test_valid_proof_invalid_inputs = format!(
                 "verifier(#\"{}\", {})",
                 hex::encode(proof.clone()),
-                public_inputs
-                    .iter()
-                    .map(|e| {
-                        let invalid_input = e.neg();
-                        format!("from_int(0x{})", hex::encode(invalid_input.to_bytes_be()))
-                    })
-                    .join(", ")
+                invalid_inputs
             );
 
             data.insert(
@@ -764,13 +802,7 @@ where
             let test_invalid_proof_invalid_inputs = format!(
                 "verifier(#\"{}\", {})",
                 hex::encode(invalid_proof),
-                public_inputs
-                    .iter()
-                    .map(|e| {
-                        let invalid_input = e.neg();
-                        format!("from_int(0x{})", hex::encode(invalid_input.to_bytes_be()))
-                    })
-                    .join(", ")
+                invalid_inputs
             );
 
             data.insert(
@@ -781,10 +813,7 @@ where
             let test_valid_proof_trivial_inputs = format!(
                 "verifier(#\"{}\", {})",
                 hex::encode(proof.clone()),
-                public_inputs
-                    .iter()
-                    .map(|_e| format!("from_int(0x{})", hex::encode(Scalar::ONE.to_bytes_be())))
-                    .join(", ")
+                trivial_inputs
             );
             data.insert(
                 "TEST_VALID_PROOF_TRIVIAL_INPUTS".to_string(),

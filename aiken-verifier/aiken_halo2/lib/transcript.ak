@@ -57,10 +57,8 @@ pub fn common_scalar(
   Transcript { ..transcript, accumulated_for_hash: new_bytes_for_hash }
 }
 
-pub fn common_g1(point: G1Element, transcript: Transcript) -> Transcript {
-  let g1_bytes = compress(point)
-
-  let bytes_to_append = bytearray.concat(prefix_common, g1_bytes)
+pub fn common_g1(point: ByteArray, transcript: Transcript) -> Transcript {
+  let bytes_to_append = bytearray.concat(prefix_common, point)
   let new_bytes_for_hash =
     bytearray.concat(transcript.accumulated_for_hash, bytes_to_append)
 
@@ -201,8 +199,7 @@ test adding_g1_to_transcript() {
   let rep = from_int(1)
   let proof_for_testing = #"00"
 
-  let c_point = scale(generator, from_int(42))
-  trace @"point": c_point
+  let c_point = compress(scale(generator, from_int(42)))
 
   let transcript_data = construct_transcript(proof_for_testing, rep)
   let transcript_data = common_g1(c_point, transcript_data)

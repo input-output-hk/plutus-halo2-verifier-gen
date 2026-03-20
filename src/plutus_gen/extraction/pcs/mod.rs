@@ -7,10 +7,7 @@
 //! KZG based PCS.
 
 use super::data::{CircuitRepresentation, CommitmentData, Commitments, Query, RotationDescription};
-
-#[cfg(feature = "plutus_debug")]
-use log::info;
-
+use crate::plutus_gen::extraction::Evaluations;
 use itertools::Itertools;
 use std::collections::HashMap;
 
@@ -50,14 +47,16 @@ pub trait ExtractPCS {
         let point_sets_map: HashMap<Commitments, Vec<RotationDescription>> = commitment_map
             .iter()
             .map(|(k, v)| {
-                (
-                    k.clone(),
-                    v.iter()
+                (k.clone(), {
+                    let mut to_sort = v
+                        .iter()
                         .map(|e| &e.point)
                         .cloned()
                         .unique()
-                        .collect::<Vec<_>>(),
-                )
+                        .collect::<Vec<_>>();
+                    to_sort.sort();
+                    to_sort
+                })
             })
             .collect();
 
@@ -88,7 +87,13 @@ pub trait ExtractPCS {
             let query = commitment_map
                 .get(commitment)
                 .unwrap_or_else(|| panic!("queries for commitment {:?} not found", commitment));
-            let points: Vec<RotationDescription> = query.iter().map(|q| q.point.clone()).collect();
+            let mut paired: Vec<(RotationDescription, Evaluations)> = query
+                .iter()
+                .map(|q| (q.point.clone(), q.evaluation.clone()))
+                .collect();
+            paired.sort_by(|a: &(RotationDescription, Evaluations), b| a.0.cmp(&b.0));
+            let (points, evaluations): (Vec<RotationDescription>, Vec<Evaluations>) =
+                paired.into_iter().unzip();
 
             let point_set_idx = point_sets_indexes
                 .get(&points)
@@ -97,7 +102,7 @@ pub trait ExtractPCS {
             commitment_data.push(CommitmentData {
                 commitment: (*commitment).clone(),
                 point_set_index: *point_set_idx,
-                evaluations: query.iter().map(|q| q.evaluation.clone()).collect(),
+                evaluations,
                 points,
             });
         }

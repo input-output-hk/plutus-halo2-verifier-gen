@@ -89,7 +89,7 @@ where
 
             // TODO
             let absorb_committed_instances = (1..=nb_committed_instances)
-                .map(|n| format!("  !i{} <- M.commonG1 ci{}\n", n, n))
+                .map(|n| format!("  !ci{} <- M.commonG1 ci{}\n", n, n))
                 .join("");
 
             let mut to_write_down = String::with_capacity(
@@ -264,6 +264,9 @@ where
                 if committed_instances_supported && nb_committed_instances == 0 {
                     offset += 1;
                 }
+                if nb_public_inputs == 0 {
+                    format!("  let !instanceEval{} = scalarZero\n", number + offset + 1)
+                } else {
                 let public_inputs_lagrange = (1..=nb_public_inputs).map(|n| format!("i{}", n)).join(", ");
                 let lagrange = format!("  let !lagrange_polynomial_instances = lagrangePolynomialBasis x xn barycentricWeight rotations_for_instances\n");
                 let instance = format!("  let !instanceEval{} = innerProduct lagrange_polynomial_instances  [{}]\n\n", number + offset + 1, public_inputs_lagrange);
@@ -273,6 +276,7 @@ where
                 all_strings_instance.push_str(&lagrange);
                 all_strings_instance.push_str(&instance);
                 all_strings_instance
+            }
             }).join(""),
         })
         .collect();
