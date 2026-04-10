@@ -64,7 +64,8 @@ mod utils {
         let mut fd = OpenOptions::new().read(true).open(path)?;
         let mut buf = vec![0u8; MAX];
         let len = fd.read(buf.as_mut_slice())?;
-        Ok(buf[..len - 1].into()) // -1 for the EOF
+        let content = std::str::from_utf8(&buf[..len]).expect("Credential should be valid UTF-8");
+        Ok(content.trim_end().as_bytes().into())
     }
 
     /// Splits a JWT blob in its 3 parts:
