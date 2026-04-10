@@ -1,11 +1,36 @@
 use aiken/collection/list.{all, concat, foldl, map, push, range, zip}
 use aiken/crypto/bitwise.{State}
-use aiken/crypto/bls12_381/g1.{add as add_g1, decompress, scale, zero}
+use aiken/crypto/bls12_381/g1.{
+  add as add_g1, compress, decompress, equal, generator, scale, zero,
+}
 use aiken/crypto/bls12_381/scalar.{
   Scalar, add, field_prime, from_int, mul, recip, to_int,
 }
 use aiken/fuzz
 use aiken/option.{is_some}
+use aiken/primitive/bytearray
+
+// Function returning a G1 element from two scalar coordinates
+// We assume the point is already on the curve and it is not at infinity
+fn g1_from_coords_unsafe(x: Int, y: Int) -> G1Element {
+  // 1. Build the flags
+  // The compression flag (first bit) is set to 1
+  // The parity flag (third bit) is set to 1 if y is the lexicographically largest
+  let other_y =
+    0x1a0111ea397fe69a4b1ba7b6434bacd764774b84f38512bf6730d2a0f6b0f6241eabfffeb153ffffb9feffffffffaaab - y
+  let flags =
+    if y > other_y {
+      24626253872746549507674400062589758628174837044040904167467683377653576107185756632133916409303072275504142493941760
+    } else {
+      19701003098197239606139520050071806902539869635232723333974146702122860885748605305707133127442457820403313995153408
+    }
+
+  // 2. Add flags to x coordinate
+  let compressed_point = bytearray.from_int_big_endian(x + flags, 48)
+
+  // 3. Decompress to get the G1 element
+  decompress(compressed_point)
+}
 
 pub type MSMElement {
   scalar: State<Scalar>,
@@ -73,6 +98,17 @@ fn egcd_go(u: Int, v: Int, x1: Int, x2: Int) -> Int {
     let x = x2 - q * x1
     egcd_go(r, u, x, x1)
   }
+}
+
+test coord_generator() {
+  let x =
+    0x17f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb
+  let y =
+    0x8b3f481e3aaa0f1a09d8a7e0e1f7b6b8f3d3d5a7b7a2c6b6d2f5e8c3b9a1d0e4c8f6a1b2c3d4e5f60718293a4b5c6d7
+
+  let p = g1_from_coords_unsafe(x, y)
+
+  expect equal(p, generator)
 }
 
 test recip_eea_prop(n via fuzz.int()) {
