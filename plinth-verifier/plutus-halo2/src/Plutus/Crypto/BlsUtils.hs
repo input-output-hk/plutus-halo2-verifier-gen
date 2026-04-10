@@ -1,6 +1,6 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 
-module Plutus.Crypto.BlsUtils (powers, rotateOmega, Tracing, traceG1, traceG2, traceScalar, traceMVQ, traceMSM, getRotatedOmegas) where
+module Plutus.Crypto.BlsUtils (powers, rotateOmega, Tracing, traceG1, traceG2, traceScalar, traceMVQ, traceMSM, getRotatedOmegas, fromCoordsG1Point) where
 
 import Plutus.Crypto.BlsTypes (
     Scalar,
@@ -39,6 +39,20 @@ import Data.Char (toUpper)
 
 printAsHex :: BuiltinByteString -> Haskell.String
 printAsHex a = (Haskell.show Haskell.. encodeHex Haskell.. fromBuiltin Haskell.$ a)
+
+{-# INLINEABLE compressG1Point #-}
+fromCoordsG1Point :: (Fp, Fp) -> BuiltinBLS12_381_G1_Element
+fromCoordsG1Point (Fp x, Fp y) | x == 0 && y == 1 = g1_zero
+fromCoordsG1Point (x, y) = result
+  where
+    x_bs = integerToByteString LittleEndian 48 (unFp x)
+    prefixed =
+        if y < negate y
+            then --          0x8 => 100
+                setPrefix x_bs True False False
+            else --          0xa => 101
+                setPrefix x_bs True False True
+    result = bls12_381_G1_uncompress (reverseByteString prefixed)
 
 {-# INLINEABLE powers #-}
 powers :: Integer -> Scalar -> [Scalar]
