@@ -38,6 +38,7 @@ use midnight_proofs::poly::kzg::params::ParamsKZG;
 pub fn generate_plinth_verifier<PCS>(
     params: &ParamsKZG<Bls12>,
     vk: &VerifyingKey<Scalar, PCS>,
+    recursion_vks: Option<Vec<(String, VerifyingKey<Scalar, PCS>)>>,
     instance: &[Scalar],
     committed_instances: Option<G1Projective>,
 ) -> Result<()>
@@ -64,8 +65,9 @@ where
         Path::new("plinth-verifier/plutus-halo2/src/Plutus/Crypto/Halo2/Generic/VKConstants.hs");
 
     // Step 1: extract circuit representation
-    let circuit_representation = extract_circuit(params, vk, instance, committed_instances)
-        .context("Failed to extract the circuit representation")?;
+    let circuit_representation =
+        extract_circuit(params, vk, recursion_vks, instance, committed_instances)
+            .context("Failed to extract the circuit representation")?;
 
     // Step 2: Based on the circuit repr generate Plinth verifier and verification key constants
     // using Handlebars templates
@@ -99,6 +101,7 @@ where
 pub fn generate_aiken_verifier<PCS>(
     params: &ParamsKZG<Bls12>,
     vk: &VerifyingKey<Scalar, PCS>,
+    recursion_vks: Option<Vec<(String, VerifyingKey<Scalar, PCS>)>>, // Set to Some if recursion, filled with inner vks only
     instance: &[Scalar],
     committed_instances: Option<G1Projective>,
     test_proofs: Option<(Vec<u8>, Vec<u8>)>,
@@ -106,8 +109,9 @@ pub fn generate_aiken_verifier<PCS>(
 where
     PCS: ExtractPCS + PolynomialCommitmentScheme<Scalar, Commitment = G1Projective>,
 {
-    let circuit_representation = extract_circuit(params, vk, instance, committed_instances)
-        .context("Failed to extract the circuit representation")?;
+    let circuit_representation =
+        extract_circuit(params, vk, recursion_vks, instance, committed_instances)
+            .context("Failed to extract the circuit representation")?;
 
     // static locations of files in aiken directory
     let verifier_file = Path::new("aiken-verifier/aiken_halo2/lib/proof_verifier.ak");

@@ -31,6 +31,7 @@ pub use pcs::ExtractPCS;
 pub fn extract_circuit<PCS>(
     params: &ParamsKZG<Bls12>,
     vk: &VerifyingKey<Scalar, PCS>,
+    recursion_vks: Option<Vec<(String, VerifyingKey<Scalar, PCS>)>>, // Set to Some if recursion, filled with inner vks only
     instance: &[Scalar],
     committed_instances: Option<G1Projective>,
 ) -> Result<CircuitRepresentation<PCS>, Error>
@@ -58,9 +59,13 @@ where
     let mut circuit_description: CircuitRepresentation<PCS> = CircuitRepresentation::<PCS>::new();
 
     // Extracting proof_instantiation_data
-    circuit_description
-        .proof_instantiation_data
-        .extract(params, vk, instance, committed_instances);
+    circuit_description.proof_instantiation_data.extract(
+        params,
+        vk,
+        recursion_vks,
+        instance,
+        committed_instances,
+    );
 
     // Extracting proof_extraction_steps
     extract_proof_steps(&mut circuit_description, vk);
