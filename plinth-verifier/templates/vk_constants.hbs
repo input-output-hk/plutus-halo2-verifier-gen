@@ -10,6 +10,7 @@ module Plutus.Crypto.Halo2.Generic.VKConstants (
   blinding_factors,
 {{{FIXED_COMMITMENTS_EXPORTS}}}
 {{{PERMUTATION_COMMITMENTS_EXPORTS}}}
+{{{RECURSION_COMMITMENTS_EXPORTS}}}
 ) where
 
 import Data.Bifunctor (bimap)
@@ -47,6 +48,9 @@ p_commitment_val_pairs =
 {{{PERMUTATION_COMMITMENTS}}}
   ]
 
+{{{RECURSION_COMMITMENTS}}}
+
+
 commitments :: [(Integer, Integer)] -> [BuiltinBLS12_381_G1_Element]
 commitments = fmap (constructG1Point . bimap mkFp mkFp)
 
@@ -59,6 +63,8 @@ f_commitments = commitments f_commitments_val_pairs
 {{{PERMUTATION_COMMITMENT_G1}}}
 
 {{{FIXED_COMMITMENT_G1}}}
+
+{{{RECURSION_COMMITMENT_G1}}}
 
 s_g2_val_bbs :: BuiltinByteString
 s_g2_val_bbs =

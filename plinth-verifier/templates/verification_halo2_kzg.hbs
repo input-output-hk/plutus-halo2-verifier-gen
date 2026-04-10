@@ -95,6 +95,8 @@ s_g2 = $(lift VKConstants.s_g2_val)
 
 {{{PERMUTATION_COMMITMENT_LIFTS}}}
 
+{{{RECURSION_COMMITMENT_LIFTS}}}
+
 rotations_for_instances :: [Scalar]
 rotations_for_instances = $(lift (BlsUtils.getRotatedOmegas VKConstants.omega_val VKConstants.omegaInv_val 0 {{{PUBLIC_INPUTS_COUNT}}}))
 
@@ -203,6 +205,8 @@ verify proof {{{COMMITTED_INSTANCES_AND_INSTANCE_VARS}}} = fst $ flip (M.run VKC
 
       !el = pi_term
       !er = eval alt_right
+
+{{ACCUMULATOR_MAP}}
 
       ml_l :: BuiltinBLS12_381_MlResult
       !ml_l = bls12_381_millerLoop el s_g2
