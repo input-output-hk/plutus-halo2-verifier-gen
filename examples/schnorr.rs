@@ -153,13 +153,20 @@ fn main() -> Result<()> {
         .context("verify failed")?;
 
     shared_utils::export_plinth(&formatted_instance, Some(committed_signature), &proof)?;
-    generate_plinth_verifier(&params, &vk, &formatted_instance, Some(committed_signature))
-        .context("Plinth verifier generation failed")?;
+    generate_plinth_verifier(
+        &params,
+        &vk,
+        None,
+        &formatted_instance,
+        Some(committed_signature),
+    )
+    .context("Plinth verifier generation failed")?;
 
     shared_utils::export_aiken(&formatted_instance, Some(committed_signature), &proof)?;
     generate_aiken_verifier(
         &params,
         &vk,
+        None,
         &formatted_instance,
         Some(committed_signature),
         Some((proof.clone(), invalid_proof)),

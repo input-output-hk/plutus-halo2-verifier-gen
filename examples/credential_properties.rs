@@ -410,6 +410,7 @@ fn main() -> Result<()> {
     generate_plinth_verifier(
         &params,
         &vk,
+        None,
         &formatted_instance,
         Some(committed_credential),
     )
@@ -419,6 +420,7 @@ fn main() -> Result<()> {
     generate_aiken_verifier(
         &params,
         &vk,
+        None,
         &formatted_instance,
         Some(committed_credential),
         Some((proof.clone(), invalid_proof)),

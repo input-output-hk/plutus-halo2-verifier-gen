@@ -42,7 +42,7 @@ fn main() -> Result<()> {
 
     let instance = [pks_comm, msg, Base::from(THRESHOLD as u64)];
 
-    let circuit_representation = extract_circuit(&kzg_params, &vk, &instance, None)
+    let circuit_representation = extract_circuit(&kzg_params, &vk, None, &instance, None)
         .map_err(|e| anyhow!("{e}"))
         .context("Circuit extraction failed")?;
 
