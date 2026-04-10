@@ -631,6 +631,92 @@ where
             format!("\tlet commitment_data = [{}]", halo2_commitment_data);
         data.insert("HALO2_COMMITMENT_MAP".to_string(), kzg_halo2_commitment_map);
 
+        let recursion_map = circuit.proof_instantiation_data.recursion_vks.clone().map_or("".to_string(), |recursion_vks| {
+
+            let serialized_acc = 2 * 2 * 7; // 2 points, each with x and y coordinate, each coordinate is 32 bytes when serialized
+
+            let (fixed_bases, fixed_bases_len) = {
+                let mut ivc_fixed_bases = Vec::new();
+                let mut size = 0;
+
+                circuit.proof_instantiation_data.fixed_commitments.iter().enumerate().for_each(|(i, _)| {
+                    ivc_fixed_bases.push(format!("f_{}", i+1 ));
+                    size += 1;
+                });
+                circuit.proof_instantiation_data.permutation_commitments.iter().enumerate().for_each(|(i, _)| {
+                    ivc_fixed_bases.push(format!("p_{}", i+1 ));
+                    size += 1;
+                });
+
+                recursion_vks.iter().for_each(|vki| {
+                    vki.fixed_commitments.iter().enumerate().for_each(|(i, _)| {
+                        ivc_fixed_bases.push(format!("f_{}_{}",i+1, vki.name));
+                        size += 1;
+                    });
+
+                    vki.permutation_commitments.iter().enumerate().for_each(|(i, _)| {
+                        ivc_fixed_bases.push(format!("p_{}_{}",i+1, vki.name));
+                        size += 1;
+                    });
+                });
+
+                (ivc_fixed_bases, size)
+            };
+
+            assert!(nb_public_inputs >= (fixed_bases_len + serialized_acc), "Not enough public inputs to support recursion. Required at least {}, but only {} provided.", fixed_bases_len + serialized_acc, nb_public_inputs);
+
+            let acc_left : String = {
+                let serialized_x = format!("    let acc_left_x_int = {}\n", (0..7).fold(ZERO_STR.to_string(), |acc, i| {
+                        format!("add(mul({}, 72057594037927936), to_int(i_{}))", acc, nb_public_inputs - fixed_bases_len - 3*7 - 1 - i)
+                    }).to_string());
+
+                let serialized_y = format!("    let acc_left_y_int = {}\n", (0..7).fold(ZERO_STR.to_string(), |acc, i| {
+                        format!("add(mul({}, 72057594037927936), to_int(i_{}))", acc, nb_public_inputs - fixed_bases_len - 2*7 - 1 - i)
+                    }).to_string());
+
+                let compressed_bytes = "    let compressed_acc_left = g1_from_coords_unsafe(acc_left_x_int, acc_left_y_int) \n".to_string();
+
+                let uncompressed = "    let acc_left = decompress(compressed_acc_left)\n".to_string();
+
+               [serialized_x, serialized_y, compressed_bytes,uncompressed].iter().join(",")
+            };
+
+            let acc_right : String = {
+                let serialized_x = format!("    let acc_right_x_int = {}\n", (0..7).fold(ZERO_STR.to_string(), |acc, i| {
+                        format!("add(mul({}, 72057594037927936), to_int(i_{}))", acc, nb_public_inputs - fixed_bases_len - 7 - 1 - i)
+                    }).to_string());
+
+                let serialized_y = format!("    let acc_right_y_int = {}\n", (0..7).fold(ZERO_STR.to_string(), |acc, i| {
+                        format!("add(mul({}, 72057594037927936), to_int(i_{}))", acc, nb_public_inputs - fixed_bases_len - 1 - i)
+                    }).to_string());
+
+                let compressed_bytes = "    let compressed_acc_right = g1_from_coords_unsafe(acc_right_x_int, acc_right_y_int) \n".to_string();
+
+                let uncompressed = "    let acc_right = decompress(compressed_acc_right)\n".to_string();
+
+               [serialized_x, serialized_y, compressed_bytes, uncompressed].iter().join(",")
+            };
+
+            let acc_fixed : String = if fixed_bases_len > 0 {
+            format!("    let acc_fixed = {}", fixed_bases.iter().enumerate().fold(ZERO_STR.to_string(), |acc, (i, name)| {
+                format!("addG1({}, scaleG1({}, i_{}))", acc, name, nb_public_inputs - fixed_bases_len + i )
+            })) } else { "".to_string() };
+
+            let acc_right_final : String = if fixed_bases_len > 0 {format!("    let acc_right_final = addG1(acc_right, acc_fixed)\n")} else {
+                format!("    let acc_right_final = acc_right\n")
+            };
+
+            let challenge_bytes = format!("    let challenge_bytes = blake2b_256(bytearray.concat(bytearray.concat(bytearray.concat(compress(el), compress(er)), compress(acc_left)), compress(acc_right_final))\n");
+
+            let challenge = format!("    let challenge = from_int(to_int_little_endian(challenge_bytes)) % field_prime\n");
+
+            let updated_el = format!("    let el = addG1(el, scaleG1(acc_left, challenge))\n");
+            let updated_er = format!("    let er = addG1(er, scaleG1(acc_right_final, challenge))\n");
+
+            [acc_left, acc_right, acc_fixed, acc_right_final, challenge_bytes, challenge, updated_el, updated_er].iter().join(",")
+        });
+        data.insert("RECURSION_ACCUMULATOR".to_string(), recursion_map);
+
         let kzg_halo2_point_sets = unique_grouped_points
             .iter()
             .map(|set| set.iter().map(RotationDescription::to_string).join(","))
@@ -649,9 +735,36 @@ where
         .len())
         .map(|id| format!("p{}_commitment", id))
         .join(", ");
-
+    let fixed_permutation_commitments_imports = circuit
+        .proof_instantiation_data
+        .recursion_vks
+        .clone()
+        .map_or("".to_string(), |vks| {
+            if vks.is_empty() {
+                "".to_string()
+            } else {
+                format!(
+                    ", {}",
+                    vks.iter()
+                        .map(|vki| {
+                            let fixed = (1..=vki.fixed_commitments.len())
+                                .map(|id| format!("f{}_{}", id, vki.name))
+                                .join(", ");
+                            let permutation = (1..=vki.permutation_commitments.len())
+                                .map(|id| format!("p{}_{}", id, vki.name))
+                                .join(", ");
+                            format!("{}, {}", fixed, permutation)
+                        })
+                        .join(", ")
+                )
+            }
+        });
     data.insert("F_IMPORTS".to_string(), fixed_commitments_imports);
     data.insert("P_IMPORTS".to_string(), permutation_commitments_imports);
+    data.insert(
+        "FP_REC_IMPORTS".to_string(),
+        fixed_permutation_commitments_imports,
+    );
 
     // Adding test data
     match test_data {
@@ -922,6 +1035,48 @@ where
         .join("\n");
 
     data.insert("PERMUTATION_COMMITMENTS".to_string(), points);
+
+    let recursion_constants = circuit
+        .proof_instantiation_data
+        .recursion_vks
+        .clone()
+        .map_or("".to_string(), |recursion_vks| {
+            recursion_vks
+                .iter()
+                .map(|vki| {
+                    let fixed_commitments = vki
+                        .fixed_commitments
+                        .iter()
+                        .enumerate()
+                        .map(|(idx, g)| {
+                            format!(
+                                "pub const f_{}_{}: ByteArray = #\"{}\"",
+                                idx + 1,
+                                vki.name,
+                                hex::encode(g.to_bytes())
+                            )
+                        })
+                        .join("\n");
+
+                    let permutation_commitments = vki
+                        .permutation_commitments
+                        .iter()
+                        .enumerate()
+                        .map(|(idx, g)| {
+                            format!(
+                                "pub const p_{}_{}: ByteArray = #\"{}\"",
+                                idx + 1,
+                                vki.name,
+                                hex::encode(g.to_bytes())
+                            )
+                        })
+                        .join("\n");
+
+                    format!("{}\n{}", fixed_commitments, permutation_commitments)
+                })
+                .join("\n")
+        });
+    data.insert("RECURSION_CONSTANTS".to_string(), recursion_constants);
 
     let compressed_sg2 = hex::encode(circuit.proof_instantiation_data.s_g2.to_bytes());
 

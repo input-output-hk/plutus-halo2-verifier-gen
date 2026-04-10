@@ -5,14 +5,14 @@ use aiken/crypto/bls12_381/g2.{generator as generatorG2}
 use aiken/crypto/bls12_381/scalar.{
   Scalar, add, from_int, mul, neg, scale, sub,
 }
-use bls_utils.{inner_product, recip_eea}
+use bls_utils.{g1_from_coords_unsafe, inner_product, recip_eea}
 use lagrange.{lagrange_polynomial_basis}
 use omega_rotations.{rotate_omegas, rotate_omega, powers}
 use transcript.{
   common_scalar, common_g1, construct_transcript, read_point, read_scalar,
   squeeze_challenge,
 }
-use verifier_key.{barycentric_weight, blinding_factors, omega, omega_inv, g2_const, transcript_rep, {{{F_IMPORTS}}}, {{{P_IMPORTS}}} }
+use verifier_key.{barycentric_weight, blinding_factors, omega, omega_inv, g2_const, transcript_rep, {{{F_IMPORTS}}}, {{P_IMPORTS}}{{FP_REC_IMPORTS}} }
 use halo2_kzg.{compute_msm}
 use aiken/crypto/bls12_381/pairing.{miller_loop, final_exponentiation}
 
@@ -117,6 +117,8 @@ pub fn verifier(proof: Data, {{{COMMITTED_INSTANCES_NAMES}}}{{{PUBLIC_INPUTS_NAM
               point_sets)
 
     let el = decompress(pi_term)
+
+{{RECURSION_ACCUMULATOR}}
 
     let ml_l = miller_loop(el, g2_const)
     let ml_r = miller_loop(er, g2)
