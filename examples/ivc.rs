@@ -1,18 +1,19 @@
 use anyhow::{Context as _, Result};
-use log::info;
+use log::{debug, info};
 use rand::prelude::StdRng;
 use rand_core::SeedableRng;
 use std::fs::File;
-use std::{collections::BTreeMap, time::Instant};
+use std::{collections::BTreeMap, ops::Neg};
 
 use ff::Field;
-use group::Group;
+use group::{Curve, Group, prime::PrimeCurveAffine};
 
 use midnight_circuits::{
+    hash::poseidon::PoseidonState,
     types::{AssignedNative, Instantiable},
     verifier::{Accumulator, AssignedAccumulator, AssignedVk, BlstrsEmulation, Msm, SelfEmulation},
 };
-use midnight_curves::{Bls12, BlsScalar as Scalar};
+use midnight_curves::{Bls12, BlsScalar as Scalar, G1Affine, G1Projective};
 use midnight_proofs::{
     plonk::{ConstraintSystem, create_proof, keygen_pk, keygen_vk_with_k, prepare},
     poly::{
@@ -25,27 +26,79 @@ use midnight_proofs::{
     transcript::{CircuitTranscript, Transcript},
 };
 
+use num_bigint::BigUint;
 use plutus_halo2_verifier_gen::plutus_gen::{
     CardanoFriendlyBlake2b, export_proof, export_public_inputs, generate_aiken_verifier,
     generate_plinth_verifier, serialize_proof,
 };
 use plutus_halo2_verifier_gen::{
-    circuits::ivc_circuit::{IvcCircuit, configure_ivc_circuit, fromIVC, newIVC},
+    circuits::ivc_circuit::{IvcCircuit, configure_ivc_circuit, from_ivc, new_ivc},
     kzg_params::get_or_create_kzg_params,
 };
-
-pub type KZG = KZGCommitmentScheme<Bls12>;
-pub type Params = ParamsKZG<Bls12>;
-pub type ParamsVK = ParamsVerifierKZG<Bls12>;
-pub type CTranscript = CircuitTranscript<CardanoFriendlyBlake2b>;
 
 type S = BlstrsEmulation;
 type F = <S as SelfEmulation>::F;
 type C = <S as SelfEmulation>::C;
 type E = <S as SelfEmulation>::Engine;
 
+pub type KZG = KZGCommitmentScheme<Bls12>;
+pub type Params = ParamsKZG<Bls12>;
+pub type ParamsVK = ParamsVerifierKZG<Bls12>;
+pub type InnerTranscript = PoseidonState<F>;
+pub type CTranscript = CardanoFriendlyBlake2b;
+
+const MAX_RECURSION_DEPTH: usize = 2;
+
+macro_rules! prove_ivc {
+    ($i:expr, $TranscriptType:ty, $circuit:expr, $srs:expr, $pk:expr, $public_inputs:expr, $rng:expr) => {{
+        // Initialize the transcript
+        let mut transcript = CircuitTranscript::<$TranscriptType>::init();
+        // Call create_proof
+        let res = create_proof::<
+            F,
+            KZGCommitmentScheme<E>,
+            CircuitTranscript<$TranscriptType>,
+            IvcCircuit,
+        >(
+            $srs,
+            $pk,
+            &[$circuit.clone()],
+            1,
+            &[&[&[], $public_inputs]],
+            &mut $rng,
+            &mut transcript,
+        );
+
+        // Handle error
+        res.unwrap_or_else(|e| panic!("Problem creating the {}-th IVC proof ({:?})", $i, e));
+
+        // Finalize transcript and return proof bytes
+        transcript.finalize()
+    }};
+}
+
+macro_rules! verify_prepare {
+    ($i:expr, $TranscriptType:ty, $proof:expr, $vk:expr, $public_inputs:expr) => {{
+        // Start a transcript from proof bytes
+        let mut transcript = CircuitTranscript::<$TranscriptType>::init_from_bytes($proof);
+        // Run prepare
+        let dual_msm = prepare::<F, KZGCommitmentScheme<E>, CircuitTranscript<$TranscriptType>>(
+            $vk,
+            &[&[C::identity()]],
+            &[&[$public_inputs]],
+            &mut transcript,
+        )
+        .expect("Verification failed");
+        transcript
+            .assert_empty()
+            .expect("Transcript should be empty");
+        dual_msm
+    }};
+}
+
 fn main() -> Result<()> {
     env_logger::init();
+    info!("Starting IVC example");
 
     let seed = [0u8; 32]; // UNSAFE, constant seed is used for testing purposes
     let rng: StdRng = SeedableRng::from_seed(seed);
@@ -55,7 +108,7 @@ fn main() -> Result<()> {
     configure_ivc_circuit(&mut self_cs);
     let self_domain = EvaluationDomain::new(self_cs.degree() as u32, k);
 
-    let default_ivc_circuit = newIVC(self_domain.clone(), self_cs.clone());
+    let default_ivc_circuit = new_ivc(self_domain.clone(), self_cs.clone());
 
     let kzg_params: Params = get_or_create_kzg_params(k, rng.clone())?;
     let vk = keygen_vk_with_k(&kzg_params, &default_ivc_circuit, k).unwrap();
@@ -103,9 +156,11 @@ fn main() -> Result<()> {
     instances.extend(AssignedNative::<F>::as_public_input(&state));
     instances.extend(AssignedAccumulator::as_public_input(&acc));
 
+    info!("Nb public inputs: {:?}", instances.len());
+
     // Run the IVC loop.
-    for i in 0..=1 {
-        let circuit = fromIVC(
+    for i in 1..=MAX_RECURSION_DEPTH {
+        let circuit = from_ivc(
             self_domain.clone(),
             self_cs.clone(),
             vk.clone(),
@@ -114,36 +169,53 @@ fn main() -> Result<()> {
             prev_acc.clone(),
         );
 
-        instances = AssignedVk::<S>::as_public_input(&vk);
-        instances.extend(AssignedNative::<F>::as_public_input(&state));
-        instances.extend(AssignedAccumulator::as_public_input(&acc));
+        if i != 0 {
+            instances = AssignedVk::<S>::as_public_input(&vk);
+            instances.extend(AssignedNative::<F>::as_public_input(&state));
+            instances.extend(AssignedAccumulator::as_public_input(&acc));
+        }
 
-        let start = Instant::now();
+        // Computing the i-th step proof
         let proof = {
-            let mut transcript = CTranscript::init();
-            create_proof::<F, KZGCommitmentScheme<E>, CTranscript, IvcCircuit>(
-                &kzg_params,
-                &pk,
-                &[circuit.clone()],
-                1,
-                &[&[&[], &instances]],
-                rng.clone(),
-                &mut transcript,
-            )
-            .unwrap_or_else(|_| panic!("Problem creating the {i}-th IVC proof"));
-            transcript.finalize()
+            if i < MAX_RECURSION_DEPTH {
+                // For the inner IVC steps, we use Poseidon hash as the transcript.
+                prove_ivc!(
+                    i,
+                    InnerTranscript,
+                    circuit,
+                    &kzg_params,
+                    &pk,
+                    &instances,
+                    rng.clone()
+                )
+            } else {
+                // For the last IVC step, we use Cardano's Blake2b hash as the transcript.
+                prove_ivc!(
+                    i,
+                    CTranscript,
+                    circuit,
+                    &kzg_params,
+                    &pk,
+                    &instances,
+                    rng.clone()
+                )
+            }
         };
-        println!("{i}-th IVC proof created in {:?}", start.elapsed());
 
+        if i == 0 {
+            info!("proof size {:?}", proof.len());
+        }
+
+        println!("------------- Verifying");
+        // Extracting from the proof the i-th step accumulator, collapsed to a single point
         proof_acc = {
-            let mut transcript = CTranscript::init_from_bytes(&proof);
-            let dual_msm = prepare::<F, KZGCommitmentScheme<E>, CTranscript>(
-                &vk,
-                &[&[C::identity()]],
-                &[&[&instances]],
-                &mut transcript,
-            )
-            .expect("Verification failed");
+            let dual_msm = if i != MAX_RECURSION_DEPTH {
+                // For the inner IVC steps, we use Poseidon hash as the transcript.
+                verify_prepare!(i, InnerTranscript, &proof, &vk, &instances)
+            } else {
+                // For the last IVC step, we use Cardano's Blake2b hash as the transcript.
+                verify_prepare!(i, CTranscript, &proof, &vk, &instances)
+            };
 
             assert!(dual_msm.clone().check(&kzg_params.verifier_params()));
 
@@ -153,15 +225,8 @@ fn main() -> Result<()> {
             proof_acc
         };
 
-        // Prepare the witnesses of the next iteration.
-        prev_state = state;
-        prev_proof = proof;
-        prev_acc = acc.clone();
-
-        // If `acc` satisfies the invariant and `proof` is valid, we know that `state`
-        // must be valid. We can asset the validity of both at the same time by
-        // accumulating them first.
-        let mut accumulated = Accumulator::accumulate(&[proof_acc, acc]);
+        // Aggregating new accumulator with previous one, and checking both verify successfully.
+        let mut accumulated = Accumulator::accumulate(&[proof_acc, acc.clone()]);
         accumulated.collapse();
 
         assert!(
@@ -169,9 +234,12 @@ fn main() -> Result<()> {
             "IVC acc verification failed"
         );
 
-        println!("Asserted validity of state {:?}", state);
+        // Setting next iteration's witness.
+        prev_state = state;
+        prev_proof = proof;
+        prev_acc = acc;
 
-        // Set the new goals (public inputs) for the next iteration.
+        // Set the next iteration's public input.
         state += F::ONE;
         acc = accumulated;
     }
@@ -180,14 +248,11 @@ fn main() -> Result<()> {
     // index points to bytes of first scalar that is part of the proof
     // this should be safe and not result in malformed encoding exception
     // which is likely for flipping Byte for compressed G1 element
-    // atms has 16 G1 elements at the beginning of the proof each 48 bytes long
-    // TODO
-    let index = 48 * 16 + 2;
+    // atms has 42 G1 elements at the beginning of the proof each 48 bytes long
+    let index = 48 * 42 + 2;
     let firs_byte = invalid_proof[index];
     let negated_firs_byte = !firs_byte;
     invalid_proof[index] = negated_firs_byte;
-
-    info!("proof size {:?}", prev_proof.len());
 
     let instances_file =
         "./plinth-verifier/plutus-halo2/test/Generic/serialized_public_input.hex".to_string();
@@ -207,15 +272,15 @@ fn main() -> Result<()> {
     )
     .context("hex proof serialization failed")?;
 
-    generate_plinth_verifier(&kzg_params, &vk, None, &[&[&instances]])
+    generate_plinth_verifier(&kzg_params, &vk, Some(Vec::new()), &[&[&[], &instances]])
         .context("Plinth verifier generation failed")?;
 
     generate_aiken_verifier(
         &kzg_params,
         &vk,
-        None,
-        &[&[&instances]],
-        None,
+        Some(Vec::new()),
+        &[&[&[], &instances]],
+        Some(C::identity()),
         Some((prev_proof.clone(), invalid_proof)),
     )
     .context("Aiken verifier generation failed")?;

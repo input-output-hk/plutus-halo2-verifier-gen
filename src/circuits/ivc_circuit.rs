@@ -3,8 +3,6 @@
 //!
 //! DO NOT add this example to the CI as it is slow.
 
-use std::{collections::BTreeMap, time::Instant};
-
 use ff::Field;
 use group::Group;
 use midnight_circuits::{
@@ -23,30 +21,21 @@ use midnight_circuits::{
     },
     hash::poseidon::{
         NB_POSEIDON_ADVICE_COLS, NB_POSEIDON_FIXED_COLS, PoseidonChip, PoseidonConfig,
-        PoseidonState,
     },
     instructions::*,
-    types::{AssignedNative, ComposableChip, Instantiable},
+    types::ComposableChip,
     verifier::{
-        self, Accumulator, AssignedAccumulator, AssignedVk, BlstrsEmulation, Msm, SelfEmulation,
+        self, Accumulator, AssignedAccumulator, AssignedVk, BlstrsEmulation, SelfEmulation,
         VerifierGadget,
     },
 };
 use midnight_proofs::{
     circuit::{Layouter, SimpleFloorPlanner, Value},
-    plonk::{
-        Circuit, ConstraintSystem, Error, VerifyingKey, create_proof, keygen_pk, keygen_vk_with_k,
-        prepare,
-    },
+    plonk::{Circuit, ConstraintSystem, Error, VerifyingKey},
     poly::{EvaluationDomain, kzg::KZGCommitmentScheme},
-    transcript::{CircuitTranscript, Transcript},
 };
-use midnight_zk_stdlib::utils::plonk_api::filecoin_srs;
-use rand::prelude::{IteratorRandom, StdRng};
-use rand::rngs::OsRng;
 
 type S = BlstrsEmulation;
-
 type F = <S as SelfEmulation>::F;
 type C = <S as SelfEmulation>::C;
 
@@ -55,10 +44,9 @@ type CBase = <C as CircuitCurve>::Base;
 
 type NG = NativeGadget<F, P2RDecompositionChip<F>, NativeChip<F>>;
 
-#[cfg(feature = "truncated-challenges")]
-const K: u32 = 18;
-
-#[cfg(not(feature = "truncated-challenges"))]
+// #[cfg(feature = "truncated-challenges")]
+// const K: u32 = 18;
+// #[cfg(not(feature = "truncated-challenges"))]
 const K: u32 = 19;
 
 #[derive(Clone, Debug)]
@@ -70,7 +58,8 @@ pub struct IvcCircuit {
     prev_acc: Value<Accumulator<S>>,
 }
 
-pub fn newIVC(domain: EvaluationDomain<F>, cs: ConstraintSystem<F>) -> IvcCircuit {
+#[allow(dead_code)]
+pub fn new_ivc(domain: EvaluationDomain<F>, cs: ConstraintSystem<F>) -> IvcCircuit {
     IvcCircuit {
         self_vk: (domain, cs, Value::unknown()),
         prev_state: Value::unknown(),
@@ -79,7 +68,8 @@ pub fn newIVC(domain: EvaluationDomain<F>, cs: ConstraintSystem<F>) -> IvcCircui
     }
 }
 
-pub fn fromIVC(
+#[allow(dead_code)]
+pub fn from_ivc(
     domain: EvaluationDomain<F>,
     cs: ConstraintSystem<F>,
     vk: VerifyingKey<F, KZGCommitmentScheme<E>>,
@@ -270,25 +260,30 @@ impl Circuit<F> for IvcCircuit {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::plutus_gen::adjusted_types::CardanoFriendlyBlake2b;
-    use midnight_curves::{Base, Bls12, BlsScalar as Scalar};
-
     use ff::Field;
-    use log::info;
-    use midnight_proofs::dev::MockProver;
-    use midnight_proofs::plonk::{
-        ProvingKey, VerifyingKey, create_proof, k_from_circuit, keygen_pk, keygen_vk, prepare,
+
+    use midnight_circuits::{
+        hash::poseidon::PoseidonState,
+        types::{AssignedNative, Instantiable},
+        verifier::Msm,
     };
-    use midnight_proofs::poly::commitment::Guard;
+
+    use midnight_curves::Bls12;
+
+    use midnight_proofs::plonk::{create_proof, keygen_pk, keygen_vk_with_k, prepare};
     use midnight_proofs::poly::kzg::KZGCommitmentScheme;
     use midnight_proofs::poly::kzg::params::ParamsKZG;
     use midnight_proofs::transcript::{CircuitTranscript, Transcript};
+
     use rand::SeedableRng;
+    use rand::prelude::StdRng;
+
+    use std::{collections::BTreeMap, time::Instant};
 
     #[test]
     fn test_ivc_circuit() {
         let seed = [0u8; 32];
-        let mut rng: StdRng = SeedableRng::from_seed(seed);
+        let rng: StdRng = SeedableRng::from_seed(seed);
 
         let self_k = K;
 
@@ -296,7 +291,7 @@ mod tests {
         configure_ivc_circuit(&mut self_cs);
         let self_domain = EvaluationDomain::new(self_cs.degree() as u32, self_k);
 
-        let default_ivc_circuit = newIVC(self_domain.clone(), self_cs.clone());
+        let default_ivc_circuit = new_ivc(self_domain.clone(), self_cs.clone());
 
         let kzg_params: ParamsKZG<Bls12> = ParamsKZG::<Bls12>::unsafe_setup(self_k, rng.clone());
 
@@ -344,7 +339,7 @@ mod tests {
 
         // Run the IVC loop.
         for i in 0..3 {
-            let circuit = fromIVC(
+            let circuit = from_ivc(
                 self_domain.clone(),
                 self_cs.clone(),
                 vk.clone(),
@@ -371,7 +366,7 @@ mod tests {
                     &[circuit.clone()],
                     1,
                     &[&[&[], &public_inputs]],
-                    OsRng,
+                    &mut rng.clone(),
                     &mut transcript,
                 )
                 .unwrap_or_else(|_| panic!("Problem creating the {i}-th IVC proof"));
