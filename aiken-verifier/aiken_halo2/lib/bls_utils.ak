@@ -12,7 +12,7 @@ use aiken/primitive/bytearray
 
 // Function returning a G1 element from two scalar coordinates
 // We assume the point is already on the curve and it is not at infinity
-fn g1_from_coords_unsafe(x: Int, y: Int) -> G1Element {
+pub fn g1_from_coords_unsafe(x: Int, y: Int) -> G1Element {
   // 1. Build the flags
   // The compression flag (first bit) is set to 1
   // The parity flag (third bit) is set to 1 if y is the lexicographically largest
