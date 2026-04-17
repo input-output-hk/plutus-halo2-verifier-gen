@@ -633,29 +633,42 @@ where
 
         let recursion_map = circuit.proof_instantiation_data.recursion_vks.clone().map_or("".to_string(), |recursion_vks| {
 
-            let serialized_acc = 2 * 2 * 7; // 2 points, each with x and y coordinate, each coordinate is 32 bytes when serialized
+            // We make the assumption that the accumulator has been collapsed.
+            // As such, the lhs and rhs have both 1 base point and corresponding scalar, the rhs also has a fixed base.
+            // 2 points, each with x and y coordinate, each coordinate is 32 bytes when serialized, encodede deach in 7 limbs
+            // 2 scalars
+            let serialized_acc = 2 * 2 * 7 + 2;
 
             let (fixed_bases, fixed_bases_len) = {
                 let mut ivc_fixed_bases = Vec::new();
                 let mut size = 0;
 
+                if nb_committed_instances > 0 {
+                    ivc_fixed_bases.push("ci_1".to_string());
+                    size += 1;
+                }
+
+                size += 1; // for G, which is always a fixed base
+                ivc_fixed_bases.push("neg_g1_generator".to_string());
+
+
                 circuit.proof_instantiation_data.fixed_commitments.iter().enumerate().for_each(|(i, _)| {
-                    ivc_fixed_bases.push(format!("f_{}", i+1 ));
+                    ivc_fixed_bases.push(format!("f{}_commitment", i+1 ));
                     size += 1;
                 });
                 circuit.proof_instantiation_data.permutation_commitments.iter().enumerate().for_each(|(i, _)| {
-                    ivc_fixed_bases.push(format!("p_{}", i+1 ));
+                    ivc_fixed_bases.push(format!("p{}_commitment", i+1 ));
                     size += 1;
                 });
 
                 recursion_vks.iter().for_each(|vki| {
                     vki.fixed_commitments.iter().enumerate().for_each(|(i, _)| {
-                        ivc_fixed_bases.push(format!("f_{}_{}",i+1, vki.name));
+                        ivc_fixed_bases.push(format!("f{}_{}",i+1, vki.name));
                         size += 1;
                     });
 
                     vki.permutation_commitments.iter().enumerate().for_each(|(i, _)| {
-                        ivc_fixed_bases.push(format!("p_{}_{}",i+1, vki.name));
+                        ivc_fixed_bases.push(format!("p{}_{}",i+1, vki.name));
                         size += 1;
                     });
                 });
@@ -663,57 +676,62 @@ where
                 (ivc_fixed_bases, size)
             };
 
-            assert!(nb_public_inputs >= (fixed_bases_len + serialized_acc), "Not enough public inputs to support recursion. Required at least {}, but only {} provided.", fixed_bases_len + serialized_acc, nb_public_inputs);
+            let nb_vks = 1 + circuit.proof_instantiation_data.recursion_vks.as_ref().map_or(0, |vks| vks.len());
+
+            let check_vk = "    let b = b && (transcript_rep == i_1)\n".to_string();
+
+            assert!(nb_public_inputs >= (nb_vks + fixed_bases_len + serialized_acc), "Not enough public inputs to support recursion. Required at least {}, but only {} provided.", fixed_bases_len + serialized_acc + nb_vks, nb_public_inputs);
 
             let acc_left : String = {
-                let serialized_x = format!("    let acc_left_x_int = {}\n", (0..7).fold(ZERO_STR.to_string(), |acc, i| {
-                        format!("add(mul({}, 72057594037927936), to_int(i_{}))", acc, nb_public_inputs - fixed_bases_len - 3*7 - 1 - i)
+                let serialized_x = format!("    let acc_left_x_int = (1 + {}) % 0x1a0111ea397fe69a4b1ba7b6434bacd764774b84f38512bf6730d2a0f6b0f6241eabfffeb153ffffb9feffffffffaaab\n", (0..7).fold("0".to_string(), |acc, i| {
+                        format!("(({} * 72057594037927936) + to_int(i_{}))", acc, nb_public_inputs - fixed_bases_len - 3*7 - 2 - i)
                     }).to_string());
 
-                let serialized_y = format!("    let acc_left_y_int = {}\n", (0..7).fold(ZERO_STR.to_string(), |acc, i| {
-                        format!("add(mul({}, 72057594037927936), to_int(i_{}))", acc, nb_public_inputs - fixed_bases_len - 2*7 - 1 - i)
+                let serialized_y = format!("    let acc_left_y_int = (1 + {}) % 0x1a0111ea397fe69a4b1ba7b6434bacd764774b84f38512bf6730d2a0f6b0f6241eabfffeb153ffffb9feffffffffaaab\n", (0..7).fold("0".to_string(), |acc, i| {
+                        format!("(({} * 72057594037927936) + to_int(i_{}))", acc, nb_public_inputs - fixed_bases_len - 2*7 - 2 - i)
                     }).to_string());
 
-                let compressed_bytes = "    let compressed_acc_left = g1_from_coords_unsafe(acc_left_x_int, acc_left_y_int) \n".to_string();
+                // let result = format!("    let acc_left = scaleG1(g1_from_coords_unsafe(acc_left_x_int, acc_left_y_int), i_{})\n", nb_public_inputs - fixed_bases_len - 2*7 - 1).to_string();
 
-                let uncompressed = "    let acc_left = decompress(compressed_acc_left)\n".to_string();
+                let result = format!("    let acc_left_unscaled = g1_from_coords_unsafe(acc_left_x_int, acc_left_y_int)\n").to_string();
+                let result2 = format!("    let acc_left = scaleG1(acc_left_unscaled, i_{})\n", nb_public_inputs - fixed_bases_len - 2*7 - 1).to_string();
 
-               [serialized_x, serialized_y, compressed_bytes,uncompressed].iter().join(",")
+               [serialized_x, serialized_y, result, result2].iter().join("")
             };
 
+
             let acc_right : String = {
-                let serialized_x = format!("    let acc_right_x_int = {}\n", (0..7).fold(ZERO_STR.to_string(), |acc, i| {
-                        format!("add(mul({}, 72057594037927936), to_int(i_{}))", acc, nb_public_inputs - fixed_bases_len - 7 - 1 - i)
+                let serialized_x = format!("\n    let acc_right_x_int = (1 + {}) % 0x1a0111ea397fe69a4b1ba7b6434bacd764774b84f38512bf6730d2a0f6b0f6241eabfffeb153ffffb9feffffffffaaab\n", (0..7).fold("0".to_string(), |acc, i| {
+                        format!("(({} * 72057594037927936) + to_int(i_{}))", acc, nb_public_inputs - fixed_bases_len - 7 - 1 - i)
                     }).to_string());
 
-                let serialized_y = format!("    let acc_right_y_int = {}\n", (0..7).fold(ZERO_STR.to_string(), |acc, i| {
-                        format!("add(mul({}, 72057594037927936), to_int(i_{}))", acc, nb_public_inputs - fixed_bases_len - 1 - i)
+                let serialized_y = format!("    let acc_right_y_int = (1 + {}) % 0x1a0111ea397fe69a4b1ba7b6434bacd764774b84f38512bf6730d2a0f6b0f6241eabfffeb153ffffb9feffffffffaaab\n", (0..7).fold("0".to_string(), |acc, i| {
+                        format!("(({} * 72057594037927936) + to_int(i_{}))", acc, nb_public_inputs - fixed_bases_len - 1 - i)
                     }).to_string());
 
-                let compressed_bytes = "    let compressed_acc_right = g1_from_coords_unsafe(acc_right_x_int, acc_right_y_int) \n".to_string();
+                let result = format!("    let acc_right_unscaled = g1_from_coords_unsafe(acc_right_x_int, acc_right_y_int)\n").to_string();
+                let result2 = format!("    let acc_right = scaleG1(acc_right_unscaled, i_{})\n", nb_public_inputs - fixed_bases_len).to_string();
 
-                let uncompressed = "    let acc_right = decompress(compressed_acc_right)\n".to_string();
-
-               [serialized_x, serialized_y, compressed_bytes, uncompressed].iter().join(",")
+               [serialized_x, serialized_y, result, result2].iter().join("")
             };
 
             let acc_fixed : String = if fixed_bases_len > 0 {
-            format!("    let acc_fixed = {}", fixed_bases.iter().enumerate().fold(ZERO_STR.to_string(), |acc, (i, name)| {
-                format!("addG1({}, scaleG1({}, i_{}))", acc, name, nb_public_inputs - fixed_bases_len + i )
+            format!("    let acc_fixed = {}\n", fixed_bases.iter().enumerate().fold("zero".to_string(), |acc, (i, name)| {
+                format!("addG1({}, scaleG1(decompress({}), i_{}))", acc, name.clone(), nb_public_inputs - fixed_bases_len + 1 + i )
             })) } else { "".to_string() };
 
             let acc_right_final : String = if fixed_bases_len > 0 {format!("    let acc_right_final = addG1(acc_right, acc_fixed)\n")} else {
                 format!("    let acc_right_final = acc_right\n")
             };
 
-            let challenge_bytes = format!("    let challenge_bytes = blake2b_256(bytearray.concat(bytearray.concat(bytearray.concat(compress(el), compress(er)), compress(acc_left)), compress(acc_right_final))\n");
+            let challenge_bytes = format!("\n    let challenge_bytes = blake2b_256(bytearray.concat(bytearray.concat(bytearray.concat(compress(el), compress(er)), compress(acc_left)), compress(acc_right_final)))\n");
 
-            let challenge = format!("    let challenge = from_int(to_int_little_endian(challenge_bytes)) % field_prime\n");
+            let challenge = format!("    let challenge = from_int(bytearray.to_int_little_endian(challenge_bytes) % field_prime)\n");
 
-            let updated_el = format!("    let el = addG1(el, scaleG1(acc_left, challenge))\n");
+            let updated_el = format!("\n    let el = addG1(el, scaleG1(acc_left, challenge))\n");
             let updated_er = format!("    let er = addG1(er, scaleG1(acc_right_final, challenge))\n");
 
-            [acc_left, acc_right, acc_fixed, acc_right_final, challenge_bytes, challenge, updated_el, updated_er].iter().join(",")
+            [check_vk,acc_left, acc_right, acc_fixed, acc_right_final, challenge_bytes, challenge, updated_el, updated_er].iter().join("")
         });
         data.insert("RECURSION_ACCUMULATOR".to_string(), recursion_map);
 
@@ -798,15 +816,20 @@ where
 
             let invalid_pi = public_inputs
                 .iter()
-                .map(|e| {
-                    let invalid_input = e.neg();
-                    format!("from_int(0x{})", hex::encode(invalid_input.to_bytes_be()))
+                .enumerate()
+                .map(|(i, &e)| {
+                    let input = if i == 0 { e + Scalar::ONE } else { e };
+                    format!("from_int(0x{})", hex::encode(input.to_bytes_be()))
                 })
                 .join(", ");
 
             let trivial_pi = public_inputs
                 .iter()
-                .map(|_e| format!("from_int(0x{})", hex::encode(Scalar::ONE.to_bytes_be())))
+                .enumerate()
+                .map(|(i, &e)| {
+                    let input = if i == 0 { Scalar::ZERO } else { e };
+                    format!("from_int(0x{})", hex::encode(input.to_bytes_be()))
+                })
                 .join(", ");
 
             let committed_inputs = committed_instances_opt.map_or("".to_string(), |p| {
@@ -1050,7 +1073,7 @@ where
                         .enumerate()
                         .map(|(idx, g)| {
                             format!(
-                                "pub const f_{}_{}: ByteArray = #\"{}\"",
+                                "pub const f{}_{}: ByteArray = #\"{}\"",
                                 idx + 1,
                                 vki.name,
                                 hex::encode(g.to_bytes())
@@ -1064,7 +1087,7 @@ where
                         .enumerate()
                         .map(|(idx, g)| {
                             format!(
-                                "pub const p_{}_{}: ByteArray = #\"{}\"",
+                                "pub const p{}_{}: ByteArray = #\"{}\"",
                                 idx + 1,
                                 vki.name,
                                 hex::encode(g.to_bytes())
