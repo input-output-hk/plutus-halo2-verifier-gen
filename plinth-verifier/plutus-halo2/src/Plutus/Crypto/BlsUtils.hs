@@ -1,21 +1,27 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 
-module Plutus.Crypto.BlsUtils (powers, rotateOmega, Tracing, traceG1, traceG2, traceScalar, traceMVQ, traceMSM, getRotatedOmegas, fromCoordsG1Point) where
+module Plutus.Crypto.BlsUtils (powers, rotateOmega, Tracing, traceG1, traceG2, traceScalar, traceMVQ, traceMSM, getRotatedOmegas, fromCoordsG1Point, Fp) where
 
 import Plutus.Crypto.BlsTypes (
     Scalar,
     mkScalar,
     powMod,
+    reverseByteString,
+    Fp(..),
     unFp,
     unScalar,
  )
 import Plutus.Crypto.Halo2.CompressUncompress (
     deconstructG1Point,
+    g1_zero,
+    setPrefix
  )
 import Plutus.Crypto.Halo2.MSMTypes
 import PlutusTx.Builtins (
     BuiltinBLS12_381_G1_Element,
     BuiltinBLS12_381_G2_Element,
+    bls12_381_G1_uncompress,
+    integerToByteString,
  )
 import PlutusTx.Prelude (
     BuiltinByteString,
@@ -27,20 +33,25 @@ import PlutusTx.Prelude (
     fmap,
     fromBuiltin,
     otherwise,
+    negate,
     (*),
     (-),
     (<),
     (==),
+    (&&),
+    Bool(..),
  )
 import Text.Hex (encodeHex)
 import Text.Printf (printf)
 import qualified Prelude as Haskell
 import Data.Char (toUpper)
 
+import GHC.ByteOrder (ByteOrder(..))
+
 printAsHex :: BuiltinByteString -> Haskell.String
 printAsHex a = (Haskell.show Haskell.. encodeHex Haskell.. fromBuiltin Haskell.$ a)
 
-{-# INLINEABLE compressG1Point #-}
+{-# INLINEABLE fromCoordsG1Point #-}
 fromCoordsG1Point :: (Fp, Fp) -> BuiltinBLS12_381_G1_Element
 fromCoordsG1Point (Fp x, Fp y) | x == 0 && y == 1 = g1_zero
 fromCoordsG1Point (x, y) = result
@@ -49,7 +60,7 @@ fromCoordsG1Point (x, y) = result
     prefixed =
         if y < negate y
             then --          0x8 => 100
-                setPrefix x_bs True False False
+                setPrefix x_bs True False False 
             else --          0xa => 101
                 setPrefix x_bs True False True
     result = bls12_381_G1_uncompress (reverseByteString prefixed)

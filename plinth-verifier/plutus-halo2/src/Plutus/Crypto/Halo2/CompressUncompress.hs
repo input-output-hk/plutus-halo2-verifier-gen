@@ -4,6 +4,8 @@
 module Plutus.Crypto.Halo2.CompressUncompress (
     constructG1Point,
     deconstructG1Point,
+    g1_zero,
+    setPrefix
 ) where
 
 import GHC.ByteOrder (ByteOrder (..))
