@@ -653,31 +653,40 @@ where
     });
     data.insert("RECURSION_COMMITMENT_LIFTS".to_string(), recursion_lift);
 
-    let recursion_map = circuit.proof_instantiation_data.recursion_vks.clone().map_or("".to_string(), |recursion_vks| {
+    let (recursion_map, recursion_el, recursion_er) : (String, String, String) = circuit.proof_instantiation_data.recursion_vks.clone().map_or((String::new(),String::new(),String::new()), |recursion_vks| {
 
-            let serialized_acc = 2 * 2 * 7; // 2 points, each with x and y coordinate, each coordinate is 32 bytes when serialized
+            let serialized_acc = 2 * 2 * 7 + 2;
 
             let (fixed_bases, fixed_bases_len) = {
                 let mut ivc_fixed_bases = Vec::new();
                 let mut size = 0;
 
+                if nb_committed_instances > 0 {
+                    ivc_fixed_bases.push("ci1".to_string());
+                    size += 1;
+                }
+
+                size += 1;
+                ivc_fixed_bases.push("negGenG1".to_string());
+
+
                 circuit.proof_instantiation_data.fixed_commitments.iter().enumerate().for_each(|(i, _)| {
-                    ivc_fixed_bases.push(format!("f{}", i ));
+                    ivc_fixed_bases.push(format!("f{}_commitment", i+1 ));
                     size += 1;
                 });
                 circuit.proof_instantiation_data.permutation_commitments.iter().enumerate().for_each(|(i, _)| {
-                    ivc_fixed_bases.push(format!("p{}", i ));
+                    ivc_fixed_bases.push(format!("p{}_commitment", i+1 ));
                     size += 1;
                 });
 
                 recursion_vks.iter().for_each(|vki| {
                     vki.fixed_commitments.iter().enumerate().for_each(|(i, _)| {
-                        ivc_fixed_bases.push(format!("f{}_{}",i, vki.name));
+                        ivc_fixed_bases.push(format!("f{}_{}_commitment",i, vki.name));
                         size += 1;
                     });
 
                     vki.permutation_commitments.iter().enumerate().for_each(|(i, _)| {
-                        ivc_fixed_bases.push(format!("p{}_{}",i, vki.name));
+                        ivc_fixed_bases.push(format!("p{}_{}_commitment",i, vki.name));
                         size += 1;
                     });
                 });
@@ -687,51 +696,61 @@ where
 
             assert!(nb_public_inputs >= (fixed_bases_len + serialized_acc), "Not enough public inputs to support recursion. Required at least {}, but only {} provided.", fixed_bases_len + serialized_acc, nb_public_inputs);
 
+            let neg_g1 = "      !negGenG1 = bls12_381_G1_neg (bls12_381_G1_uncompress bls12_381_G1_compressed_generator)\n".to_string();
+
             let acc_left : String = {
-                let serialized_x = format!("      !acc_left_x = mkFp ({})\n", (0..7).fold(ZERO_STR.to_string(), |acc, i| {
-                        format!("({} * 72057594037927936 + (unScalar i{}))", acc, nb_public_inputs - fixed_bases_len - 3*7 - 1 - i)
+                let serialized_x = format!("      !acc_left_x = mkFp ((1 + {}) `modulo` bls12_381_base_prime)\n", (0..7).fold("0".to_string(), |acc, i| {
+                        format!("({} * 72057594037927936 + (unScalar i{}))", acc, nb_public_inputs - fixed_bases_len - 3*7 - 2 - i)
                     }).to_string());
 
-                let serialized_y = format!("      !acc_left_y = mkFp ({})\n", (0..7).fold(ZERO_STR.to_string(), |acc, i| {
-                        format!("({} * 72057594037927936 + (unScalar i{}))", acc, nb_public_inputs - fixed_bases_len - 2*7 - 1 - i)
+                let serialized_y = format!("      !acc_left_y = mkFp ((1 + {}) `modulo` bls12_381_base_prime)\n", (0..7).fold("0".to_string(), |acc, i| {
+                        format!("({} * 72057594037927936 + (unScalar i{}))", acc, nb_public_inputs - fixed_bases_len - 2*7 - 2 - i)
                     }).to_string());
 
-                let uncompressed  = "      !compressed_acc_left = BlsUtils.fromCoordsG1Point(acc_left_x, acc_left_y) \n".to_string();
+                let uncompressed  = "      !uncompressed_acc_left = BlsUtils.fromCoordsG1Point(acc_left_x, acc_left_y) \n".to_string();
 
-               [serialized_x, serialized_y, uncompressed].iter().join(",")
+                let result = format!("      !acc_left = scale i{} uncompressed_acc_left\n", nb_public_inputs - fixed_bases_len - 2*7 - 1).to_string();
+
+               [serialized_x, serialized_y, uncompressed, result].iter().join("")
             };
 
             let acc_right : String = {
-                let serialized_x = format!("      !acc_right_x_int = mkFp ({})\n", (0..7).fold(ZERO_STR.to_string(), |acc, i| {
+                let serialized_x = format!("      !acc_right_x_int = mkFp ((1 + {}) `modulo` bls12_381_base_prime)\n", (0..7).fold("0".to_string(), |acc, i| {
                         format!("({} * 72057594037927936 + (unScalar i{}))", acc, nb_public_inputs - fixed_bases_len - 7 - 1 - i)
                     }).to_string());
 
-                let serialized_y = format!("      !acc_right_y_int = mkFp ({})\n", (0..7).fold(ZERO_STR.to_string(), |acc, i| {
+                let serialized_y = format!("      !acc_right_y_int = mkFp ((1 + {}) `modulo` bls12_381_base_prime)\n", (0..7).fold("0".to_string(), |acc, i| {
                         format!("({} * 72057594037927936 + (unScalar i{}))", acc, nb_public_inputs - fixed_bases_len - 1 - i)
                     }).to_string());
 
-                let uncompressed = "      !compressed_acc_right = BlsUtils.fromCoordsG1Point(acc_right_x_int, acc_right_y_int) \n".to_string();
+                let uncompressed = "      !uncompressed_acc_right = BlsUtils.fromCoordsG1Point(acc_right_x_int, acc_right_y_int) \n".to_string();
 
-               [serialized_x, serialized_y, uncompressed].iter().join(",")
+                let result = format!("      !acc_right = scale i{} uncompressed_acc_right\n", nb_public_inputs - fixed_bases_len).to_string();
+
+
+               [serialized_x, serialized_y, uncompressed, result].iter().join("")
             };
 
             let acc_fixed : String = if fixed_bases_len > 0 {
-            format!("      !acc_fixed = {}", fixed_bases.iter().enumerate().fold(ZERO_STR.to_string(), |acc, (i, name)| {
-                format!("({} + (scale i{} {}))", acc, nb_public_inputs - fixed_bases_len + i, name )
+            format!("      !acc_fixed = {}\n", fixed_bases.iter().enumerate().fold("g1_zero".to_string(), |acc, (i, name)| {
+                format!("({} + (scale i{} {}))", acc, nb_public_inputs - fixed_bases_len + 1 + i, name )
             })) } else { "".to_string() };
 
             let acc_right_final : String = if fixed_bases_len > 0 {format!("      !acc_right_final = acc_right + acc_fixed\n")} else {
                 format!("      !acc_right_final = acc_right\n")
             };
 
-            let challenge = format!("      !challenge =  mkScalar(byteStringToInteger (blake2b_256 ((bls12_381_G1_compress el) <> (bls12_381_G1_compress er) <> (bls12_381_G1_compress acc_left) <> (bls12_381_G1_compress acc_right_final))) `modulo` bls12_381_field_prime)\n");
+            let challenge_bytes = format!("      !challenge_bytes =  blake2b_256 ((bls12_381_G1_compress el) <> (bls12_381_G1_compress er) <> (bls12_381_G1_compress acc_left) <> (bls12_381_G1_compress acc_right_final))\n");
+            let challenge = format!("      !challenge =  mkScalar((byteStringToInteger LittleEndian challenge_bytes) `modulo` bls12_381_field_prime)\n");
 
-            let updated_el = format!("      !el = el +  (scale challenge acc_left)\n");
-            let updated_er = format!("      !er = er + (scale challenge acc_right_final)\n");
+            let updated_el = format!(" + (scale challenge acc_left)\n");
+            let updated_er = format!(" + (scale challenge acc_right_final)\n");
 
-            [acc_left, acc_right, acc_fixed, acc_right_final, challenge, updated_el, updated_er].iter().join(",")
+            ([neg_g1, acc_left, acc_right, acc_fixed, acc_right_final, challenge_bytes, challenge].iter().join(""), updated_el, updated_er)
         });
     data.insert("RECURSION_ACCUMULATOR".to_string(), recursion_map);
+    data.insert("RECURSION_EL".to_string(), recursion_el);
+    data.insert("RECURSION_ER".to_string(), recursion_er);
 
     // Include traces only in debug mode, because they increase cost of the Plutus verifier
     #[cfg(feature = "plutus_debug")]
@@ -995,9 +1014,9 @@ rec_commitment_val_pairs =[{}]", recursion_vks.iter().flat_map(|vki| {
 
         let exports = recursion_vks.iter().flat_map(|vki| {
             (1..=vki.fixed_commitments.len()).map(|id| {
-                format!("  f{}_{},\n", id, vki.name) }
+                format!("  f{}_{},\n", id+1, vki.name) }
             ).chain((1..=vki.permutation_commitments.len()).map(|id| {
-                format!("  p{}_{},\n", id, vki.name) 
+                format!("  p{}_{},\n", id+1, vki.name) 
             }))
         }).join(",\n");
 
