@@ -12,7 +12,9 @@ pub use extraction::pcs::ExtractPCS;
 pub use extraction::pcs::PCSType;
 pub use extraction::{CircuitRepresentation, extract_circuit};
 pub(crate) mod proof_serialization;
-pub use proof_serialization::{export_proof, export_public_inputs, serialize_proof};
+pub use proof_serialization::{
+    export_committed_inputs, export_proof, export_public_inputs, serialize_proof,
+};
 
 use anyhow::{Context as _, Result};
 use std::path::Path;
@@ -88,6 +90,7 @@ pub fn generate_aiken_verifier<PCS>(
     params: &ParamsKZG<Bls12>,
     vk: &VerifyingKey<Scalar, PCS>,
     instances: &[&[&[Scalar]]],
+    committed_instances: Option<G1Projective>,
     test_proofs: Option<(Vec<u8>, Vec<u8>)>,
 ) -> Result<()>
 where
@@ -101,12 +104,20 @@ where
         PCSType::Halo2MultiOpen => Path::new("aiken-verifier/templates/verification_h2.hbs"),
     };
 
+    let public_inputs = if instances[0].len() == 2 {
+        instances[0][1]
+    } else {
+        // we have committed instances
+        instances[0][0]
+    };
+
     emit_verifier_aiken(
         verifier_template_file,
         Path::new("aiken-verifier/aiken_halo2/lib/proof_verifier.ak"),
         Some(Path::new("aiken-verifier/templates/profiler.hbs")),
         &circuit_representation,
-        test_proofs.map(|(p, invalid_p)| (p, invalid_p, instances[0][0].to_vec())),
+        test_proofs
+            .map(|(p, invalid_p)| (p, invalid_p, public_inputs.to_vec(), committed_instances)),
     )
     .context("Failed to emit the verifier code for aiken")?;
     emit_vk_aiken(

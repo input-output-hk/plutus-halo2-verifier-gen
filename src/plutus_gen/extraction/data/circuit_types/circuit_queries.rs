@@ -6,32 +6,53 @@ use super::super::{Commitments, Evaluations, Query, RotationDescription};
 /// This structure contains all circuit's queries.
 #[derive(Clone, Debug, Default)]
 pub(crate) struct CircuitQueries {
+    pub(crate) instance: Vec<Query>,
     pub(crate) advice: Vec<Query>,
     pub(crate) fixed: Vec<Query>,
     pub(crate) permutation: Vec<Query>,
     pub(crate) common: Vec<Query>,
     pub(crate) vanishing: Vec<Query>,
     pub(crate) lookup: Vec<Query>,
+    pub(crate) trashcan: Vec<Query>,
 }
 
 impl CircuitQueries {
     // Order of queries from halo2:
-    // 1. ADVICE
-    // 2. PERMUTATION
-    // 3. LOOKUP
-    // 4. FIXED
-    // 5. COMMON
-    // 6. VANISHING
+    // 1. INSTANCE
+    // 2. ADVICE
+    // 3. PERMUTATION
+    // 4. LOOKUP
+    // 5. TRASHCAN
+    // 6. FIXED
+    // 7. COMMON
+    // 8. VANISHING
     /// Returns all queries ordered by type.
-    pub(crate) fn all_ordered(&self) -> [Vec<Query>; 6] {
+    pub(crate) fn all_ordered(&self) -> [Vec<Query>; 8] {
         [
+            self.instance.clone(),
             self.advice.clone(),
             self.permutation.clone(),
             self.lookup.clone(),
+            self.trashcan.clone(),
             self.fixed.clone(),
             self.common.clone(),
             self.vanishing.clone(),
         ]
+    }
+
+    /// Extract an advice query to the CircuitQueries structure.
+    pub(crate) fn instance(
+        &mut self,
+        commitment_index: usize,
+        evaluation_index: usize,
+        point: i32,
+    ) -> () {
+        let query = Query::new(
+            Commitments::Instance(commitment_index), //format!("ci{:?}", column.index() + 1),
+            Evaluations::Instance(evaluation_index), //format!("instanceEval{:?}", query_index + 1),
+            RotationDescription::from_i32(point),
+        );
+        self.instance.push(query);
     }
 
     /// Extract an advice query to the CircuitQueries structure.
@@ -115,5 +136,15 @@ impl CircuitQueries {
     ) -> () {
         let query = Query::new(commitment, evaluation, point);
         self.lookup.push(query);
+    }
+
+    /// Extract a trashcan query to the CircuitQueries structure.
+    pub(crate) fn trashcan(&mut self, index: usize) -> () {
+        let query = Query::new(
+            Commitments::Trashcan(index),
+            Evaluations::Trashcan(index),
+            RotationDescription::Current,
+        );
+        self.trashcan.push(query);
     }
 }

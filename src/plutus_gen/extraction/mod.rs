@@ -26,34 +26,6 @@ use data::{
 pub(crate) mod pcs;
 pub use pcs::ExtractPCS;
 
-/// Function returning the maximal length of the instances.
-fn instance_max_length(instances: &[&[&[Scalar]]]) -> usize {
-    instances
-        .iter()
-        .flat_map(|instance| instance.iter().map(|instance| instance.len()))
-        .max_by(Ord::cmp)
-        .unwrap_or_default()
-}
-
-/// Function returning the minimal and maximal rotations.
-fn rotations<PCS>(vk: &VerifyingKey<Scalar, PCS>) -> (i32, i32)
-where
-    PCS: ExtractPCS + PolynomialCommitmentScheme<Scalar, Commitment = G1Projective>,
-{
-    vk.cs()
-        .instance_queries()
-        .iter()
-        .fold((0, 0), |(min, max), (_, rotation)| {
-            if rotation.0 < min {
-                (rotation.0, max)
-            } else if rotation.0 > max {
-                (min, rotation.0)
-            } else {
-                (min, max)
-            }
-        })
-}
-
 /// Function extracting the circuit description from a verification key,
 /// parameters and instances.
 pub fn extract_circuit<PCS>(
@@ -64,18 +36,6 @@ pub fn extract_circuit<PCS>(
 where
     PCS: ExtractPCS + PolynomialCommitmentScheme<Scalar, Commitment = G1Projective>,
 {
-    let chunk_len = vk.cs().degree() - 2;
-
-    for instances in instances.iter() {
-        if instances.len() != vk.cs().num_instance_columns() {
-            return Err(anyhow!(
-                "Invalid number of instances, #instances ({}) != #instance_columns ({})",
-                instances.len(),
-                vk.cs().num_instance_columns()
-            ));
-        }
-    }
-
     // We suppose we only are verifying a single proof
     if instances.len() > 1 {
         return Err(anyhow!(
@@ -84,24 +44,38 @@ where
         ));
     }
 
-    let mut circuit_description: CircuitRepresentation<PCS> = CircuitRepresentation::<PCS>::new();
-
-    // Extracting instantiation_data
-    let (min_rotation, max_rotation) = rotations(vk);
-    let max_instance_len = instance_max_length(instances) as i32;
-    let rotations = -max_rotation..max_instance_len + min_rotation.abs();
-    circuit_description
-        .proof_instantiation_data
-        .extract(params, vk, instances, rotations.len());
-
-    // Extracting (number of) public_inputs
-    for instance in instances.iter() {
-        for instance in instance.iter() {
-            for _value in instance.iter() {
-                circuit_description.increment_public_inputs();
-            }
+    // Checking that the number of committed instances and public inputs equal
+    // the number of instance columns and that their number does not vary
+    // across instances.
+    let default_lenghts: Vec<usize> = instances[0].iter().map(|i| i.len()).collect();
+    for instances in instances.iter() {
+        if instances.len() != vk.cs().num_instance_columns() {
+            return Err(anyhow!(
+                "Invalid number of instances, #instances ({}) != #instance_columns ({})",
+                instances.len(),
+                vk.cs().num_instance_columns()
+            ));
+        }
+        if instances
+            .iter()
+            .map(|i| i.len())
+            .zip(default_lenghts.iter())
+            .all(|(l1, &l2)| l1 != l2)
+        {
+            return Err(anyhow!(
+                "Committed instances and public inputs across instances do not have the same lengths."
+            ));
         }
     }
+
+    let chunk_len = vk.cs().degree() - 2;
+
+    let mut circuit_description: CircuitRepresentation<PCS> = CircuitRepresentation::<PCS>::new();
+
+    // Extracting proof_instantiation_data
+    circuit_description
+        .proof_instantiation_data
+        .extract(params, vk, instances);
 
     // Extracting proof_extraction_steps
     extract_proof_steps(&mut circuit_description, vk);
@@ -127,6 +101,16 @@ where
             circuit_description.expressions.lookup(inputs, tables);
         });
 
+        // Extracting compiled_trashcans expressions
+        vk.cs().trashcans().iter().for_each(|argument| {
+            let name = argument.name().to_string();
+            let selector = argument.selector().clone();
+            let expression = argument.constraint_expressions().to_vec();
+            circuit_description
+                .expressions
+                .trashcan(name, selector, expression);
+        });
+
         // Extracting permutations_evaluated_terms
         evaluate_permutations_terms(&mut circuit_description, &sets);
 
@@ -146,6 +130,24 @@ where
     #[cfg(feature = "plutus_debug")]
     info!("---- Extracting queries");
     {
+        // Extracting instance queries
+        vk.cs()
+            .instance_queries()
+            .iter()
+            .enumerate()
+            .for_each(|(query_index, &(column, at))| {
+                // Only extracting instance queries for committed instances
+                if column.index()
+                    < circuit_description
+                        .proof_instantiation_data
+                        .committed_instances_count
+                {
+                    circuit_description
+                        .queries
+                        .instance(column.index() + 1, query_index + 1, at.0);
+                }
+            });
+
         // Extracting advice queries
         vk.cs()
             .advice_queries()
@@ -222,6 +224,15 @@ where
                 RotationDescription::Next,
             );
         });
+
+        // Extracting trashcan queries
+        vk.cs()
+            .trashcans()
+            .iter()
+            .enumerate()
+            .for_each(|(query_index, _arg)| {
+                circuit_description.queries.trashcan(query_index + 1);
+            });
     }
 
     // Extracting PCS steps

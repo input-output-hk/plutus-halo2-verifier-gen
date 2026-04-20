@@ -33,6 +33,7 @@ pub struct Pow2RangeConfig {
 impl<F: PrimeField> Circuit<F> for LookupTest<F> {
     type Config = Pow2RangeConfig;
     type FloorPlanner = SimpleFloorPlanner;
+    type Params = ();
 
     fn without_witnesses(&self) -> Self {
         Self::default()

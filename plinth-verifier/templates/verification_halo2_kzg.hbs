@@ -110,29 +110,22 @@ rotations_for_vanishing =
    )
 
 {-# INLINEABLE verify #-}
-verify :: Proof -> {{{PUBLIC_INPUTS_TYPES}}} (Bool, [(BuiltinByteString, BlsUtils.Tracing)])
-verify proof {{{PUBLIC_INPUTS_NAMES}}} = fst $ flip (M.run VKConstants.transcriptRepr) proof $ M.do
+verify :: Proof -> {{{COMMITTED_INSTANCES_TYPES}}}{{{PUBLIC_INPUTS_TYPES}}} (Bool, [(BuiltinByteString, BlsUtils.Tracing)])
+verify proof {{{COMMITTED_INSTANCES_NAMES}}}{{{PUBLIC_INPUTS_NAMES}}} = fst $ flip (M.run VKConstants.transcriptRepr) proof $ M.do
   --  public inputs
-  _ <- M.commonScalar (mkScalar {{{PUBLIC_INPUTS_COUNT}}})
-{{{PUBLIC_INPUTS}}}
+{{{ABSORB_COMMITTED_INSTANCES}}}
+
+{{{ABSORB_PUBLIC_INPUTS}}}
 
 {{{PES}}}
 
   let !rotateOmega = BlsUtils.rotateOmega omega omegaInv
-      !n = {{X_EXPONENT}}
-      !xn_minus_one = powMod x (n-1)
-      !xn = xn_minus_one * x
 
 -- todo check if there are case where more X rotations are needed
       !x_prev = rotateOmega x (-1)
       !x_current = rotateOmega x 0
       !x_next = rotateOmega x 1
       !x_last = rotateOmega x (-(VKConstants.blinding_factors + 1))
-
-      --    lagrange eval for instances (public inputs)
-      !lagrange_polynomial_instances = lagrangePolynomialBasis x xn barycentricWeight rotations_for_instances
-
-      !instanceEval1 = innerProduct lagrange_polynomial_instances [{{{PUBLIC_INPUTS_LAGRANGE}}}]
 
 {{{GATES}}}
 
@@ -162,6 +155,8 @@ verify proof {{{PUBLIC_INPUTS_NAMES}}} = fst $ flip (M.run VKConstants.transcrip
 {{{RHS_SETS}}}
 
 {{{PERMUTATIONS_COMBINED}}}
+
+{{{TRASHCANS}}}
 
       -- lookups related part of vanishing polynomial
       !active_rows = scalarOne - (last_evaluation + sum_of_evaluation_for_blinding_factors);

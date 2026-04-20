@@ -6,11 +6,14 @@ use serde::{Deserialize, Serialize};
 /// It is used to emit the right number of phases in the given language.
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub(crate) enum ProofExtractionSteps {
+    // (Committed) Instance evaluation steps
+    CommittedInstanceEval,
+    InstanceEval,
     // Advice and fixed column related steps
     AdviceCommitments,
     AdviceEval,
     FixedEval,
-    // Lookup steps
+    // Permutation steps
     PermutationsCommitted,
     PermutationEval(char),
     PermutationCommon,
@@ -18,10 +21,13 @@ pub(crate) enum ProofExtractionSteps {
     LookupPermuted,
     LookupCommitment,
     LookupEval,
-    // Vanishing polynoial steps
+    // Vanishing polynomial steps
     VanishingRand,
     RandomEval,
     VanishingSplit,
+    // Trashcan steps
+    TrashCommitment,
+    TrashEval,
     // Challenges extraction
     SqueezeChallenge,
     XCoordinate,

@@ -13,6 +13,7 @@ pub(crate) struct CircuitExpressions {
     pub(crate) compiled_gate_equations: Vec<Expression<Scalar>>,
     pub(crate) compiled_lookups_equations:
         (Vec<Vec<Expression<Scalar>>>, Vec<Vec<Expression<Scalar>>>),
+    pub(crate) compiled_trashcans: Vec<(String, Expression<Scalar>, Vec<Expression<Scalar>>)>,
     pub(crate) permutations_evaluated_terms: Vec<ScalarExpression<Scalar>>,
     pub(crate) permutation_terms_left: Vec<(char, ScalarExpression<Scalar>)>,
     pub(crate) permutation_terms_right: Vec<(char, ScalarExpression<Scalar>)>,
@@ -65,5 +66,15 @@ impl CircuitExpressions {
     /// structure.
     pub(crate) fn vanishing(&mut self, name: String, expression: ExpressionG1<Scalar>) -> () {
         self.h_commitments.push((name, expression));
+    }
+
+    /// Extract a trashcan expression to the CircuitExpressions structure.
+    pub(crate) fn trashcan(
+        &mut self,
+        name: String,
+        selector: Expression<Scalar>,
+        expression: Vec<Expression<Scalar>>,
+    ) -> () {
+        self.compiled_trashcans.push((name, selector, expression));
     }
 }

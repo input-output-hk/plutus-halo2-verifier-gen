@@ -1,6 +1,6 @@
 use aiken/builtin.{blake2b_256, bls12_381_g1_neg, bls12_381_g1_scalar_mul}
 use aiken/crypto/bitwise.{State}
-use aiken/crypto/bls12_381/g1.{decompress, generator}
+use aiken/crypto/bls12_381/g1.{compress, decompress, generator, scale}
 use aiken/crypto/bls12_381/scalar.{
   Scalar, add, from_bytes_little_endian, from_int, mul_int,
   to_bytes_little_endian,
@@ -51,6 +51,14 @@ pub fn common_scalar(
   let scalar_bytes = to_bytes_little_endian(scalar)
 
   let bytes_to_append = bytearray.concat(prefix_common, scalar_bytes)
+  let new_bytes_for_hash =
+    bytearray.concat(transcript.accumulated_for_hash, bytes_to_append)
+
+  Transcript { ..transcript, accumulated_for_hash: new_bytes_for_hash }
+}
+
+pub fn common_g1(point: ByteArray, transcript: Transcript) -> Transcript {
+  let bytes_to_append = bytearray.concat(prefix_common, point)
   let new_bytes_for_hash =
     bytearray.concat(transcript.accumulated_for_hash, bytes_to_append)
 
@@ -184,6 +192,22 @@ test adding_scalar_to_transcript() {
   expect
     challenge == from_int(
       0x2a19e2ce1515cef1e285b88d6924b1ca31f1a94bf963f31711f6eedff5822fec,
+    )
+}
+
+test adding_g1_to_transcript() {
+  let rep = from_int(1)
+  let proof_for_testing = #"00"
+
+  let c_point = compress(scale(generator, from_int(42)))
+
+  let transcript_data = construct_transcript(proof_for_testing, rep)
+  let transcript_data = common_g1(c_point, transcript_data)
+
+  let (challenge, _) = squeeze_challenge(transcript_data)
+  expect
+    challenge == from_int(
+      0x4f0fdec75ec49e9f7b621ca5173c174e2edd0928cb05a9164771d2866b20a47e,
     )
 }
 

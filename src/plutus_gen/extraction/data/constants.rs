@@ -4,6 +4,7 @@
 pub(crate) const BETA_STR: &str = "beta";
 pub(crate) const GAMMA_STR: &str = "gamma";
 pub(crate) const THETA_STR: &str = "theta";
+pub(crate) const TRASH_STR: &str = "trash";
 
 pub(crate) const X_STR: &str = "x";
 pub(crate) const XN_MINUS_ONE_STR: &str = "xn_minus_one";

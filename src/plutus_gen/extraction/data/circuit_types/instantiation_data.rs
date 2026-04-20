@@ -28,6 +28,36 @@ pub(crate) struct InstantiationSpecificData {
     pub(crate) blinding_factors: usize,
     pub(crate) transcript_representation: Scalar,
     pub(crate) public_inputs_count: usize,
+    pub(crate) committed_instances_supported: bool,
+    pub(crate) committed_instances_count: usize,
+}
+
+/// Function returning the maximal length of the instances.
+fn instance_max_length(instances: &[&[&[Scalar]]]) -> usize {
+    instances
+        .iter()
+        .flat_map(|instance| instance.iter().map(|instance| instance.len()))
+        .max_by(Ord::cmp)
+        .unwrap_or_default()
+}
+
+/// Function returning the minimal and maximal rotations.
+fn rotations<PCS>(vk: &VerifyingKey<Scalar, PCS>) -> (i32, i32)
+where
+    PCS: PolynomialCommitmentScheme<Scalar, Commitment = G1Projective>,
+{
+    vk.cs()
+        .instance_queries()
+        .iter()
+        .fold((0, 0), |(min, max), (_, rotation)| {
+            if rotation.0 < min {
+                (rotation.0, max)
+            } else if rotation.0 > max {
+                (min, rotation.0)
+            } else {
+                (min, max)
+            }
+        })
 }
 
 impl InstantiationSpecificData {
@@ -38,7 +68,6 @@ impl InstantiationSpecificData {
         params: &ParamsKZG<Bls12>,
         vk: &VerifyingKey<Scalar, PCS>,
         instances: &[&[&[Scalar]]],
-        rotations: usize,
     ) where
         PCS: PolynomialCommitmentScheme<Scalar, Commitment = G1Projective>,
     {
@@ -63,7 +92,10 @@ impl InstantiationSpecificData {
 
         self.s_g2 = params.s_g2().to_affine();
 
-        self.omega_rotation_count_for_instances = rotations;
+        let (min_rotation, max_rotation) = rotations(vk);
+        let max_instance_len = instance_max_length(instances) as i32;
+        let rotations = -max_rotation..max_instance_len + min_rotation.abs();
+        self.omega_rotation_count_for_instances = rotations.len();
         // self.mega_rotation_count_for_vanishing - not needed
 
         self.n_coefficient = vk.n();
@@ -72,6 +104,23 @@ impl InstantiationSpecificData {
 
         self.transcript_representation = vk.transcript_repr();
 
-        self.public_inputs_count = instances[0][0].len();
+        // The committed instances and public inputs are both stored in the
+        // instances. More precisely, we have either:
+        // -  instances  = &[&[public_inputs]] or
+        // -  instances  = &[&[committed_instances, public_inputs]]
+        // depending on whether the commited instances are supported.
+
+        // Extracting number of committed instances
+        if instances[0].len() == 2 {
+            self.committed_instances_supported = true;
+            self.committed_instances_count = 1;
+        }
+
+        // Extracting number of public_inputs
+        let mut index_public_inputs = 0;
+        if self.committed_instances_supported {
+            index_public_inputs = 1;
+        }
+        self.public_inputs_count = instances[0][index_public_inputs].len();
     }
 }

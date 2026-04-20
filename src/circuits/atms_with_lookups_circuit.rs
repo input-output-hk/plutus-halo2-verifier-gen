@@ -57,6 +57,7 @@ pub struct Pow2RangeConfig {
 impl Circuit<Base> for AtmsLookupCircuit {
     type Config = AtmsLookupConfig;
     type FloorPlanner = SimpleFloorPlanner;
+    type Params = ();
 
     fn without_witnesses(&self) -> Self {
         Self::default()

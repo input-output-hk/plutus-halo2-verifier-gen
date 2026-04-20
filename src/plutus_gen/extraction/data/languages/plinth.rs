@@ -16,19 +16,25 @@ pub trait PlinthExpression {
 // - folding : ACC = (acc * theta + eval)
 //   where eval is subsequent expressions
 //   separate for input and for table expression
-pub(crate) fn combine_plinth_expressions(lookup_expressions: Vec<Expression<Scalar>>) -> String {
+pub(crate) fn combine_plinth_expressions(
+    lookup_expressions: Vec<Expression<Scalar>>,
+    batch_coeff: &str,
+) -> String {
     let compiled: Vec<_> = lookup_expressions
         .iter()
         .map(PlinthExpression::compile_expression)
         .collect();
     compiled.iter().fold(ZERO_STR.to_string(), |acc, eval| {
-        format!("({} * {} + {})", acc, THETA_STR, eval)
+        format!("({} * {} + {})", acc, batch_coeff, eval)
     })
 }
 
 impl PlinthExpression for Commitments {
     fn compile_expression(&self) -> String {
         match self {
+            Commitments::Instance(index) => {
+                format!("ci{:?}", index)
+            }
             Commitments::Advice(index) => {
                 format!("a{:?}", index)
             }
@@ -52,6 +58,7 @@ impl PlinthExpression for Commitments {
             }
             Commitments::VanishingG => VANISH_G_STR.to_string(),
             Commitments::VanishingRand => "vanishingRand".to_string(),
+            Commitments::Trashcan(index) => format!("trashcanCommitment{:?}", index).to_string(),
         }
     }
 }
@@ -59,6 +66,9 @@ impl PlinthExpression for Commitments {
 impl PlinthExpression for Evaluations {
     fn compile_expression(&self) -> String {
         match self {
+            Evaluations::Instance(index) => {
+                format!("instanceEval{:?}", index)
+            }
             Evaluations::Advice(index) => {
                 format!("adviceEval{:?}", index)
             }
@@ -88,6 +98,7 @@ impl PlinthExpression for Evaluations {
             Evaluations::VanishingS => "vanishing_s".to_string(),
 
             Evaluations::RandomEval => "randomEval".to_string(),
+            Evaluations::Trashcan(index) => format!("trashcanEval{:?}", index),
         }
     }
 }
