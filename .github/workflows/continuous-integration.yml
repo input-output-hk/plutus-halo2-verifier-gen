@@ -13,8 +13,14 @@ jobs:
       - uses: aiken-lang/setup-aiken@v1
         with:
           version: v1.1.19
-      - run: cargo run --example equations_test
-      - run: cargo run --example atms_with_lookups
+      - run: cargo run --example equations_test --release
+      - run: cargo run --example atms_with_lookups --release
+      - run: cd aiken-verifier/aiken_halo2 && aiken build
+      - run: cd aiken-verifier/aiken_halo2 && aiken check
+      - run: cargo run --example schnorr --release
+      - run: cd aiken-verifier/aiken_halo2 && aiken build
+      - run: cd aiken-verifier/aiken_halo2 && aiken check
+      - run: cargo run --example credential_properties --release
       - run: cd aiken-verifier/aiken_halo2 && aiken build
       - run: cd aiken-verifier/aiken_halo2 && aiken check
 
