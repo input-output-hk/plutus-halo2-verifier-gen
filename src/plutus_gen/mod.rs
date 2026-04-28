@@ -102,18 +102,24 @@ where
         PCSType::GWC19 => Path::new("aiken-verifier/templates/verification_gwc19.hbs"),
         PCSType::Halo2MultiOpen => Path::new("aiken-verifier/templates/verification_h2.hbs"),
     };
-
+    let verifier_file = Path::new("aiken-verifier/aiken_halo2/lib/proof_verifier.ak");
+    let profiler_template_file = Path::new("aiken-verifier/templates/profiler.hbs");
+    let validator_template_file = Path::new("aiken-verifier/templates/validator.hbs");
     emit_verifier_aiken(
         verifier_template_file,
-        Path::new("aiken-verifier/aiken_halo2/lib/proof_verifier.ak"),
-        Some(Path::new("aiken-verifier/templates/profiler.hbs")),
+        verifier_file,
+        Some(profiler_template_file),
+        Some(validator_template_file),
         &circuit_representation,
         test_proofs.map(|(p, invalid_p)| (p, invalid_p, instance.to_vec())),
     )
     .context("Failed to emit the verifier code for aiken")?;
+
+    let verification_key_file = Path::new("aiken-verifier/aiken_halo2/lib/verifier_key.ak");
+    let vk_template_file = Path::new("aiken-verifier/templates/vk_constants.hbs");
     emit_vk_aiken(
-        Path::new("aiken-verifier/templates/vk_constants.hbs"),
-        Path::new("aiken-verifier/aiken_halo2/lib/verifier_key.ak"),
+        vk_template_file,
+        verification_key_file,
         &circuit_representation,
     )
     .context("Failed to emit the verifier key constants for aiken")?;

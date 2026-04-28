@@ -21,7 +21,8 @@ use std::{collections::HashMap, fs::File, iter::once, path::Path};
 pub fn emit_verifier_code<PCS>(
     template_file: &Path, // aiken mustashe template
     aiken_file: &Path,    // generated aiken file, output
-    profiler_file: Option<&Path>,
+    profiler_template: Option<&Path>,
+    validator_template: Option<&Path>,
     circuit: &CircuitRepresentation<PCS>,
     test_data: Option<(Vec<u8>, Vec<u8>, Vec<Scalar>)>,
 ) -> Result<String, RenderError>
@@ -614,16 +615,6 @@ where
                 test_valid_proof_valid_inputs,
             );
 
-            if let Some(template) = profiler_file {
-                let mut handlebars = Handlebars::new();
-                handlebars.set_strict_mode(true);
-                handlebars.register_template_file("profiler_template", template)?;
-                let mut output_file =
-                    File::create("aiken-verifier/aiken_halo2/validators/profiler.ak")?;
-                handlebars.render_to_write("profiler_template", &data, &mut output_file)?;
-                handlebars.render("profiler_template", &data)?;
-            }
-
             let test_valid_proof_invalid_inputs = format!(
                 "verifier(#\"{}\", {})",
                 hex::encode(proof.clone()),
@@ -670,6 +661,65 @@ where
                 "TEST_VALID_PROOF_TRIVIAL_INPUTS".to_string(),
                 test_valid_proof_trivial_inputs,
             );
+
+            let nb_public_inputs = circuit.proof_instantiation_data.public_inputs_count;
+
+            data.insert("PUBLIC_INPUTS_VARS".to_string(), {
+                (1..=nb_public_inputs)
+                    .map(|n| format!("instance_{}", n))
+                    .join(", ")
+            });
+
+            let hashing_instances = {
+                let mut byte_array = Vec::new();
+                // byte_array.push("proof".to_string());
+
+                (1..=nb_public_inputs)
+                    .for_each(|n| byte_array.push(format!("instance_{}", n).to_string()));
+
+                byte_array.iter().fold("proof".to_string(), |acc, new| {
+                    format!("append_bytearray({}, {})", acc, new)
+                })
+            };
+            data.insert("HASHING_INSTANCES".to_string(), hashing_instances);
+
+            data.insert("REDEEMER_TYPE".to_string(), {
+                // The redeemer contains the public input, committed instances and instance.
+                let nb = 1 + nb_public_inputs;
+                let redeemer_type = (1..=nb).map(|_| "ByteArray".to_string()).join(", ");
+                format!("({})", redeemer_type)
+            });
+
+            let verifying_instances = {
+                let mut string_array = Vec::new();
+
+                (1..=nb_public_inputs).for_each(|n| {
+                    string_array.push(format!("      from_bytes(instance_{})", n).to_string())
+                });
+
+                string_array.iter().join(",\n")
+            };
+            data.insert("VERIFYING_INSTANCES".to_string(), verifying_instances);
+
+            if let Some(template) = profiler_template {
+                let mut handlebars = Handlebars::new();
+                handlebars.set_strict_mode(true);
+                handlebars.register_template_file("profiler_template", template)?;
+                let mut output_file =
+                    File::create("aiken-verifier/aiken_halo2/validators/profiler.ak")?;
+                handlebars.render_to_write("profiler_template", &data, &mut output_file)?;
+                handlebars.render("profiler_template", &data)?;
+            }
+
+            if let Some(template) = validator_template {
+                let mut handlebars = Handlebars::new();
+                handlebars.set_strict_mode(true);
+                handlebars.register_template_file("profiler_template", template)?;
+                let mut output_file =
+                    File::create("aiken-verifier/aiken_halo2/validators/verifier.ak")?;
+                handlebars.render_to_write("profiler_template", &data, &mut output_file)?;
+                handlebars.render("profiler_template", &data)?;
+            }
         }
     }
 

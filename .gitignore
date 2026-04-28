@@ -25,3 +25,4 @@ gates_test.ak
 proof_verifier.ak
 verifier_key.ak
 profiler.ak
+verifier.ak
