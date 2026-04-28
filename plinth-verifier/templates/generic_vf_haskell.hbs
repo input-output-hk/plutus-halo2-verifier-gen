@@ -40,18 +40,9 @@ test =
 -- Tasty.assertEqual "Extraction via parser failed"
 proofTest :: Tasty.Assertion
 proofTest = do
-    let
-        p1 =
-            mkScalar
-                ((parsedInputs !! 0) `modulo` bls12_381_field_prime)
-        p2 =
-            mkScalar
-                ((parsedInputs !! 1) `modulo` bls12_381_field_prime)
-        p3 =
-            mkScalar
-                ((parsedInputs !! 2) `modulo` bls12_381_field_prime)
+{{{LIFT_INSTANCE}}}
 
-        (final_verification, traces) = verify sampleProof p1 p2 p3
+    let (final_verification, traces) = verify sampleProof {{{INSTANCE_VARS}}}
     -- makes debug data yellow and easy to spot
     threadDelay 1000000
     putStrLn "\n"

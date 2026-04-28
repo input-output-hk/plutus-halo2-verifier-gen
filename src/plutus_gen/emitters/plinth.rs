@@ -17,6 +17,10 @@ use std::{collections::HashMap, fs::File, path::Path};
 pub fn emit_verifier_code<PCS>(
     template_file: &Path, // haskell mustashe template
     haskell_file: &Path,  // generated haskell file, output
+    test_template: &Path,
+    test_plutus_template: &Path,
+    test_haskell_template: &Path,
+    test_compiled_template: &Path,
     circuit: &CircuitRepresentation<PCS>,
 ) -> Result<String, RenderError>
 where
@@ -816,6 +820,65 @@ where
         let all_traces: Vec<_> = all_traces.iter().flatten().collect();
 
         data.insert("TRACES".to_string(), all_traces.iter().join(",\n       "));
+    }
+
+    {
+        let nb_public_inputs = circuit.proof_instantiation_data.public_inputs_count;
+        let mut vars = Vec::new();
+        (1..=nb_public_inputs).for_each(|i| {
+            vars.push(format!("p{}", i));
+        });
+
+        data.insert("INSTANCE_VARS".to_string(), vars.iter().join(" "));
+        data.insert("SEP_INSTANCE_VARS".to_string(), vars.iter().join(", "));
+
+        let mut var_types = Vec::new();
+        (1..=nb_public_inputs).for_each(|_| {
+            var_types.push("Scalar".to_string());
+        });
+
+        data.insert("LIFT_INSTANCE".to_string(), {
+            vars.iter().enumerate().map(|(i, pi)| format!("    let {} = mkScalar ((parsedInputs !! {}) `modulo` bls12_381_field_prime)", pi, i)).join("\n")
+        });
+
+        data.insert("INSTANCE_TYPES".to_string(), {
+            if var_types.is_empty() {
+                String::new()
+            } else {
+                var_types.iter().join(" -> ") + " ->"
+            }
+        });
+
+        let mut handlebars = Handlebars::new();
+        handlebars.set_strict_mode(true);
+        handlebars.register_template_file("test_template", test_template)?;
+        let mut output_file = File::create("plinth-verifier/plutus-halo2/test/Test.hs")?;
+        handlebars.render_to_write("test_template", &data, &mut output_file)?;
+        handlebars.render("test_template", &data)?;
+
+        let mut handlebars = Handlebars::new();
+        handlebars.set_strict_mode(true);
+        handlebars.register_template_file("test_haskell_template", test_haskell_template)?;
+        let mut output_file =
+            File::create("plinth-verifier/plutus-halo2/test/Generic/VerificationTestHaskell.hs")?;
+        handlebars.render_to_write("test_haskell_template", &data, &mut output_file)?;
+        handlebars.render("test_haskell_template", &data)?;
+
+        let mut handlebars = Handlebars::new();
+        handlebars.set_strict_mode(true);
+        handlebars.register_template_file("test_plutus_template", test_plutus_template)?;
+        let mut output_file =
+            File::create("plinth-verifier/plutus-halo2/test/Generic/VerificationTestPlutus.hs")?;
+        handlebars.render_to_write("test_plutus_template", &data, &mut output_file)?;
+        handlebars.render("test_plutus_template", &data)?;
+
+        let mut handlebars = Handlebars::new();
+        handlebars.set_strict_mode(true);
+        handlebars.register_template_file("test_compiled_template", test_compiled_template)?;
+        let mut output_file =
+            File::create("plinth-verifier/plutus-halo2/test/Generic/VerifyCompiled.hs")?;
+        handlebars.render_to_write("test_compiled_template", &data, &mut output_file)?;
+        handlebars.render("test_compiled_template", &data)?;
     }
 
     #[cfg(not(feature = "plutus_debug"))]
