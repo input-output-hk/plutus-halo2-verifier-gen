@@ -8,7 +8,7 @@ use midnight_curves::G1Projective;
 use std::fs::File;
 use std::io::Write;
 
-pub fn export_proof(proof_file: String, proof: Vec<u8>) -> Result<()> {
+pub fn export_proof(proof_file: String, proof: &[u8]) -> Result<()> {
     let hex = hex::encode(proof);
 
     let mut output = File::create(&proof_file)
@@ -23,7 +23,7 @@ pub fn export_proof(proof_file: String, proof: Vec<u8>) -> Result<()> {
     Ok(())
 }
 
-pub fn serialize_proof(proof_file: String, proof: Vec<u8>) -> Result<()> {
+pub fn serialize_proof(proof_file: String, proof: &[u8]) -> Result<()> {
     let serialized_proof = serde_json::to_string(&proof)
         .with_context(|| anyhow!("Failed to serialise Proof for `{proof_file}'"))?;
 

@@ -10,7 +10,6 @@ use crate::plutus_gen::extraction::pcs::{ExtractPCS, PCSType};
 use group::{GroupEncoding, prime::PrimeCurveAffine};
 use handlebars::{Handlebars, RenderError};
 use itertools::Itertools;
-use std::env::var;
 use std::{collections::HashMap, fs::File, path::Path};
 
 pub fn emit_verifier_code<PCS>(

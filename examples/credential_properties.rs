@@ -35,21 +35,22 @@ use midnight_proofs::{
     transcript::{CircuitTranscript, Transcript},
 };
 
-use plutus_halo2_verifier_gen::kzg_params::get_or_create_kzg_params;
-use plutus_halo2_verifier_gen::plutus_gen::{
-    CardanoFriendlyBlake2b, export_committed_inputs, export_proof, export_public_inputs,
-    generate_aiken_verifier, generate_plinth_verifier, serialize_proof,
+use plutus_halo2_verifier_gen::{
+    kzg_params::get_or_create_kzg_params,
+    plutus_gen::{CardanoFriendlyBlake2b, generate_aiken_verifier, generate_plinth_verifier},
 };
 
 use midnight_curves::{Bls12, BlsScalar as Scalar};
 use rand::SeedableRng;
 use rand::prelude::StdRng;
-use std::fs::File;
 
 pub type KZG = KZGCommitmentScheme<Bls12>;
 pub type Params = ParamsKZG<Bls12>;
 pub type ParamsVK = ParamsVerifierKZG<Bls12>;
 pub type CTranscript = CircuitTranscript<CardanoFriendlyBlake2b>;
+
+#[path = "shared_utils/mod.rs"]
+mod shared_utils;
 
 mod utils {
     use std::{fs::OpenOptions, io::Read};
@@ -405,30 +406,7 @@ fn main() -> Result<()> {
         .map_err(|e| anyhow!("{e:?}"))
         .context("verify failed")?;
 
-    let instance_file =
-        "./plinth-verifier/plutus-halo2/test/Generic/serialized_public_input.hex".to_string();
-    let mut output = File::create(instance_file).context("failed to create instance file")?;
-    export_public_inputs(&formatted_instance, &mut output)
-        .context("failed to export public inputs")?;
-
-    let com_instance_file =
-        "./plinth-verifier/plutus-halo2/test/Generic/serialized_committed_input.hex".to_string();
-    let mut output = File::create(com_instance_file).context("failed to create instance file")?;
-    export_committed_inputs(Some(committed_credential), &mut output)
-        .context("failed to export public inputs")?;
-
-    serialize_proof(
-        "./plinth-verifier/plutus-halo2/test/Generic/serialized_proof.json".to_string(),
-        proof.clone(),
-    )
-    .context("json proof serialization failed")?;
-
-    export_proof(
-        "./plinth-verifier/plutus-halo2/test/Generic/serialized_proof.hex".to_string(),
-        proof.clone(),
-    )
-    .context("hex proof serialization failed")?;
-
+    shared_utils::export_plinth(&formatted_instance, Some(committed_credential), &proof)?;
     generate_plinth_verifier(
         &params,
         &vk,
@@ -437,6 +415,7 @@ fn main() -> Result<()> {
     )
     .context("Plinth verifier generation failed")?;
 
+    shared_utils::export_aiken(&formatted_instance, Some(committed_credential), &proof)?;
     generate_aiken_verifier(
         &params,
         &vk,
@@ -445,21 +424,6 @@ fn main() -> Result<()> {
         Some((proof.clone(), invalid_proof)),
     )
     .context("Aiken verifier generation failed")?;
-    export_proof(
-        "./aiken-verifier/submitter/serialized_proof.hex".to_string(),
-        proof,
-    )
-    .context("hex proof serialization failed")?;
-
-    let instance_file = "./aiken-verifier/submitter/serialized_public_input.hex".to_string();
-    let mut output = File::create(instance_file).context("failed to create instance file")?;
-    export_public_inputs(&formatted_instance, &mut output)
-        .context("Failed to export the public inputs")?;
-
-    let com_instance_file = "./aiken-verifier/submitter/serialized_committed_input.hex".to_string();
-    let mut output = File::create(com_instance_file).context("failed to create instance file")?;
-    export_committed_inputs(Some(committed_credential), &mut output)
-        .context("failed to export public inputs")?;
 
     Ok(())
 }
