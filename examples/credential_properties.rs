@@ -1,5 +1,5 @@
 use anyhow::{Context as _, Result, anyhow};
-use log::{debug, info};
+use log::info;
 use midnight_zk_stdlib::MidnightCircuit;
 
 use base64::{STANDARD_NO_PAD, decode_config};
@@ -157,7 +157,6 @@ impl Relation for CredentialProperty {
         let json = base64::decode_config(json_b64, base64::STANDARD_NO_PAD)
             .expect("Valid base64 encoded JSON.");
         let res: Vec<midnight_curves::Fq> = json.iter().map(|byte| F::from(*byte as u64)).collect();
-        println!("SIZE CI: {}", res.len());
         res
     }
 
@@ -342,22 +341,8 @@ fn main() -> Result<()> {
 
     let kzg_params: ParamsKZG<Bls12> = ParamsKZG::<Bls12>::unsafe_setup(K, rng.clone());
 
-    let relation = CredentialProperty;
     let witness = CredentialProperty::witness_from_blob(credential_blob.as_slice());
     let witness = (witness.0, HOLDER_SK);
-
-    let vk = midnight_zk_stdlib::setup_vk(&kzg_params, &relation);
-    let committed_instance = CredentialProperty::format_committed_instances(&witness);
-    let committed_credential = commit_to_instances::<_, KZGCommitmentScheme<_>>(
-        &kzg_params,
-        vk.vk().get_domain(),
-        &committed_instance,
-    );
-    debug!(
-        "committed instances: {:?}",
-        CredentialProperty::format_committed_instances(&witness)
-    );
-
     let circuit = MidnightCircuit::new(
         &CredentialProperty,
         Value::known(()),
@@ -375,7 +360,14 @@ fn main() -> Result<()> {
     let mut transcript = CTranscript::init();
 
     let formatted_instance = CredentialProperty::format_instance(&()).unwrap();
-    let instances: &[&[&[Scalar]]] = &[&[&committed_instance, &formatted_instance]];
+    info!("Public inputs: {:?}", formatted_instance);
+    let committed_instance = CredentialProperty::format_committed_instances(&witness);
+    let committed_credential = commit_to_instances::<_, KZGCommitmentScheme<_>>(
+        &kzg_params,
+        vk.get_domain(),
+        &committed_instance,
+    );
+    info!("committed instances: {:?}", committed_instance);
 
     let nb_committed_instances = 1;
     create_proof(
@@ -383,7 +375,7 @@ fn main() -> Result<()> {
         &pk,
         &[circuit],
         nb_committed_instances,
-        instances,
+        &[&[&committed_instance, &formatted_instance]],
         &mut rng,
         &mut transcript,
     )
@@ -413,14 +405,15 @@ fn main() -> Result<()> {
         .map_err(|e| anyhow!("{e:?}"))
         .context("verify failed")?;
 
-    let instances_file =
+    let instance_file =
         "./plinth-verifier/plutus-halo2/test/Generic/serialized_public_input.hex".to_string();
-    let mut output = File::create(instances_file).context("failed to create instances file")?;
-    export_public_inputs(instances, &mut output).context("failed to export public inputs")?;
+    let mut output = File::create(instance_file).context("failed to create instance file")?;
+    export_public_inputs(&formatted_instance, &mut output)
+        .context("failed to export public inputs")?;
 
-    let com_instances_file =
+    let com_instance_file =
         "./plinth-verifier/plutus-halo2/test/Generic/serialized_committed_input.hex".to_string();
-    let mut output = File::create(com_instances_file).context("failed to create instances file")?;
+    let mut output = File::create(com_instance_file).context("failed to create instance file")?;
     export_committed_inputs(Some(committed_credential), &mut output)
         .context("failed to export public inputs")?;
 
@@ -436,13 +429,18 @@ fn main() -> Result<()> {
     )
     .context("hex proof serialization failed")?;
 
-    generate_plinth_verifier(&params, &vk, instances)
-        .context("Plinth verifier generation failed")?;
+    generate_plinth_verifier(
+        &params,
+        &vk,
+        &formatted_instance,
+        Some(committed_credential),
+    )
+    .context("Plinth verifier generation failed")?;
 
     generate_aiken_verifier(
         &params,
         &vk,
-        instances,
+        &formatted_instance,
         Some(committed_credential),
         Some((proof.clone(), invalid_proof)),
     )
@@ -453,13 +451,13 @@ fn main() -> Result<()> {
     )
     .context("hex proof serialization failed")?;
 
-    let instances_file = "./aiken-verifier/submitter/serialized_public_input.hex".to_string();
-    let mut output = File::create(instances_file).context("failed to create instances file")?;
-    export_public_inputs(instances, &mut output).context("Failed to export the public inputs")?;
+    let instance_file = "./aiken-verifier/submitter/serialized_public_input.hex".to_string();
+    let mut output = File::create(instance_file).context("failed to create instance file")?;
+    export_public_inputs(&formatted_instance, &mut output)
+        .context("Failed to export the public inputs")?;
 
-    let com_instances_file =
-        "./aiken-verifier/submitter/serialized_committed_input.hex".to_string();
-    let mut output = File::create(com_instances_file).context("failed to create instances file")?;
+    let com_instance_file = "./aiken-verifier/submitter/serialized_committed_input.hex".to_string();
+    let mut output = File::create(com_instance_file).context("failed to create instance file")?;
     export_committed_inputs(Some(committed_credential), &mut output)
         .context("failed to export public inputs")?;
 

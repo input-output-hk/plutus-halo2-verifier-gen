@@ -12,7 +12,8 @@ use midnight_curves::{Fr as JubjubScalar, JubjubAffine, JubjubExtended as Jubjub
 use midnight_proofs::{
     circuit::Value,
     plonk::{
-        ProvingKey, VerifyingKey, create_proof, k_from_circuit, keygen_pk, keygen_vk, prepare,
+        ProvingKey, VerifyingKey, commit_to_instances, create_proof, k_from_circuit, keygen_pk,
+        keygen_vk, prepare,
     },
     poly::commitment::Guard,
     poly::kzg::{
@@ -25,8 +26,8 @@ use midnight_zk_stdlib::MidnightCircuit;
 use midnight_zk_stdlib::Relation;
 
 use plutus_halo2_verifier_gen::plutus_gen::{
-    CardanoFriendlyBlake2b, export_proof, export_public_inputs, generate_aiken_verifier,
-    generate_plinth_verifier, serialize_proof,
+    CardanoFriendlyBlake2b, export_committed_inputs, export_proof, export_public_inputs,
+    generate_aiken_verifier, generate_plinth_verifier, serialize_proof,
 };
 use plutus_halo2_verifier_gen::{
     circuits::schnorr_circuit::{SchnorrExample, SchnorrSignature, utils::verify},
@@ -94,7 +95,7 @@ fn main() -> Result<()> {
     let circuit = MidnightCircuit::new(
         &relation,
         Value::known(instance),
-        Value::known(witness),
+        Value::known(witness.clone()),
         None,
     );
     let k = k_from_circuit(&circuit);
@@ -108,15 +109,21 @@ fn main() -> Result<()> {
     debug!("transcript: {:?}", transcript);
 
     let formatted_instance = SchnorrExample::format_instance(&instance).unwrap();
-    let instances: &[&[&[Scalar]]] = &[&[&[], &formatted_instance]];
-    info!("Public inputs: {:?}", instances);
-    let nb_committed_instances = 0;
+    let formatted_witness = SchnorrExample::format_committed_instances(&witness.clone());
+    let committed_signature = commit_to_instances::<_, KZGCommitmentScheme<_>>(
+        &params,
+        vk.get_domain(),
+        &formatted_witness,
+    );
+
+    info!("Public inputs: {:?}", formatted_instance);
+    let nb_committed_instances = 1;
     create_proof(
         &params,
         &pk,
         &[circuit],
         nb_committed_instances,
-        instances,
+        &[&[&formatted_witness, &formatted_instance]],
         &mut rng,
         &mut transcript,
     )
@@ -133,18 +140,30 @@ fn main() -> Result<()> {
     info!("proof size {:?}", proof.len());
 
     let mut transcript_verifier = CTranscript::init_from_bytes(&proof);
-    let verifier = prepare::<_, KZG, CTranscript>(&vk, &[&[]], instances, &mut transcript_verifier)
-        .context("prepare verification failed")?;
+    let verifier = prepare::<_, KZG, CTranscript>(
+        &vk,
+        &[&[committed_signature]],
+        &[&[&formatted_instance]],
+        &mut transcript_verifier,
+    )
+    .context("prepare verification failed")?;
 
     verifier
         .verify(&params.verifier_params())
         .map_err(|e| anyhow!("{e:?}"))
         .context("verify failed")?;
 
-    let instances_file =
+    let instance_file =
         "./plinth-verifier/plutus-halo2/test/Generic/serialized_public_input.hex".to_string();
-    let mut output = File::create(instances_file).context("failed to create instances file")?;
-    export_public_inputs(instances, &mut output).context("failed to export public inputs")?;
+    let mut output = File::create(instance_file).context("failed to create instance file")?;
+    export_public_inputs(&formatted_instance, &mut output)
+        .context("failed to export public inputs")?;
+
+    let com_instance_file =
+        "./plinth-verifier/plutus-halo2/test/Generic/serialized_committed_input.hex".to_string();
+    let mut output = File::create(com_instance_file).context("failed to create instance file")?;
+    export_committed_inputs(Some(committed_signature), &mut output)
+        .context("failed to export public inputs")?;
 
     serialize_proof(
         "./plinth-verifier/plutus-halo2/test/Generic/serialized_proof.json".to_string(),
@@ -158,14 +177,14 @@ fn main() -> Result<()> {
     )
     .context("hex proof serialization failed")?;
 
-    generate_plinth_verifier(&params, &vk, instances)
+    generate_plinth_verifier(&params, &vk, &formatted_instance, Some(committed_signature))
         .context("Plinth verifier generation failed")?;
 
     generate_aiken_verifier(
         &params,
         &vk,
-        instances,
-        None,
+        &formatted_instance,
+        Some(committed_signature),
         Some((proof.clone(), invalid_proof)),
     )
     .context("Aiken verifier generation failed")?;
@@ -175,9 +194,15 @@ fn main() -> Result<()> {
     )
     .context("hex proof serialization failed")?;
 
-    let instances_file = "./aiken-verifier/submitter/serialized_public_input.hex".to_string();
-    let mut output = File::create(instances_file).context("failed to create instances file")?;
-    export_public_inputs(instances, &mut output).context("Failed to export the public inputs")?;
+    let instance_file = "./aiken-verifier/submitter/serialized_public_input.hex".to_string();
+    let mut output = File::create(instance_file).context("failed to create instance file")?;
+    export_public_inputs(&formatted_instance, &mut output)
+        .context("Failed to export the public inputs")?;
+
+    let com_instance_file = "./aiken-verifier/submitter/serialized_committed_input.hex".to_string();
+    let mut output = File::create(com_instance_file).context("failed to create instance file")?;
+    export_committed_inputs(Some(committed_signature), &mut output)
+        .context("failed to export public inputs")?;
 
     Ok(())
 }

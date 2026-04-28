@@ -50,60 +50,18 @@ where
         .committed_instances_supported;
 
     // Handling committed instances
-    if committed_instances_supported {
-        let committed_instances_names: Vec<String> = (1..=nb_committed_instances)
-            .map(|n| format!("ci{}", n))
-            .collect();
-
-        let mut suffix = "";
-        if nb_committed_instances > 0 && nb_public_inputs > 0 {
-            suffix = " ";
-        }
-
-        // Writing committed instance types in verify function's definition
-        data.insert("COMMITTED_INSTANCES_TYPES".to_string(), {
-            let ci_types = (1..=nb_committed_instances)
-                .map(|_| "BuiltinBLS12_381_G1_Element ->".to_string())
-                .join(" ");
-            let mut to_write_down = String::with_capacity(ci_types.len() + suffix.len());
-            to_write_down.push_str(&ci_types);
-            to_write_down.push_str(suffix);
-            to_write_down
-        });
-
-        // Writing committed instance types in verify function's interface
-        data.insert("COMMITTED_INSTANCES_NAMES".to_string(), {
-            let ci_names = committed_instances_names.iter().join(" ");
-            let mut to_write_down = String::with_capacity(ci_names.len() + suffix.len());
-            to_write_down.push_str(&ci_names);
-            to_write_down.push_str(suffix);
-            to_write_down
-        });
-
-        // Absorbing number and value of committed instances in transcript
-        data.insert("ABSORB_COMMITTED_INSTANCES".to_string(), {
-            let absorb_nb_committed_instances = format!(
-                "  _ <- M.commonScalar (mkScalar {})\n",
-                nb_committed_instances
-            );
-
-            // TODO
-            let absorb_committed_instances = (1..=nb_committed_instances)
-                .map(|n| format!("  !ci{} <- M.commonG1 ci{}\n", n, n))
-                .join("");
-
-            let mut to_write_down = String::with_capacity(
-                absorb_nb_committed_instances.len() + absorb_committed_instances.len(),
-            );
-            to_write_down.push_str(&absorb_nb_committed_instances);
-            to_write_down.push_str(&absorb_committed_instances);
-            to_write_down
-        });
-    } else {
-        data.insert("COMMITTED_INSTANCES_TYPES".to_string(), "".to_string());
-        data.insert("COMMITTED_INSTANCES_NAMES".to_string(), "".to_string());
-        data.insert("ABSORB_COMMITTED_INSTANCES".to_string(), "".to_string());
-    }
+    let (ci_absorption, ci_type, ci_name) =
+        if committed_instances_supported && nb_committed_instances > 0 {
+            let ci_absorb = format!("  !ci{} <- M.commonG1 committedInputs\n", 1);
+            let ci_type = format!("  BuiltinBLS12_381_G1_Element ->");
+            let ci_name = format!("ci{}", 1);
+            (ci_absorb, ci_type, ci_name)
+        } else {
+            (String::new(), String::new(), String::new())
+        };
+    data.insert("ABSORB_COMMITTED_INSTANCES".to_string(), ci_absorption);
+    data.insert("COMMITTED_INSTANCES_TYPES".to_string(), ci_type);
+    data.insert("COMMITTED_INSTANCES_NAMES".to_string(), ci_name);
 
     // Handling public inputs
     {
@@ -112,9 +70,6 @@ where
             nb_public_inputs.to_string(),
         );
 
-        let public_inputs_names: Vec<String> =
-            (1..=nb_public_inputs).map(|n| format!("p{}", n)).collect();
-
         data.insert(
             "PUBLIC_INPUTS_TYPES".to_string(),
             (1..=nb_public_inputs)
@@ -122,16 +77,11 @@ where
                 .join(" "),
         );
 
-        data.insert(
-            "PUBLIC_INPUTS_NAMES".to_string(),
-            public_inputs_names.iter().join(" "),
-        );
-
         let absorb_nb_public_inputs =
             format!("  _ <- M.commonScalar (mkScalar {})\n", nb_public_inputs);
 
         let absorb_public_inputs = (1..=nb_public_inputs)
-            .map(|n| format!("  !i{} <- M.commonScalar p{}\n", n, n))
+            .map(|n| format!("  !i{} <- M.commonScalar (parsedInputs !! {})\n", n, n - 1))
             .join("");
 
         let mut public_inputs =
@@ -256,14 +206,7 @@ where
                 }
             }).join(""),
             ProofExtractionSteps::InstanceEval => section.enumerate().map(|(number, _i)| {
-                let mut offset = nb_committed_instances;
-                // When we support committed instances but have none, we still
-                // create a dedicated null instance evaluation for them, as
-                // such we need to offset the public instances instance_eval's
-                // index.
-                if committed_instances_supported && nb_committed_instances == 0 {
-                    offset += 1;
-                }
+                let offset = nb_committed_instances;
                 if nb_public_inputs == 0 {
                     format!("  let !instanceEval{} = scalarZero\n", number + offset + 1)
                 } else {

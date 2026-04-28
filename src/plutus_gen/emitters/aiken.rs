@@ -36,42 +36,15 @@ where
         .committed_instances_supported;
 
     // Handling committed instances
-    if committed_instances_supported {
-        let committed_instance_names: Vec<String> = (1..=nb_committed_instances)
-            .map(|n| format!("ci{}", n))
-            .collect();
-
-        // Writing committed instances names in verify function's interface
-        data.insert("COMMITTED_INSTANCES_NAMES".to_string(), {
-            let cins = committed_instance_names
-                .iter()
-                .map(|name| format!("{}: ByteArray", name))
-                .join(", ");
-            let mut suffix = "";
-            if nb_committed_instances > 0 && nb_public_inputs > 0 {
-                suffix = " ,";
-            }
-            let mut to_write_down = String::with_capacity(cins.len() + suffix.len());
-            to_write_down.push_str(&cins);
-            to_write_down.push_str(&suffix);
-            to_write_down
-        });
-
-        // Absorbing number and value of committed instances in transcript
-        data.insert("ABSORB_COMMITTED_INSTANCES".to_string(), {
-            let committed_instances = committed_instance_names
-                .iter()
-                .map(|n| format!("    let transcript = common_g1({}, transcript)\n", n))
-                .join("");
-
-            let mut to_write_down = String::with_capacity(committed_instances.len());
-            to_write_down.push_str(&committed_instances);
-            to_write_down
-        });
+    let (ci_names, absorb_cis) = if committed_instances_supported && nb_committed_instances > 0 {
+        let ci_names = format!("ci_1: ByteArray") + if nb_public_inputs > 0 { ", " } else { "" };
+        let absorb_cis = format!("    let transcript = common_g1(ci_1, transcript)\n");
+        (ci_names, absorb_cis)
     } else {
-        data.insert("COMMITTED_INSTANCES_NAMES".to_string(), "".to_string());
-        data.insert("ABSORB_COMMITTED_INSTANCES".to_string(), "".to_string());
-    }
+        (String::new(), String::new())
+    };
+    data.insert("COMMITTED_INSTANCES_NAMES".to_string(), ci_names);
+    data.insert("ABSORB_COMMITTED_INSTANCES".to_string(), absorb_cis);
 
     // Handling public inputs
     {
@@ -110,7 +83,7 @@ where
     };
 
     // Extracting from transcript commitments and evaluations
-    // Also generating instances' evaluation
+    // Also generating instance's evaluation
     let public_inputs_lagrange = (1..=nb_public_inputs)
         .map(|n| format!("i_{}", n))
         .join(", ");
@@ -227,14 +200,7 @@ where
                 }
             }).join(""),
             ProofExtractionSteps::InstanceEval => section.enumerate().map(|(number, _i)| {
-                let mut offset = nb_committed_instances;
-                // When we support committed instances but have none, we still
-                // create a dedicated null instance evaluation for them, as
-                // such we need to offset the public instances instance_eval's
-                // index.
-                if committed_instances_supported && nb_committed_instances == 0 {
-                    offset += 1;
-                }
+                let offset = nb_committed_instances;
                 if nb_public_inputs == 0 {
                     format!("    let instance_eval_{} = from_int(0)\n", number + offset + 1)
                 } else {
@@ -749,19 +715,19 @@ where
                 .to_string()
             });
 
-            let valid_inputs = [valid_pi, committed_inputs.clone()]
+            let valid_inputs = [committed_inputs.clone(), valid_pi]
                 .into_iter()
                 .filter(|s| !s.is_empty())
                 .collect::<Vec<_>>()
                 .join(", ");
 
-            let invalid_inputs = [invalid_pi, invalid_committed_inputs.clone()]
+            let invalid_inputs = [invalid_committed_inputs.clone(), invalid_pi]
                 .into_iter()
                 .filter(|s| !s.is_empty())
                 .collect::<Vec<_>>()
                 .join(", ");
 
-            let trivial_inputs = [trivial_pi, trivial_committed_inputs]
+            let trivial_inputs = [trivial_committed_inputs, trivial_pi]
                 .into_iter()
                 .filter(|s| !s.is_empty())
                 .collect::<Vec<_>>()

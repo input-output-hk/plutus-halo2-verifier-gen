@@ -238,8 +238,8 @@ mod tests {
         let vk: VerifyingKey<Scalar, PCS> = keygen_vk(&kzg_params, &circuit).unwrap();
         let pk: ProvingKey<Scalar, PCS> = keygen_pk(vk.clone(), &circuit).unwrap();
 
-        let instances: &[&[&[Scalar]]] = &[&[&[pks_comm, msg, Base::from(threshold as u64)]]];
-        info!("Public inputs: {:?}", instances);
+        let instance = [pks_comm, msg, Base::from(threshold as u64)];
+        info!("Public inputs: {:?}", instance);
 
         let mut transcript: CircuitTranscript<CardanoFriendlyBlake2b> =
             CircuitTranscript::<CardanoFriendlyBlake2b>::init();
@@ -250,7 +250,7 @@ mod tests {
             &pk,
             &[circuit],
             nb_committed_instances,
-            instances,
+            &[&[&instance]],
             &mut rng,
             &mut transcript,
         )
@@ -265,7 +265,7 @@ mod tests {
         let verifier = prepare::<_, PCS, CircuitTranscript<CardanoFriendlyBlake2b>>(
             &vk,
             &[&[]],
-            instances,
+            &[&[&instance]],
             &mut transcript_verifier,
         )
         .expect("prepare verification failed");
@@ -288,8 +288,8 @@ mod tests {
             threshold: Base::from(threshold as u64),
         };
 
-        let instances: &[&[&[Scalar]]] = &[&[&[pks_comm, msg, Base::from(threshold as u64)]]];
-        info!("Public inputs: {:?}", instances);
+        let instance = [pks_comm, msg, Base::from(threshold as u64)];
+        info!("Public inputs: {:?}", instance);
 
         let mut transcript: CircuitTranscript<CardanoFriendlyBlake2b> =
             CircuitTranscript::<CardanoFriendlyBlake2b>::init();
@@ -299,7 +299,7 @@ mod tests {
             &pk,
             &[circuit],
             nb_committed_instances,
-            instances,
+            &[&[&instance]],
             &mut rng,
             &mut transcript,
         )
@@ -314,7 +314,7 @@ mod tests {
         let verifier = prepare::<_, PCS, CircuitTranscript<CardanoFriendlyBlake2b>>(
             &vk,
             &[&[]],
-            instances,
+            &[&[&instance]],
             &mut transcript_verifier,
         )
         .expect("prepare verification failed");

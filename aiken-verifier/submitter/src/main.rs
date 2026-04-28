@@ -83,11 +83,11 @@ async fn main() -> Result<()> {
 
     let instance_file = "./serialized_public_input.hex".to_string();
     let mut instance_file = File::open(instance_file).context("failed to open instance file")?;
-    let mut instances = String::new();
-    instance_file.read_to_string(&mut instances)?;
-    let instances = instances.lines();
+    let mut instance = String::new();
+    instance_file.read_to_string(&mut instance)?;
+    let instance = instance.lines();
 
-    let instances_bytes: Vec<u8> = instances.clone().fold(vec![], |mut acc, instance| {
+    let instance_bytes: Vec<u8> = instance.clone().fold(vec![], |mut acc, instance| {
         let mut i = hex::decode(instance).expect("");
         acc.append(&mut i);
         acc
@@ -95,12 +95,12 @@ async fn main() -> Result<()> {
 
     let mut cardano_blake2b = Params::new().hash_length(32).to_state();
     cardano_blake2b.update(&proof_bytes);
-    cardano_blake2b.update(&instances_bytes);
+    cardano_blake2b.update(&instance_bytes);
     let nft_name = cardano_blake2b.finalize();
 
     let transaction = mint(
         proof_bytes,
-        instances.map(|s| s.to_owned()).collect(),
+        instance.map(|s| s.to_owned()).collect(),
         &node_client,
         &private_key,
         &smart_contract,
@@ -120,7 +120,7 @@ async fn main() -> Result<()> {
 
 pub async fn mint(
     proof: Vec<u8>,
-    instances: Vec<String>,
+    instance: Vec<String>,
     node_client: &BlockFrostNodeAPI,
     private_key_paying_for_mint: &PrivateKey,
     script: &PlutusScript,
@@ -155,7 +155,7 @@ pub async fn mint(
     redeemer_data.add(&PlutusData::new_bytes(proof));
 
     //this logic is to work around hex deserialization issue in cardano serialization lib
-    for instance in instances {
+    for instance in instance {
         let instance_bytes = hex::decode(instance)?;
         redeemer_data.add(&PlutusData::new_bytes(instance_bytes));
     }

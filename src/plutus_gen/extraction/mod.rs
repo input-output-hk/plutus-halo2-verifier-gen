@@ -27,45 +27,30 @@ pub(crate) mod pcs;
 pub use pcs::ExtractPCS;
 
 /// Function extracting the circuit description from a verification key,
-/// parameters and instances.
+/// parameters and instance.
 pub fn extract_circuit<PCS>(
     params: &ParamsKZG<Bls12>,
     vk: &VerifyingKey<Scalar, PCS>,
-    instances: &[&[&[Scalar]]],
+    instance: &[Scalar],
+    committed_instances: Option<G1Projective>,
 ) -> Result<CircuitRepresentation<PCS>, Error>
 where
     PCS: ExtractPCS + PolynomialCommitmentScheme<Scalar, Commitment = G1Projective>,
 {
-    // We suppose we only are verifying a single proof
-    if instances.len() > 1 {
-        return Err(anyhow!(
-            "Only one proof can be processed at a time, {} were received",
-            instances.len()
-        ));
+    let mut nb_committed_instances = 0;
+    if committed_instances.is_some() {
+        nb_committed_instances = 1;
     }
 
     // Checking that the number of committed instances and public inputs equal
-    // the number of instance columns and that their number does not vary
-    // across instances.
-    let default_lenghts: Vec<usize> = instances[0].iter().map(|i| i.len()).collect();
-    for instances in instances.iter() {
-        if instances.len() != vk.cs().num_instance_columns() {
-            return Err(anyhow!(
-                "Invalid number of instances, #instances ({}) != #instance_columns ({})",
-                instances.len(),
-                vk.cs().num_instance_columns()
-            ));
-        }
-        if instances
-            .iter()
-            .map(|i| i.len())
-            .zip(default_lenghts.iter())
-            .all(|(l1, &l2)| l1 != l2)
-        {
-            return Err(anyhow!(
-                "Committed instances and public inputs across instances do not have the same lengths."
-            ));
-        }
+    // the number of instance columns.
+    if nb_committed_instances + 1 != vk.cs().num_instance_columns() {
+        return Err(anyhow!(
+            "Invalid number of (committed) instances, #committed instance ({}) + #instances ({}) != #instance_columns ({})",
+            nb_committed_instances,
+            instance.len(),
+            vk.cs().num_instance_columns()
+        ));
     }
 
     let chunk_len = vk.cs().degree() - 2;
@@ -75,7 +60,7 @@ where
     // Extracting proof_instantiation_data
     circuit_description
         .proof_instantiation_data
-        .extract(params, vk, instances);
+        .extract(params, vk, instance, committed_instances);
 
     // Extracting proof_extraction_steps
     extract_proof_steps(&mut circuit_description, vk);
