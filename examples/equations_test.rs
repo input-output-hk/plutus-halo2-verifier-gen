@@ -51,6 +51,7 @@ fn main() -> Result<()> {
         Path::new("aiken-verifier/templates/gates_test.hbs"),
         Path::new("aiken-verifier/aiken_halo2/lib/gates_test.ak"),
         None,
+        None,
         &circuit_representation,
         None,
     )
