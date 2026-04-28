@@ -26,3 +26,7 @@ proof_verifier.ak
 verifier_key.ak
 profiler.ak
 verifier.ak
+Test.hs
+VerificationTestHaskell.hs
+VerificationTestPlutus.hs
+VerifyCompiled.hs

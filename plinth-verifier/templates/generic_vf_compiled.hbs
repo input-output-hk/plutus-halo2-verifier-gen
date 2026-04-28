@@ -21,11 +21,14 @@ import PlutusTx
 import qualified PlutusTx.Maybe as PlutusTx
 import qualified PlutusTx.Prelude as PlutusTx
 import UntypedPlutusCore (DefaultFun, DefaultUni, UnrestrictedProgram (UnrestrictedProgram))
+import PlutusTx.Builtins (
+  BuiltinBLS12_381_G1_Element,
+ )
 
 verifyAdapter :: BuiltinData -> ()
 verifyAdapter proofAsData =
-    let PlutusTx.Just (proof, p1, p2, p3) = PlutusTx.fromBuiltinData proofAsData
-        (result, _) = verify proof p1 p2 p3
+    let PlutusTx.Just (proof, {{{SEP_COMMITTED_INSTANCES_AND_INSTANCE_VARS}}}) = PlutusTx.fromBuiltinData proofAsData
+        (result, _) = verify proof {{{COMMITTED_INSTANCES_AND_INSTANCE_VARS}}}
      in if result PlutusTx.== PlutusTx.True
             then ()
             else PlutusTx.error ()
@@ -33,42 +36,40 @@ verifyAdapter proofAsData =
 verifyCompiled :: CompiledCode (BuiltinData -> ())
 verifyCompiled = $$(PlutusTx.compile [||verifyAdapter||])
 
-sampleProofCompiled :: Scalar -> Scalar -> Scalar -> CompiledCode BuiltinData
-sampleProofCompiled p1 p2 p3 =
-    let proof = PlutusTx.toBuiltinData (sampleProof, p1, p2, p3)
+sampleProofCompiled :: {{{COMMITTED_INSTANCES_AND_INSTANCE_TYPES}}} CompiledCode BuiltinData
+sampleProofCompiled {{{COMMITTED_INSTANCES_AND_INSTANCE_VARS}}} =
+    let proof = PlutusTx.toBuiltinData (sampleProof, {{{SEP_COMMITTED_INSTANCES_AND_INSTANCE_VARS}}})
      in proof `seq` PlutusTx.liftCode plcVersion110 proof
 
-verifyAppliedCompiled :: Scalar -> Scalar -> Scalar -> CompiledCode ()
-verifyAppliedCompiled p1 p2 p3 =
-    case verifyCompiled `applyCode` sampleProofCompiled p1 p2 p3 of
+verifyAppliedCompiled :: {{{COMMITTED_INSTANCES_AND_INSTANCE_TYPES}}} CompiledCode ()
+verifyAppliedCompiled {{{COMMITTED_INSTANCES_AND_INSTANCE_VARS}}} =
+    case verifyCompiled `applyCode` sampleProofCompiled {{{COMMITTED_INSTANCES_AND_INSTANCE_VARS}}} of
         Left e -> error $ show e
         Right applied -> applied
 
-writeToFile :: Scalar -> Scalar -> Scalar -> IO ()
-writeToFile p1 p2 p3 =
+writeToFile :: {{{COMMITTED_INSTANCES_AND_INSTANCE_TYPES}}} IO ()
+writeToFile {{{COMMITTED_INSTANCES_AND_INSTANCE_VARS}}} =
     BS.writeFile "VerifierScript.flat" . flat . UnrestrictedProgram <$> PlutusTx.getPlcNoAnn $
-        (proofMintingPolicyContractApplied p1 p2 p3)
+        (proofMintingPolicyContractApplied {{{COMMITTED_INSTANCES_AND_INSTANCE_VARS}}})
 
 -- proofMintingPolicyContractApplied
 
 -- | we are only minting here. Burning will come later
 {-# INLINEABLE proofMintingContract #-}
 proofMintingContract :: BuiltinData -> Bool
-proofMintingContract proof =
-    let PlutusTx.Just (proof', p1, p2, p3) = PlutusTx.fromBuiltinData proof
-        (result, _) = verify proof' p1 p2 p3
+proofMintingContract proofData =
+    let PlutusTx.Just (proof, {{{SEP_COMMITTED_INSTANCES_AND_INSTANCE_VARS}}}) = PlutusTx.fromBuiltinData proofData
+        (result, _) = verify proof {{{COMMITTED_INSTANCES_AND_INSTANCE_VARS}}}
      in result PlutusTx.== PlutusTx.True
 
 proofMintingPolicyContractApplied ::
-    Scalar ->
-    Scalar ->
-    Scalar ->
+    {{{COMMITTED_INSTANCES_AND_INSTANCE_TYPES}}}
     CompiledCodeIn
         DefaultUni
         DefaultFun
         PlutusTx.BuiltinUnit
-proofMintingPolicyContractApplied p1 p2 p3 =
+proofMintingPolicyContractApplied {{{COMMITTED_INSTANCES_AND_INSTANCE_VARS}}} =
     case $$(PlutusTx.compile [||PlutusTx.check . proofMintingContract||])
-        `applyCode` (sampleProofCompiled p1 p2 p3) of
+        `applyCode` (sampleProofCompiled {{{COMMITTED_INSTANCES_AND_INSTANCE_VARS}}}) of
         Left e -> error $ show e
         Right applied -> applied

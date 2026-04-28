@@ -10,11 +10,16 @@ use crate::plutus_gen::extraction::pcs::{ExtractPCS, PCSType};
 use group::{GroupEncoding, prime::PrimeCurveAffine};
 use handlebars::{Handlebars, RenderError};
 use itertools::Itertools;
+use std::env::var;
 use std::{collections::HashMap, fs::File, path::Path};
 
 pub fn emit_verifier_code<PCS>(
     template_file: &Path, // haskell mustashe template
     haskell_file: &Path,  // generated haskell file, output
+    test_template: &Path,
+    test_plutus_template: &Path,
+    test_haskell_template: &Path,
+    test_compiled_template: &Path,
     circuit: &CircuitRepresentation<PCS>,
 ) -> Result<String, RenderError>
 where
@@ -50,18 +55,12 @@ where
         .committed_instances_supported;
 
     // Handling committed instances
-    let (ci_absorption, ci_type, ci_name) =
-        if committed_instances_supported && nb_committed_instances > 0 {
-            let ci_absorb = format!("  !ci{} <- M.commonG1 committedInputs\n", 1);
-            let ci_type = format!("  BuiltinBLS12_381_G1_Element ->");
-            let ci_name = format!("ci{}", 1);
-            (ci_absorb, ci_type, ci_name)
-        } else {
-            (String::new(), String::new(), String::new())
-        };
+    let ci_absorption = if committed_instances_supported && nb_committed_instances > 0 {
+        format!("  !ci{} <- M.commonG1 committedInputs\n", 1)
+    } else {
+        String::new()
+    };
     data.insert("ABSORB_COMMITTED_INSTANCES".to_string(), ci_absorption);
-    data.insert("COMMITTED_INSTANCES_TYPES".to_string(), ci_type);
-    data.insert("COMMITTED_INSTANCES_NAMES".to_string(), ci_name);
 
     // Handling public inputs
     {
@@ -726,6 +725,69 @@ where
         let all_traces: Vec<_> = all_traces.iter().flatten().collect();
 
         data.insert("TRACES".to_string(), all_traces.iter().join(",\n       "));
+    }
+
+    {
+        let mut vars = Vec::new();
+        if nb_committed_instances > 0 {
+            vars.push("committedInputs".to_string());
+        }
+        if nb_public_inputs > 0 {
+            vars.push("parsedInputs".to_string());
+        }
+
+        data.insert("COMMITTED_INSTANCES_AND_INSTANCE_VARS".to_string(), {
+            vars.iter().join(" ")
+        });
+        data.insert("SEP_COMMITTED_INSTANCES_AND_INSTANCE_VARS".to_string(), {
+            vars.iter().join(", ")
+        });
+
+        let mut var_types = Vec::new();
+        if nb_committed_instances > 0 {
+            var_types.push("BuiltinBLS12_381_G1_Element".to_string());
+        }
+        if nb_public_inputs > 0 {
+            var_types.push("[Scalar]".to_string());
+        }
+        data.insert("COMMITTED_INSTANCES_AND_INSTANCE_TYPES".to_string(), {
+            if var_types.is_empty() {
+                String::new()
+            } else {
+                var_types.iter().join(" -> ") + " ->"
+            }
+        });
+
+        let mut handlebars = Handlebars::new();
+        handlebars.set_strict_mode(true);
+        handlebars.register_template_file("test_template", test_template)?;
+        let mut output_file = File::create("plinth-verifier/plutus-halo2/test/Test.hs")?;
+        handlebars.render_to_write("test_template", &data, &mut output_file)?;
+        handlebars.render("test_template", &data)?;
+
+        let mut handlebars = Handlebars::new();
+        handlebars.set_strict_mode(true);
+        handlebars.register_template_file("test_haskell_template", test_haskell_template)?;
+        let mut output_file =
+            File::create("plinth-verifier/plutus-halo2/test/Generic/VerificationTestHaskell.hs")?;
+        handlebars.render_to_write("test_haskell_template", &data, &mut output_file)?;
+        handlebars.render("test_haskell_template", &data)?;
+
+        let mut handlebars = Handlebars::new();
+        handlebars.set_strict_mode(true);
+        handlebars.register_template_file("test_plutus_template", test_plutus_template)?;
+        let mut output_file =
+            File::create("plinth-verifier/plutus-halo2/test/Generic/VerificationTestPlutus.hs")?;
+        handlebars.render_to_write("test_plutus_template", &data, &mut output_file)?;
+        handlebars.render("test_plutus_template", &data)?;
+
+        let mut handlebars = Handlebars::new();
+        handlebars.set_strict_mode(true);
+        handlebars.register_template_file("test_compiled_template", test_compiled_template)?;
+        let mut output_file =
+            File::create("plinth-verifier/plutus-halo2/test/Generic/VerifyCompiled.hs")?;
+        handlebars.render_to_write("test_compiled_template", &data, &mut output_file)?;
+        handlebars.render("test_compiled_template", &data)?;
     }
 
     #[cfg(not(feature = "plutus_debug"))]

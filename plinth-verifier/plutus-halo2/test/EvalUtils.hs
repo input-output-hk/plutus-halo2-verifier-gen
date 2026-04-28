@@ -9,6 +9,7 @@ module EvalUtils (
     evalWithBudget',
     estimateCompiledCodeSize,
     parsedInputs,
+    committedInputs,
 )
 where
 
@@ -43,6 +44,21 @@ import qualified Data.ByteString
 import qualified Data.ByteString.Char8
 import Data.FileEmbed (embedFile)
 import qualified Numeric
+import PlutusTx.Builtins (
+    BuiltinBLS12_381_G1_Element,
+ )
+import Plutus.Crypto.Halo2 (
+    bls12_381_field_prime,
+    bls12_381_base_prime,
+    mkScalar,
+    Scalar,
+    Fp,
+    constructG1Point,
+    mkFp,
+ )
+import PlutusTx.Prelude (
+    modulo,
+ )
 
 data Error
     = FreeVariableError
@@ -79,13 +95,23 @@ evalWithBudget' = evalWithBudget
 estimateCompiledCodeSize :: CompiledCode a -> Integer
 estimateCompiledCodeSize = serialisedSize . serialiseCompiledCode
 
-publicInputs :: Data.ByteString.ByteString
-publicInputs = $(embedFile "test/Generic/serialized_public_input.hex")
-
-parsedInputs :: [Integer]
-parsedInputs = map parseFile (Data.ByteString.Char8.lines publicInputs)
-
-parseFile :: Data.ByteString.ByteString -> Integer
-parseFile line = case Numeric.readHex (Data.ByteString.Char8.unpack line) of
-    [(n, "")] -> n
+parseScalar :: Data.ByteString.ByteString -> Scalar
+parseScalar line = case Numeric.readHex (Data.ByteString.Char8.unpack line) of
+    [(n, "")] -> mkScalar (n `modulo` bls12_381_field_prime)
     _ -> Prelude.error "failed to load public inputs from proof_data/public_inputs.hex"
+
+parsedInputs :: [Scalar]
+parsedInputs =
+    let file = $(embedFile "test/Generic/serialized_public_input.hex") in
+    map parseScalar (Data.ByteString.Char8.lines file)
+
+parseBase :: Data.ByteString.ByteString -> Fp
+parseBase line = case Numeric.readHex (Data.ByteString.Char8.unpack line) of
+    [(n, "")] -> mkFp (n `modulo` bls12_381_base_prime)
+    _ -> Prelude.error "failed to load public inputs from proof_data/public_inputs.hex"
+
+committedInputs :: BuiltinBLS12_381_G1_Element
+committedInputs = 
+    let file = $(embedFile "test/Generic/serialized_committed_input.hex") in
+    let coords = map parseBase (Data.ByteString.Char8.lines file) in
+    constructG1Point (head coords, coords !! 1)

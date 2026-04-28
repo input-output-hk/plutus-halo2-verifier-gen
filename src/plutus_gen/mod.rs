@@ -53,6 +53,11 @@ where
     };
 
     let vk_template_file = Path::new("plinth-verifier/templates/vk_constants.hbs");
+    let test_template_file = Path::new("plinth-verifier/templates/test.hbs");
+    let test_plutus_template_file = Path::new("plinth-verifier/templates/generic_vf_plutus.hbs");
+    let test_haskell_template_file = Path::new("plinth-verifier/templates/generic_vf_haskell.hbs");
+    let test_compiled_template_file =
+        Path::new("plinth-verifier/templates/generic_vf_compiled.hbs");
     let verifier_generated_file =
         Path::new("plinth-verifier/plutus-halo2/src/Plutus/Crypto/Halo2/Generic/Verifier.hs");
     let vk_generated_file =
@@ -67,6 +72,10 @@ where
     emit_verifier_plinth(
         verifier_template_file,
         verifier_generated_file,
+        test_template_file,
+        test_plutus_template_file,
+        test_haskell_template_file,
+        test_compiled_template_file,
         &circuit_representation,
     )
     .context("Failed to emit the verifier code for plutus")?;

@@ -67,6 +67,7 @@ g1_zero = (bls12_381_G1_uncompress bls12_381_G1_compressed_zero)
 {-# INLINEABLE constructG1Point #-}
 constructG1Point :: (Fp, Fp) -> BuiltinBLS12_381_G1_Element
 constructG1Point (Fp x, Fp y) | x == 0 && y == 1 = g1_zero
+constructG1Point (Fp x, Fp y) | x == 0 && y == 0 = g1_zero -- midnight-zk implements the identity with (0,0)
 constructG1Point (x, y) = result
   where
     x_bs = integerToByteString LittleEndian 48 (unFp x)
