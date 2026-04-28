@@ -136,7 +136,10 @@ where
 
     data.insert(
         "PUBLIC_INPUTS_COUNT".to_string(),
-        circuit.public_inputs.to_string(),
+        circuit
+            .proof_instantiation_data
+            .public_inputs_count
+            .to_string(),
     );
 
     let public_inputs_lagrange = (1..=circuit.proof_instantiation_data.public_inputs_count)

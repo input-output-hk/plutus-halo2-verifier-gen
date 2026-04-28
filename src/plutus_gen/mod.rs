@@ -29,14 +29,14 @@ use halo2_proofs::poly::kzg::params::ParamsKZG;
 /// # Arguments
 /// * `params` - Parameters for the KZG polynomial commitment scheme
 /// * `vk` - Verifying key for the circuit, it can have either GWC19, or halo2 based KZG
-/// * `instances` - Public inputs to the circuit
+/// * `instance` - Public inputs to the circuit
 ///
 /// # Returns
 /// * `Result<(), String>` - Ok(()) if the generation is successful, Err(String) otherwise
 pub fn generate_plinth_verifier<PCS>(
     params: &ParamsKZG<Bls12>,
     vk: &VerifyingKey<Scalar, PCS>,
-    instances: &[&[&[Scalar]]],
+    instance: &[Scalar],
 ) -> Result<()>
 where
     PCS: ExtractPCS + PolynomialCommitmentScheme<Scalar, Commitment = G1Projective>,
@@ -57,7 +57,7 @@ where
         Path::new("plinth-verifier/plutus-halo2/src/Plutus/Crypto/Halo2/Generic/VKConstants.hs");
 
     // Step 1: extract circuit representation
-    let circuit_representation = extract_circuit(params, vk, instances)
+    let circuit_representation = extract_circuit(params, vk, instance)
         .context("Failed to extract the circuit representation")?;
 
     // Step 2: Based on the circuit repr generate Plinth verifier and verification key constants
@@ -81,20 +81,20 @@ where
 /// # Arguments
 /// * `params` - Parameters for the KZG polynomial commitment scheme
 /// * `vk` - Verifying key for the circuit, it can have either GWC19, or halo2 based KZG
-/// * `instances` - Public inputs to the circuit
+/// * `instance` - Public inputs to the circuit
 ///
 /// # Returns
 /// * `Result<(), String>` - Ok(()) if the generation is successful, Err(String) otherwise
 pub fn generate_aiken_verifier<PCS>(
     params: &ParamsKZG<Bls12>,
     vk: &VerifyingKey<Scalar, PCS>,
-    instances: &[&[&[Scalar]]],
+    instance: &[Scalar],
     test_proofs: Option<(Vec<u8>, Vec<u8>)>,
 ) -> Result<()>
 where
     PCS: ExtractPCS + PolynomialCommitmentScheme<Scalar, Commitment = G1Projective>,
 {
-    let circuit_representation = extract_circuit(params, vk, instances)
+    let circuit_representation = extract_circuit(params, vk, instance)
         .context("Failed to extract the circuit representation")?;
 
     // static locations of files in aiken directory
@@ -108,7 +108,7 @@ where
         Path::new("aiken-verifier/aiken_halo2/lib/proof_verifier.ak"),
         Some(Path::new("aiken-verifier/templates/profiler.hbs")),
         &circuit_representation,
-        test_proofs.map(|(p, invalid_p)| (p, invalid_p, instances[0][0].to_vec())),
+        test_proofs.map(|(p, invalid_p)| (p, invalid_p, instance.to_vec())),
     )
     .context("Failed to emit the verifier code for aiken")?;
     emit_vk_aiken(

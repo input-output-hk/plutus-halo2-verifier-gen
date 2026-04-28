@@ -121,7 +121,10 @@ where
 
     data.insert(
         "PUBLIC_INPUTS_COUNT".to_string(),
-        circuit.public_inputs.to_string(),
+        circuit
+            .proof_instantiation_data
+            .public_inputs_count
+            .to_string(),
     );
 
     let proof_extraction_stage = proof_extraction.join("") + &pcs_extraction.join("");

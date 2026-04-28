@@ -191,7 +191,7 @@ mod tests {
     use halo2_proofs::plonk::k_from_circuit;
 
     #[test]
-    fn test_lookup_circuit() {
+    fn test_simple_mul_circuit() {
         // Prepare the private and public inputs to the circuit!
         let constant = Scalar::from(7);
         let a = Scalar::from(2);
@@ -207,8 +207,8 @@ mod tests {
         ]];
 
         let k: u32 = k_from_circuit(&circuit);
-        let prover =
-            MockProver::run(k, &circuit, pi).expect("Failed to run ATMS verifier mock prover");
+        let prover = MockProver::run(k, &circuit, pi)
+            .expect("Failed to run Simple Mul verifier mock prover");
 
         prover.assert_satisfied();
     }

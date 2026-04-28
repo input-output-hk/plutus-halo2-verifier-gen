@@ -35,9 +35,9 @@ pub fn serialize_proof(proof_file: String, proof: Vec<u8>) -> Result<()> {
     Ok(())
 }
 
-pub fn export_public_inputs(instances: &[&[&[Scalar]]], output: &mut File) -> Result<()> {
-    for instance in instances[0][0].iter() {
-        let mut value = instance.to_bytes_le();
+pub fn export_public_inputs(instance: &[Scalar], output: &mut File) -> Result<()> {
+    for instance_i in instance.iter() {
+        let mut value = instance_i.to_bytes_le();
         value.reverse();
         output
             .write((hex::encode(value) + "\n").as_bytes())
