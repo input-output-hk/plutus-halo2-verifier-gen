@@ -4,15 +4,14 @@ use rand_core::SeedableRng;
 use std::path::Path;
 
 use midnight_curves::{Base, Bls12, BlsScalar as Scalar};
+use midnight_proofs::plonk::{VerifyingKey, k_from_circuit, keygen_vk};
+use midnight_proofs::poly::kzg::KZGCommitmentScheme;
+use midnight_proofs::poly::kzg::params::ParamsKZG;
 
 use plutus_halo2_verifier_gen::circuits::atms_circuit::prepare_test_signatures;
 use plutus_halo2_verifier_gen::circuits::atms_with_lookups_circuit::AtmsLookupCircuit;
 use plutus_halo2_verifier_gen::kzg_params::get_or_create_kzg_params;
 use plutus_halo2_verifier_gen::plutus_gen::{emit_verifier_aiken, extract_circuit};
-
-use midnight_proofs::plonk::{VerifyingKey, k_from_circuit, keygen_vk};
-use midnight_proofs::poly::kzg::KZGCommitmentScheme;
-use midnight_proofs::poly::kzg::params::ParamsKZG;
 
 fn main() -> Result<()> {
     type KZG = KZGCommitmentScheme<Bls12>;
@@ -41,15 +40,16 @@ fn main() -> Result<()> {
     let kzg_params: ParamsKZG<Bls12> = get_or_create_kzg_params(k, rng.clone())?;
     let vk: VerifyingKey<Scalar, KZG> = keygen_vk(&kzg_params, &circuit)?;
 
-    let instances: &[&[&[Scalar]]] = &[&[&[pks_comm, msg, Base::from(THRESHOLD as u64)]]];
+    let instance = [pks_comm, msg, Base::from(THRESHOLD as u64)];
 
-    let circuit_representation = extract_circuit(&kzg_params, &vk, instances)
+    let circuit_representation = extract_circuit(&kzg_params, &vk, &instance, None)
         .map_err(|e| anyhow!("{e}"))
         .context("Circuit extraction failed")?;
 
     emit_verifier_aiken(
         Path::new("aiken-verifier/templates/gates_test.hbs"),
         Path::new("aiken-verifier/aiken_halo2/lib/gates_test.ak"),
+        None,
         None,
         &circuit_representation,
         None,

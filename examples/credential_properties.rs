@@ -1,5 +1,5 @@
 use anyhow::{Context as _, Result, anyhow};
-use log::{debug, info};
+use log::info;
 use midnight_zk_stdlib::MidnightCircuit;
 
 use base64::{STANDARD_NO_PAD, decode_config};
@@ -35,21 +35,22 @@ use midnight_proofs::{
     transcript::{CircuitTranscript, Transcript},
 };
 
-use plutus_halo2_verifier_gen::kzg_params::get_or_create_kzg_params;
-use plutus_halo2_verifier_gen::plutus_gen::{
-    CardanoFriendlyBlake2b, export_committed_inputs, export_proof, export_public_inputs,
-    generate_aiken_verifier, generate_plinth_verifier, serialize_proof,
+use plutus_halo2_verifier_gen::{
+    kzg_params::get_or_create_kzg_params,
+    plutus_gen::{CardanoFriendlyBlake2b, generate_aiken_verifier, generate_plinth_verifier},
 };
 
 use midnight_curves::{Bls12, BlsScalar as Scalar};
 use rand::SeedableRng;
 use rand::prelude::StdRng;
-use std::fs::File;
 
 pub type KZG = KZGCommitmentScheme<Bls12>;
 pub type Params = ParamsKZG<Bls12>;
 pub type ParamsVK = ParamsVerifierKZG<Bls12>;
 pub type CTranscript = CircuitTranscript<CardanoFriendlyBlake2b>;
+
+#[path = "shared_utils/mod.rs"]
+mod shared_utils;
 
 mod utils {
     use std::{fs::OpenOptions, io::Read};
@@ -157,7 +158,6 @@ impl Relation for CredentialProperty {
         let json = base64::decode_config(json_b64, base64::STANDARD_NO_PAD)
             .expect("Valid base64 encoded JSON.");
         let res: Vec<midnight_curves::Fq> = json.iter().map(|byte| F::from(*byte as u64)).collect();
-        println!("SIZE CI: {}", res.len());
         res
     }
 
@@ -342,22 +342,8 @@ fn main() -> Result<()> {
 
     let kzg_params: ParamsKZG<Bls12> = ParamsKZG::<Bls12>::unsafe_setup(K, rng.clone());
 
-    let relation = CredentialProperty;
     let witness = CredentialProperty::witness_from_blob(credential_blob.as_slice());
     let witness = (witness.0, HOLDER_SK);
-
-    let vk = midnight_zk_stdlib::setup_vk(&kzg_params, &relation);
-    let committed_instance = CredentialProperty::format_committed_instances(&witness);
-    let committed_credential = commit_to_instances::<_, KZGCommitmentScheme<_>>(
-        &kzg_params,
-        vk.vk().get_domain(),
-        &committed_instance,
-    );
-    debug!(
-        "committed instances: {:?}",
-        CredentialProperty::format_committed_instances(&witness)
-    );
-
     let circuit = MidnightCircuit::new(
         &CredentialProperty,
         Value::known(()),
@@ -375,7 +361,14 @@ fn main() -> Result<()> {
     let mut transcript = CTranscript::init();
 
     let formatted_instance = CredentialProperty::format_instance(&()).unwrap();
-    let instances: &[&[&[Scalar]]] = &[&[&committed_instance, &formatted_instance]];
+    info!("Public inputs: {:?}", formatted_instance);
+    let committed_instance = CredentialProperty::format_committed_instances(&witness);
+    let committed_credential = commit_to_instances::<_, KZGCommitmentScheme<_>>(
+        &kzg_params,
+        vk.get_domain(),
+        &committed_instance,
+    );
+    info!("committed instances: {:?}", committed_instance);
 
     let nb_committed_instances = 1;
     create_proof(
@@ -383,7 +376,7 @@ fn main() -> Result<()> {
         &pk,
         &[circuit],
         nb_committed_instances,
-        instances,
+        &[&[&committed_instance, &formatted_instance]],
         &mut rng,
         &mut transcript,
     )
@@ -413,55 +406,24 @@ fn main() -> Result<()> {
         .map_err(|e| anyhow!("{e:?}"))
         .context("verify failed")?;
 
-    let instances_file =
-        "./plinth-verifier/plutus-halo2/test/Generic/serialized_public_input.hex".to_string();
-    let mut output = File::create(instances_file).context("failed to create instances file")?;
-    export_public_inputs(instances, &mut output).context("failed to export public inputs")?;
-
-    let com_instances_file =
-        "./plinth-verifier/plutus-halo2/test/Generic/serialized_committed_input.hex".to_string();
-    let mut output = File::create(com_instances_file).context("failed to create instances file")?;
-    export_committed_inputs(Some(committed_credential), &mut output)
-        .context("failed to export public inputs")?;
-
-    serialize_proof(
-        "./plinth-verifier/plutus-halo2/test/Generic/serialized_proof.json".to_string(),
-        proof.clone(),
+    shared_utils::export_plinth(&formatted_instance, Some(committed_credential), &proof)?;
+    generate_plinth_verifier(
+        &params,
+        &vk,
+        &formatted_instance,
+        Some(committed_credential),
     )
-    .context("json proof serialization failed")?;
+    .context("Plinth verifier generation failed")?;
 
-    export_proof(
-        "./plinth-verifier/plutus-halo2/test/Generic/serialized_proof.hex".to_string(),
-        proof.clone(),
-    )
-    .context("hex proof serialization failed")?;
-
-    generate_plinth_verifier(&params, &vk, instances)
-        .context("Plinth verifier generation failed")?;
-
+    shared_utils::export_aiken(&formatted_instance, Some(committed_credential), &proof)?;
     generate_aiken_verifier(
         &params,
         &vk,
-        instances,
+        &formatted_instance,
         Some(committed_credential),
         Some((proof.clone(), invalid_proof)),
     )
     .context("Aiken verifier generation failed")?;
-    export_proof(
-        "./aiken-verifier/submitter/serialized_proof.hex".to_string(),
-        proof,
-    )
-    .context("hex proof serialization failed")?;
-
-    let instances_file = "./aiken-verifier/submitter/serialized_public_input.hex".to_string();
-    let mut output = File::create(instances_file).context("failed to create instances file")?;
-    export_public_inputs(instances, &mut output).context("Failed to export the public inputs")?;
-
-    let com_instances_file =
-        "./aiken-verifier/submitter/serialized_committed_input.hex".to_string();
-    let mut output = File::create(com_instances_file).context("failed to create instances file")?;
-    export_committed_inputs(Some(committed_credential), &mut output)
-        .context("failed to export public inputs")?;
 
     Ok(())
 }

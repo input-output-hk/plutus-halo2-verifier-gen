@@ -2,14 +2,13 @@
 
 use anyhow::{Context as _, Result, anyhow};
 use group::Curve;
-use group::GroupEncoding;
 use midnight_curves::BlsScalar as Scalar;
 use midnight_curves::G1Projective;
 
 use std::fs::File;
 use std::io::Write;
 
-pub fn export_proof(proof_file: String, proof: Vec<u8>) -> Result<()> {
+pub fn export_proof(proof_file: String, proof: &[u8]) -> Result<()> {
     let hex = hex::encode(proof);
 
     let mut output = File::create(&proof_file)
@@ -24,7 +23,7 @@ pub fn export_proof(proof_file: String, proof: Vec<u8>) -> Result<()> {
     Ok(())
 }
 
-pub fn serialize_proof(proof_file: String, proof: Vec<u8>) -> Result<()> {
+pub fn serialize_proof(proof_file: String, proof: &[u8]) -> Result<()> {
     let serialized_proof = serde_json::to_string(&proof)
         .with_context(|| anyhow!("Failed to serialise Proof for `{proof_file}'"))?;
 
@@ -39,16 +38,9 @@ pub fn serialize_proof(proof_file: String, proof: Vec<u8>) -> Result<()> {
     Ok(())
 }
 
-pub fn export_public_inputs(instances: &[&[&[Scalar]]], output: &mut File) -> Result<()> {
-    let public_inputs = if instances[0].len() == 2 {
-        instances[0][1]
-    } else {
-        instances[0][0]
-    };
-
-    for instance in public_inputs.iter() {
-        let mut value = instance.to_bytes_le();
-        value.reverse();
+pub fn export_public_inputs(instance: &[Scalar], output: &mut File) -> Result<()> {
+    for instance_i in instance.iter() {
+        let value = instance_i.to_bytes_be();
         output
             .write((hex::encode(value) + "\n").as_bytes())
             .context("Failed to write encoded scalar to the output file")?;
@@ -62,10 +54,15 @@ pub fn export_committed_inputs(
     output: &mut File,
 ) -> Result<()> {
     if let Some(commit) = com_instances {
-        let value = commit.to_affine().to_bytes();
+        let commit_affine = commit.to_affine();
+        let x_coord = commit_affine.x().to_bytes_be();
+        let y_coord = commit_affine.y().to_bytes_be();
         output
-            .write((hex::encode(value) + "\n").as_bytes())
-            .context("Failed to write encoded G1 element to the output file")?;
+            .write((hex::encode(x_coord) + "\n").as_bytes())
+            .context("Failed to write encoded G1 element's X coordinate to the output file")?;
+        output
+            .write((hex::encode(y_coord)).as_bytes())
+            .context("Failed to write encoded G1 element's Y coordinate to the output file")?;
     };
 
     Ok(())

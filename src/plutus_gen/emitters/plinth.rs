@@ -15,6 +15,10 @@ use std::{collections::HashMap, fs::File, path::Path};
 pub fn emit_verifier_code<PCS>(
     template_file: &Path, // haskell mustashe template
     haskell_file: &Path,  // generated haskell file, output
+    test_template: &Path,
+    test_plutus_template: &Path,
+    test_haskell_template: &Path,
+    test_compiled_template: &Path,
     circuit: &CircuitRepresentation<PCS>,
 ) -> Result<String, RenderError>
 where
@@ -50,60 +54,12 @@ where
         .committed_instances_supported;
 
     // Handling committed instances
-    if committed_instances_supported {
-        let committed_instances_names: Vec<String> = (1..=nb_committed_instances)
-            .map(|n| format!("ci{}", n))
-            .collect();
-
-        let mut suffix = "";
-        if nb_committed_instances > 0 && nb_public_inputs > 0 {
-            suffix = " ";
-        }
-
-        // Writing committed instance types in verify function's definition
-        data.insert("COMMITTED_INSTANCES_TYPES".to_string(), {
-            let ci_types = (1..=nb_committed_instances)
-                .map(|_| "BuiltinBLS12_381_G1_Element ->".to_string())
-                .join(" ");
-            let mut to_write_down = String::with_capacity(ci_types.len() + suffix.len());
-            to_write_down.push_str(&ci_types);
-            to_write_down.push_str(suffix);
-            to_write_down
-        });
-
-        // Writing committed instance types in verify function's interface
-        data.insert("COMMITTED_INSTANCES_NAMES".to_string(), {
-            let ci_names = committed_instances_names.iter().join(" ");
-            let mut to_write_down = String::with_capacity(ci_names.len() + suffix.len());
-            to_write_down.push_str(&ci_names);
-            to_write_down.push_str(suffix);
-            to_write_down
-        });
-
-        // Absorbing number and value of committed instances in transcript
-        data.insert("ABSORB_COMMITTED_INSTANCES".to_string(), {
-            let absorb_nb_committed_instances = format!(
-                "  _ <- M.commonScalar (mkScalar {})\n",
-                nb_committed_instances
-            );
-
-            // TODO
-            let absorb_committed_instances = (1..=nb_committed_instances)
-                .map(|n| format!("  !ci{} <- M.commonG1 ci{}\n", n, n))
-                .join("");
-
-            let mut to_write_down = String::with_capacity(
-                absorb_nb_committed_instances.len() + absorb_committed_instances.len(),
-            );
-            to_write_down.push_str(&absorb_nb_committed_instances);
-            to_write_down.push_str(&absorb_committed_instances);
-            to_write_down
-        });
+    let ci_absorption = if committed_instances_supported && nb_committed_instances > 0 {
+        format!("  !ci{} <- M.commonG1 committedInputs\n", 1)
     } else {
-        data.insert("COMMITTED_INSTANCES_TYPES".to_string(), "".to_string());
-        data.insert("COMMITTED_INSTANCES_NAMES".to_string(), "".to_string());
-        data.insert("ABSORB_COMMITTED_INSTANCES".to_string(), "".to_string());
-    }
+        String::new()
+    };
+    data.insert("ABSORB_COMMITTED_INSTANCES".to_string(), ci_absorption);
 
     // Handling public inputs
     {
@@ -112,9 +68,6 @@ where
             nb_public_inputs.to_string(),
         );
 
-        let public_inputs_names: Vec<String> =
-            (1..=nb_public_inputs).map(|n| format!("p{}", n)).collect();
-
         data.insert(
             "PUBLIC_INPUTS_TYPES".to_string(),
             (1..=nb_public_inputs)
@@ -122,16 +75,11 @@ where
                 .join(" "),
         );
 
-        data.insert(
-            "PUBLIC_INPUTS_NAMES".to_string(),
-            public_inputs_names.iter().join(" "),
-        );
-
         let absorb_nb_public_inputs =
             format!("  _ <- M.commonScalar (mkScalar {})\n", nb_public_inputs);
 
         let absorb_public_inputs = (1..=nb_public_inputs)
-            .map(|n| format!("  !i{} <- M.commonScalar p{}\n", n, n))
+            .map(|n| format!("  !i{} <- M.commonScalar (parsedInputs !! {})\n", n, n - 1))
             .join("");
 
         let mut public_inputs =
@@ -256,14 +204,7 @@ where
                 }
             }).join(""),
             ProofExtractionSteps::InstanceEval => section.enumerate().map(|(number, _i)| {
-                let mut offset = nb_committed_instances;
-                // When we support committed instances but have none, we still
-                // create a dedicated null instance evaluation for them, as
-                // such we need to offset the public instances instance_eval's
-                // index.
-                if committed_instances_supported && nb_committed_instances == 0 {
-                    offset += 1;
-                }
+                let offset = nb_committed_instances;
                 if nb_public_inputs == 0 {
                     format!("  let !instanceEval{} = scalarZero\n", number + offset + 1)
                 } else {
@@ -783,6 +724,69 @@ where
         let all_traces: Vec<_> = all_traces.iter().flatten().collect();
 
         data.insert("TRACES".to_string(), all_traces.iter().join(",\n       "));
+    }
+
+    {
+        let mut vars = Vec::new();
+        if nb_committed_instances > 0 {
+            vars.push("committedInputs".to_string());
+        }
+        if nb_public_inputs > 0 {
+            vars.push("parsedInputs".to_string());
+        }
+
+        data.insert("COMMITTED_INSTANCES_AND_INSTANCE_VARS".to_string(), {
+            vars.iter().join(" ")
+        });
+        data.insert("SEP_COMMITTED_INSTANCES_AND_INSTANCE_VARS".to_string(), {
+            vars.iter().join(", ")
+        });
+
+        let mut var_types = Vec::new();
+        if nb_committed_instances > 0 {
+            var_types.push("BuiltinBLS12_381_G1_Element".to_string());
+        }
+        if nb_public_inputs > 0 {
+            var_types.push("[Scalar]".to_string());
+        }
+        data.insert("COMMITTED_INSTANCES_AND_INSTANCE_TYPES".to_string(), {
+            if var_types.is_empty() {
+                String::new()
+            } else {
+                var_types.iter().join(" -> ") + " ->"
+            }
+        });
+
+        let mut handlebars = Handlebars::new();
+        handlebars.set_strict_mode(true);
+        handlebars.register_template_file("test_template", test_template)?;
+        let mut output_file = File::create("plinth-verifier/plutus-halo2/test/Test.hs")?;
+        handlebars.render_to_write("test_template", &data, &mut output_file)?;
+        handlebars.render("test_template", &data)?;
+
+        let mut handlebars = Handlebars::new();
+        handlebars.set_strict_mode(true);
+        handlebars.register_template_file("test_haskell_template", test_haskell_template)?;
+        let mut output_file =
+            File::create("plinth-verifier/plutus-halo2/test/Generic/VerificationTestHaskell.hs")?;
+        handlebars.render_to_write("test_haskell_template", &data, &mut output_file)?;
+        handlebars.render("test_haskell_template", &data)?;
+
+        let mut handlebars = Handlebars::new();
+        handlebars.set_strict_mode(true);
+        handlebars.register_template_file("test_plutus_template", test_plutus_template)?;
+        let mut output_file =
+            File::create("plinth-verifier/plutus-halo2/test/Generic/VerificationTestPlutus.hs")?;
+        handlebars.render_to_write("test_plutus_template", &data, &mut output_file)?;
+        handlebars.render("test_plutus_template", &data)?;
+
+        let mut handlebars = Handlebars::new();
+        handlebars.set_strict_mode(true);
+        handlebars.register_template_file("test_compiled_template", test_compiled_template)?;
+        let mut output_file =
+            File::create("plinth-verifier/plutus-halo2/test/Generic/VerifyCompiled.hs")?;
+        handlebars.render_to_write("test_compiled_template", &data, &mut output_file)?;
+        handlebars.render("test_compiled_template", &data)?;
     }
 
     #[cfg(not(feature = "plutus_debug"))]

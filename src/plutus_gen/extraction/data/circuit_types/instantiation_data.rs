@@ -23,22 +23,13 @@ pub(crate) struct InstantiationSpecificData {
     pub(crate) inverted_omega: Scalar,
     pub(crate) barycentric_weight: Scalar,
     pub(crate) s_g2: G2Affine,
-    pub(crate) omega_rotation_count_for_instances: usize,
+    pub(crate) omega_rotation_count_for_instance: usize,
     pub(crate) n_coefficient: u64,
     pub(crate) blinding_factors: usize,
     pub(crate) transcript_representation: Scalar,
     pub(crate) public_inputs_count: usize,
     pub(crate) committed_instances_supported: bool,
     pub(crate) committed_instances_count: usize,
-}
-
-/// Function returning the maximal length of the instances.
-fn instance_max_length(instances: &[&[&[Scalar]]]) -> usize {
-    instances
-        .iter()
-        .flat_map(|instance| instance.iter().map(|instance| instance.len()))
-        .max_by(Ord::cmp)
-        .unwrap_or_default()
 }
 
 /// Function returning the minimal and maximal rotations.
@@ -67,7 +58,8 @@ impl InstantiationSpecificData {
         &mut self,
         params: &ParamsKZG<Bls12>,
         vk: &VerifyingKey<Scalar, PCS>,
-        instances: &[&[&[Scalar]]],
+        instances: &[Scalar],
+        committed_instances: Option<G1Projective>,
     ) where
         PCS: PolynomialCommitmentScheme<Scalar, Commitment = G1Projective>,
     {
@@ -93,9 +85,9 @@ impl InstantiationSpecificData {
         self.s_g2 = params.s_g2().to_affine();
 
         let (min_rotation, max_rotation) = rotations(vk);
-        let max_instance_len = instance_max_length(instances) as i32;
+        let max_instance_len = instances.len() as i32;
         let rotations = -max_rotation..max_instance_len + min_rotation.abs();
-        self.omega_rotation_count_for_instances = rotations.len();
+        self.omega_rotation_count_for_instance = rotations.len();
         // self.mega_rotation_count_for_vanishing - not needed
 
         self.n_coefficient = vk.n();
@@ -104,23 +96,13 @@ impl InstantiationSpecificData {
 
         self.transcript_representation = vk.transcript_repr();
 
-        // The committed instances and public inputs are both stored in the
-        // instances. More precisely, we have either:
-        // -  instances  = &[&[public_inputs]] or
-        // -  instances  = &[&[committed_instances, public_inputs]]
-        // depending on whether the commited instances are supported.
-
         // Extracting number of committed instances
-        if instances[0].len() == 2 {
+        if committed_instances.is_some() {
             self.committed_instances_supported = true;
             self.committed_instances_count = 1;
         }
 
         // Extracting number of public_inputs
-        let mut index_public_inputs = 0;
-        if self.committed_instances_supported {
-            index_public_inputs = 1;
-        }
-        self.public_inputs_count = instances[0][index_public_inputs].len();
+        self.public_inputs_count = instances.len();
     }
 }

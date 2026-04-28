@@ -68,7 +68,7 @@ impl AikenExpression for Commitments {
     fn compile_expression(&self) -> String {
         match self {
             Commitments::Instance(index) => {
-                format!("ci{:?}", index)
+                format!("ci_{:?}", index)
             }
             Commitments::Advice(index) => {
                 format!("a{:?}", index)

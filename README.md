@@ -203,6 +203,7 @@ Below are the execution costs of both Plinth and Aiken scripts running the Halo2
 | **ATMS (50 out of 90)**         |          12,312 (75.1%) |         11,642 (71.1%) |         10.1B (101%) |          9.8B (98%) |        11.9M (85.0%) |        7.9M (56.4%) |
 | **ATMS (228 out of 408)**       |          12,310 (75.1%) |         11,638 (71.1%) |         10.0B (100%) |          9.7B (97%) |        11.5M (82.1%) |        7.8M (55.7%) |
 | **ATMS (50/90) + lookup table** |          14,600 (89.1%) |         13,501 (82.4%) |         12.0B (120%) |        11.4B (114%) |       14.7M (105.0%) |        9.2M (65.7%) |
+| **Schnorr signatures**          |         20,468 (124.9%) |        18,910 (115.4%) |         13.1B (131%) |        12.4B (124%) |       15.9M (135.7%) |       10.3M (73.2%) |
 
 \* Script size % is taken as a percentage of the 16kb script limit
 

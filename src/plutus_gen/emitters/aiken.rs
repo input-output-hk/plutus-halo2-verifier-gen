@@ -19,7 +19,8 @@ use std::{collections::HashMap, fs::File, iter::once, path::Path};
 pub fn emit_verifier_code<PCS>(
     template_file: &Path, // aiken mustashe template
     aiken_file: &Path,    // generated aiken file, output
-    profiler_file: Option<&Path>,
+    profiler_template: Option<&Path>,
+    validator_template: Option<&Path>,
     circuit: &CircuitRepresentation<PCS>,
     test_data: Option<(Vec<u8>, Vec<u8>, Vec<Scalar>, Option<G1Projective>)>,
 ) -> Result<String, RenderError>
@@ -36,42 +37,15 @@ where
         .committed_instances_supported;
 
     // Handling committed instances
-    if committed_instances_supported {
-        let committed_instance_names: Vec<String> = (1..=nb_committed_instances)
-            .map(|n| format!("ci{}", n))
-            .collect();
-
-        // Writing committed instances names in verify function's interface
-        data.insert("COMMITTED_INSTANCES_NAMES".to_string(), {
-            let cins = committed_instance_names
-                .iter()
-                .map(|name| format!("{}: ByteArray", name))
-                .join(", ");
-            let mut suffix = "";
-            if nb_committed_instances > 0 && nb_public_inputs > 0 {
-                suffix = " ,";
-            }
-            let mut to_write_down = String::with_capacity(cins.len() + suffix.len());
-            to_write_down.push_str(&cins);
-            to_write_down.push_str(&suffix);
-            to_write_down
-        });
-
-        // Absorbing number and value of committed instances in transcript
-        data.insert("ABSORB_COMMITTED_INSTANCES".to_string(), {
-            let committed_instances = committed_instance_names
-                .iter()
-                .map(|n| format!("    let transcript = common_g1({}, transcript)\n", n))
-                .join("");
-
-            let mut to_write_down = String::with_capacity(committed_instances.len());
-            to_write_down.push_str(&committed_instances);
-            to_write_down
-        });
+    let (ci_names, absorb_cis) = if committed_instances_supported && nb_committed_instances > 0 {
+        let ci_names = format!("ci_1: ByteArray") + if nb_public_inputs > 0 { ", " } else { "" };
+        let absorb_cis = format!("    let transcript = common_g1(ci_1, transcript)\n");
+        (ci_names, absorb_cis)
     } else {
-        data.insert("COMMITTED_INSTANCES_NAMES".to_string(), "".to_string());
-        data.insert("ABSORB_COMMITTED_INSTANCES".to_string(), "".to_string());
-    }
+        (String::new(), String::new())
+    };
+    data.insert("COMMITTED_INSTANCES_NAMES".to_string(), ci_names);
+    data.insert("ABSORB_COMMITTED_INSTANCES".to_string(), absorb_cis);
 
     // Handling public inputs
     {
@@ -110,7 +84,7 @@ where
     };
 
     // Extracting from transcript commitments and evaluations
-    // Also generating instances' evaluation
+    // Also generating instance's evaluation
     let public_inputs_lagrange = (1..=nb_public_inputs)
         .map(|n| format!("i_{}", n))
         .join(", ");
@@ -227,14 +201,7 @@ where
                 }
             }).join(""),
             ProofExtractionSteps::InstanceEval => section.enumerate().map(|(number, _i)| {
-                let mut offset = nb_committed_instances;
-                // When we support committed instances but have none, we still
-                // create a dedicated null instance evaluation for them, as
-                // such we need to offset the public instances instance_eval's
-                // index.
-                if committed_instances_supported && nb_committed_instances == 0 {
-                    offset += 1;
-                }
+                let offset = nb_committed_instances;
                 if nb_public_inputs == 0 {
                     format!("    let instance_eval_{} = from_int(0)\n", number + offset + 1)
                 } else {
@@ -749,19 +716,19 @@ where
                 .to_string()
             });
 
-            let valid_inputs = [valid_pi, committed_inputs.clone()]
+            let valid_inputs = [committed_inputs.clone(), valid_pi]
                 .into_iter()
                 .filter(|s| !s.is_empty())
                 .collect::<Vec<_>>()
                 .join(", ");
 
-            let invalid_inputs = [invalid_pi, invalid_committed_inputs.clone()]
+            let invalid_inputs = [invalid_committed_inputs.clone(), invalid_pi]
                 .into_iter()
                 .filter(|s| !s.is_empty())
                 .collect::<Vec<_>>()
                 .join(", ");
 
-            let trivial_inputs = [trivial_pi, trivial_committed_inputs]
+            let trivial_inputs = [trivial_committed_inputs, trivial_pi]
                 .into_iter()
                 .filter(|s| !s.is_empty())
                 .collect::<Vec<_>>()
@@ -777,16 +744,6 @@ where
                 "TEST_VALID_PROOF_VALID_INPUTS".to_string(),
                 test_valid_proof_valid_inputs,
             );
-
-            if let Some(template) = profiler_file {
-                let mut handlebars = Handlebars::new();
-                handlebars.set_strict_mode(true);
-                handlebars.register_template_file("profiler_template", template)?;
-                let mut output_file =
-                    File::create("aiken-verifier/aiken_halo2/validators/profiler.ak")?;
-                handlebars.render_to_write("profiler_template", &data, &mut output_file)?;
-                handlebars.render("profiler_template", &data)?;
-            }
 
             let test_valid_proof_invalid_inputs = format!(
                 "verifier(#\"{}\", {})",
@@ -819,6 +776,92 @@ where
                 "TEST_VALID_PROOF_TRIVIAL_INPUTS".to_string(),
                 test_valid_proof_trivial_inputs,
             );
+
+            data.insert("COMMITTED_INSTANCES_VARS".to_string(), {
+                let cins = (1..=nb_committed_instances)
+                    .map(|n| format!("committed_instance_{}", n))
+                    .join(", ");
+                let mut suffix = "";
+                if nb_committed_instances > 0 && nb_public_inputs > 0 {
+                    suffix = ", ";
+                }
+                let mut to_write_down = String::with_capacity(cins.len() + suffix.len());
+                to_write_down.push_str(&cins);
+                to_write_down.push_str(&suffix);
+                to_write_down
+            });
+
+            data.insert("PUBLIC_INPUTS_VARS".to_string(), {
+                (1..=nb_public_inputs)
+                    .map(|n| format!("instance_{}", n))
+                    .join(", ")
+            });
+
+            let hashing_ci_is = {
+                let mut byte_array = Vec::new();
+                // byte_array.push("proof".to_string());
+
+                if nb_committed_instances > 0 {
+                    byte_array.push("committed_instance_1".to_string());
+                }
+
+                (1..=nb_public_inputs)
+                    .for_each(|n| byte_array.push(format!("instance_{}", n).to_string()));
+
+                byte_array.iter().fold("proof".to_string(), |acc, new| {
+                    format!("append_bytearray({}, {})", acc, new)
+                })
+            };
+            data.insert("HASHING_CI_I".to_string(), hashing_ci_is);
+
+            data.insert("REDEEMER_TYPE".to_string(), {
+                // The redeemer contains the public input, committed instances and instance.
+                let mut nb = 1 + nb_public_inputs;
+                if nb_committed_instances > 0 {
+                    nb += 1;
+                }
+                let redeemer_type = (1..=nb).map(|_| "ByteArray".to_string()).join(", ");
+                // let x = format!("({:?})", (1..=nb).map(|_| "ByteArray".to_string()).join(", "));
+                format!("({})", redeemer_type)
+            });
+
+            let verifying_ci_is = {
+                let mut string_array = Vec::new();
+                // byte_array.push("proof".to_string());
+
+                if nb_committed_instances > 0 {
+                    string_array.push("      committed_instance_1".to_string());
+                }
+
+                (1..=nb_public_inputs).for_each(|n| {
+                    string_array.push(format!("      from_bytes(instance_{})", n).to_string())
+                });
+
+                string_array.iter().join(",\n")
+            };
+            data.insert("VERIFYING_CI_I".to_string(), verifying_ci_is);
+
+            // Generating profiler.ak
+            if let Some(template) = profiler_template {
+                let mut handlebars = Handlebars::new();
+                handlebars.set_strict_mode(true);
+                handlebars.register_template_file("profiler_template", template)?;
+                let mut output_file =
+                    File::create("aiken-verifier/aiken_halo2/validators/profiler.ak")?;
+                handlebars.render_to_write("profiler_template", &data, &mut output_file)?;
+                handlebars.render("profiler_template", &data)?;
+            }
+
+            // Generating verifier.ak
+            if let Some(template) = validator_template {
+                let mut handlebars = Handlebars::new();
+                handlebars.set_strict_mode(true);
+                handlebars.register_template_file("validator_template", template)?;
+                let mut output_file =
+                    File::create("aiken-verifier/aiken_halo2/validators/verifier.ak")?;
+                handlebars.render_to_write("validator_template", &data, &mut output_file)?;
+                handlebars.render("validator_template", &data)?;
+            }
         }
     }
 
