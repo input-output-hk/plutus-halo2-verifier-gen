@@ -13,7 +13,6 @@ use ff::Field;
 use group::{Curve, Group, GroupEncoding};
 use handlebars::{Handlebars, RenderError};
 use itertools::Itertools;
-use std::ops::Neg;
 use std::{collections::HashMap, fs::File, iter::once, path::Path};
 
 pub fn emit_verifier_code<PCS>(
