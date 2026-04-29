@@ -12,6 +12,14 @@ use handlebars::{Handlebars, RenderError};
 use itertools::Itertools;
 use std::{collections::HashMap, fs::File, path::Path};
 
+fn capitalize_first(s: &String) -> String {
+    let mut chars = s.chars();
+    match chars.next() {
+        None => String::new(),
+        Some(c) => c.to_uppercase().to_string() + chars.as_str(),
+    }
+}
+
 pub fn emit_verifier_code<PCS>(
     template_file: &Path, // haskell mustashe template
     haskell_file: &Path,  // generated haskell file, output
@@ -639,13 +647,13 @@ where
         recursion_vks.iter().map(|vki| {
             (1..=vki.fixed_commitments.len())
                 .map(|id| {
-                    format!("f{}_{} :: BuiltinBLS12_381_G1_Element\nf{}_{} = $(lift VKConstants.f{}_{})\n\n",
-                        id, vki.name, id, vki.name, id, vki.name)
+                    let f_name = format!("f{}{}_commitment", capitalize_first(&vki.name), id);
+                    format!("{f_name} :: BuiltinBLS12_381_G1_Element\n{f_name} = $(lift VKConstants.{f_name})\n\n")
                 })
                 .chain(
                     (1..=vki.permutation_commitments.len()).map(|id| {
-                        format!("p{}_{} :: BuiltinBLS12_381_G1_Element\np{}_{} = $(lift VKConstants.p{}_{})\n\n",
-                            id, vki.name, id, vki.name, id, vki.name)
+                        let p_name = format!("p{}{}_commitment", capitalize_first(&vki.name), id);
+                        format!("{p_name} :: BuiltinBLS12_381_G1_Element\n{p_name} = $(lift VKConstants.{p_name})\n\n")
                     })
                 )
                 .collect::<String>()
@@ -653,7 +661,14 @@ where
     });
     data.insert("RECURSION_COMMITMENT_LIFTS".to_string(), recursion_lift);
 
-    let (recursion_map, recursion_el, recursion_er) : (String, String, String) = circuit.proof_instantiation_data.recursion_vks.clone().map_or((String::new(),String::new(),String::new()), |recursion_vks| {
+    let (recursion_map, recursion_el, recursion_er, recursion_vks) = circuit.proof_instantiation_data.recursion_vks.clone().map_or((String::new(),String::new(),String::new(),String::new()), |recursion_vks| {
+            let check_self_vk = format!("      let b = i1 PlutusTx.== VKConstants.transcriptRepr");
+            let check_inner_vks = recursion_vks.iter().enumerate().map(|(i, vki)| {
+                format!("PlutusTx.&& (i{} PlutusTx.== VKConstants.transcriptRepr{})", 2+i, capitalize_first(&vki.name))
+            } ).join(" ");
+            let check_vk = [check_self_vk, check_inner_vks, "\n".to_string()].join(" ");
+
+            let final_check_vks = "PlutusTx.&& b".to_string();
 
             let serialized_acc = 2 * 2 * 7 + 2;
 
@@ -681,12 +696,12 @@ where
 
                 recursion_vks.iter().for_each(|vki| {
                     vki.fixed_commitments.iter().enumerate().for_each(|(i, _)| {
-                        ivc_fixed_bases.push(format!("f{}_{}_commitment",i, vki.name));
+                        ivc_fixed_bases.push(format!("f{}{}_commitment", capitalize_first(&vki.name), i));
                         size += 1;
                     });
 
                     vki.permutation_commitments.iter().enumerate().for_each(|(i, _)| {
-                        ivc_fixed_bases.push(format!("p{}_{}_commitment",i, vki.name));
+                        ivc_fixed_bases.push(format!("p{}{}_commitment", capitalize_first(&vki.name), i));
                         size += 1;
                     });
                 });
@@ -698,13 +713,15 @@ where
 
             let neg_g1 = "      !negGenG1 = bls12_381_G1_neg (bls12_381_G1_uncompress bls12_381_G1_compressed_generator)\n".to_string();
 
+            let batching_coeff = "72057594037927936".to_string();
+
             let acc_left : String = {
                 let serialized_x = format!("      !acc_left_x = mkFp ((1 + {}) `modulo` bls12_381_base_prime)\n", (0..7).fold("0".to_string(), |acc, i| {
-                        format!("({} * 72057594037927936 + (unScalar i{}))", acc, nb_public_inputs - fixed_bases_len - 3*7 - 2 - i)
+                        format!("({} * {batching_coeff} + (unScalar i{}))", acc, nb_public_inputs - fixed_bases_len - 3*7 - 2 - i)
                     }).to_string());
 
                 let serialized_y = format!("      !acc_left_y = mkFp ((1 + {}) `modulo` bls12_381_base_prime)\n", (0..7).fold("0".to_string(), |acc, i| {
-                        format!("({} * 72057594037927936 + (unScalar i{}))", acc, nb_public_inputs - fixed_bases_len - 2*7 - 2 - i)
+                        format!("({} * {batching_coeff} + (unScalar i{}))", acc, nb_public_inputs - fixed_bases_len - 2*7 - 2 - i)
                     }).to_string());
 
                 let uncompressed  = "      !uncompressed_acc_left = BlsUtils.fromCoordsG1Point(acc_left_x, acc_left_y) \n".to_string();
@@ -716,11 +733,11 @@ where
 
             let acc_right : String = {
                 let serialized_x = format!("      !acc_right_x_int = mkFp ((1 + {}) `modulo` bls12_381_base_prime)\n", (0..7).fold("0".to_string(), |acc, i| {
-                        format!("({} * 72057594037927936 + (unScalar i{}))", acc, nb_public_inputs - fixed_bases_len - 7 - 1 - i)
+                        format!("({} * {batching_coeff} + (unScalar i{}))", acc, nb_public_inputs - fixed_bases_len - 7 - 1 - i)
                     }).to_string());
 
                 let serialized_y = format!("      !acc_right_y_int = mkFp ((1 + {}) `modulo` bls12_381_base_prime)\n", (0..7).fold("0".to_string(), |acc, i| {
-                        format!("({} * 72057594037927936 + (unScalar i{}))", acc, nb_public_inputs - fixed_bases_len - 1 - i)
+                        format!("({} * {batching_coeff} + (unScalar i{}))", acc, nb_public_inputs - fixed_bases_len - 1 - i)
                     }).to_string());
 
                 let uncompressed = "      !uncompressed_acc_right = BlsUtils.fromCoordsG1Point(acc_right_x_int, acc_right_y_int) \n".to_string();
@@ -746,11 +763,12 @@ where
             let updated_el = format!(" + (scale challenge acc_left)\n");
             let updated_er = format!(" + (scale challenge acc_right_final)\n");
 
-            ([neg_g1, acc_left, acc_right, acc_fixed, acc_right_final, challenge_bytes, challenge].iter().join(""), updated_el, updated_er)
+            ([check_vk, neg_g1, acc_left, acc_right, acc_fixed, acc_right_final, challenge_bytes, challenge].iter().join(""), updated_el, updated_er, final_check_vks)
         });
     data.insert("RECURSION_ACCUMULATOR".to_string(), recursion_map);
     data.insert("RECURSION_EL".to_string(), recursion_el);
     data.insert("RECURSION_ER".to_string(), recursion_er);
+    data.insert("REC_VKS_CHECK".to_string(), recursion_vks);
 
     // Include traces only in debug mode, because they increase cost of the Plutus verifier
     #[cfg(feature = "plutus_debug")]
@@ -990,9 +1008,9 @@ where
     data.insert("PERMUTATION_COMMITMENTS_EXPORTS".to_string(), exports);
     data.insert("PERMUTATION_COMMITMENT_G1".to_string(), assignment);
 
-    let (points, exports, assignment) = circuit.proof_instantiation_data.recursion_vks.clone().map_or((String::new(), String::new(), String::new()), |recursion_vks| {
+    let (points, exports, assignment, reprs) = circuit.proof_instantiation_data.recursion_vks.clone().map_or((String::new(), String::new(), String::new(), String::new()), |recursion_vks| {
         if recursion_vks.len() == 0 {
-            return (String::new(), String::new(), String::new());
+            return (String::new(), String::new(), String::new(), String::new());
         }
 
         let points = format!("rec_commitment_val_pairs :: [(Integer, Integer)]\n
@@ -1012,12 +1030,15 @@ rec_commitment_val_pairs =[{}]", recursion_vks.iter().flat_map(|vki| {
             }))
         }).join(",\n"));
 
-        let exports = recursion_vks.iter().flat_map(|vki| {
-            (1..=vki.fixed_commitments.len()).map(|id| {
-                format!("  f{}_{},\n", id+1, vki.name) }
-            ).chain((1..=vki.permutation_commitments.len()).map(|id| {
-                format!("  p{}_{},\n", id+1, vki.name) 
-            }))
+        let exports = recursion_vks.iter().map(|vki| {
+            let f_coms = (1..=vki.fixed_commitments.len()).map(|id| {
+                format!("  f{}{}_commitment,\n", capitalize_first(&vki.name), id+1) }
+            ).join("");
+            let p_coms = (1..=vki.permutation_commitments.len()).map(|id| {
+                format!("  p{}{}_commitment,\n", capitalize_first(&vki.name), id+1) 
+            }).join("");
+            let repr = format!("  transcriptRepr{},\n", capitalize_first(&vki.name));
+            [repr, f_coms, p_coms].join("")
         }).join(",\n");
 
         let mut offset = 0;
@@ -1026,27 +1047,37 @@ rec_commitment_val_pairs =[{}]", recursion_vks.iter().flat_map(|vki| {
             let commitments = format!("rec_commitments :: [BuiltinBLS12_381_G1_Element]\n
 rec_commitments = commitments rec_commitments_val_pairs\n\n{}", 
                 vki.fixed_commitments.iter().enumerate().map(|(id, point)| {
+                    let f_name = format!("f{}{}_commitment",capitalize_first(&vki.name), id + 1);
                     if point.is_identity().into() {
-                        format!("f{}_{} :: BuiltinBLS12_381_G1_Element\nf{}_{} = (bls12_381_G1_uncompress bls12_381_G1_compressed_zero)\n", id + 1, vki.name, id + 1, vki.name)
+                        format!("{f_name} :: BuiltinBLS12_381_G1_Element\n{f_name} = (bls12_381_G1_uncompress bls12_381_G1_compressed_zero)\n")
                     } else {
-                        format!("f{}_{} :: BuiltinBLS12_381_G1_Element\nf{}_{} = rec_commitments !! {}\n", id + 1, vki.name, id + 1, vki.name, id + offset)
+                        format!("{f_name} :: BuiltinBLS12_381_G1_Element\nf{f_name} = rec_commitments !! {}\n", id + offset)
                     }
                 }).chain(vki.permutation_commitments.iter().enumerate().map(|(id, point)| {
+                    let p_name = format!("p{}{}_commitment",capitalize_first(&vki.name), id + 1);
                     if point.is_identity().into() {
-                        format!("p{}_{} :: BuiltinBLS12_381_G1_Element\np{}_{} = (bls12_381_G1_uncompress bls12_381_G1_compressed_zero)\n", id + 1, vki.name, id + 1, vki.name)
+                        format!("{p_name} :: BuiltinBLS12_381_G1_Element\n{p_name} = (bls12_381_G1_uncompress bls12_381_G1_compressed_zero)\n")
                     } else {
-                        format!("p{}_{} :: BuiltinBLS12_381_G1_Element\np{}_{} = rec_commitments !! {}\n", id + 1, vki.name, id + 1, vki.name, id + offset + vki_fixed_len)
+                        format!("{p_name} :: BuiltinBLS12_381_G1_Element\n{p_name} = rec_commitments !! {}\n", id + offset + vki_fixed_len)
                     }
                 })).join(""));
             offset += vki_fixed_len + vki.permutation_commitments.len();
             commitments
         }).join("");
 
-        (points, exports, assignments)
+        let reprs = recursion_vks.iter().map(|vki| {
+            let sig = format!("transcriptRepr{} :: Scalar\n", capitalize_first(&vki.name));
+            let data = format!("transcriptRepr{} = mkScalar (0x{:?} `modulo` bls12_381_field_prime)\n", capitalize_first(&vki.name), vki.transcript_representation);
+            [sig,data].join("")
+
+        }).join("");
+
+        (points, exports, assignments, reprs)
     });
     data.insert("RECURSION_COMMITMENTS".to_string(), points);
     data.insert("RECURSION_COMMITMENTS_EXPORTS".to_string(), exports);
     data.insert("RECURSION_COMMITMENT_G1".to_string(), assignment);
+    data.insert("RECURSION_TRANSCRIPT_REP".to_string(), reprs);
 
     let compressed_sg2 = hex::encode(circuit.proof_instantiation_data.s_g2.to_bytes());
 

@@ -226,7 +226,7 @@ verify proof {{{COMMITTED_INSTANCES_AND_INSTANCE_VARS}}} = fst $ flip (M.run VKC
       ml_r :: BuiltinBLS12_381_MlResult
       !ml_r = bls12_381_millerLoop er g2
       final_verification :: Bool
-      !final_verification = bls12_381_finalVerify ml_l ml_r
+      !final_verification = (bls12_381_finalVerify ml_l ml_r) {{{REC_VKS_CHECK}}}
 
   M.return
     ( final_verification,
