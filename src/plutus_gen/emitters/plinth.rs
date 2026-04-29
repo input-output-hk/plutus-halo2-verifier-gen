@@ -967,7 +967,7 @@ where
         .join("");
     let assignment = circuit.proof_instantiation_data.fixed_commitments.clone().iter().enumerate().map(|(id, point)| {
         if point.is_identity().into() {
-            format!("f{}_commitment :: BuiltinBLS12_381_G1_Element\nf{}_commitment = (bls12_381_G1_uncompress bls12_381_G1_compressed_zero)\n", id + 1, id + 1)
+            format!("f{}_commitment :: BuiltinBLS12_381_G1_Element\nf{}_commitment = g1_zero\n", id + 1, id + 1)
         } else {
             format!("f{}_commitment :: BuiltinBLS12_381_G1_Element\nf{}_commitment = f_commitments !! {}\n", id + 1, id + 1, id)
         }
@@ -998,7 +998,7 @@ where
         .join("");
     let assignment = circuit.proof_instantiation_data.permutation_commitments.clone().iter().enumerate().map(|(id, point)| {
         if point.is_identity().into() {
-            format!("p{}_commitment :: BuiltinBLS12_381_G1_Element\np{}_commitment = (bls12_381_G1_uncompress bls12_381_G1_compressed_zero)\n", id + 1, id + 1)
+            format!("p{}_commitment :: BuiltinBLS12_381_G1_Element\np{}_commitment = g1_zero\n", id + 1, id + 1)
         } else {
             format!("p{}_commitment :: BuiltinBLS12_381_G1_Element\np{}_commitment = p_commitments !! {}\n", id + 1, id + 1, id)
         }
@@ -1049,14 +1049,14 @@ rec_commitments = commitments rec_commitments_val_pairs\n\n{}",
                 vki.fixed_commitments.iter().enumerate().map(|(id, point)| {
                     let f_name = format!("f{}{}_commitment",capitalize_first(&vki.name), id + 1);
                     if point.is_identity().into() {
-                        format!("{f_name} :: BuiltinBLS12_381_G1_Element\n{f_name} = (bls12_381_G1_uncompress bls12_381_G1_compressed_zero)\n")
+                        format!("{f_name} :: BuiltinBLS12_381_G1_Element\n{f_name} = g1_zero\n")
                     } else {
                         format!("{f_name} :: BuiltinBLS12_381_G1_Element\nf{f_name} = rec_commitments !! {}\n", id + offset)
                     }
                 }).chain(vki.permutation_commitments.iter().enumerate().map(|(id, point)| {
                     let p_name = format!("p{}{}_commitment",capitalize_first(&vki.name), id + 1);
                     if point.is_identity().into() {
-                        format!("{p_name} :: BuiltinBLS12_381_G1_Element\n{p_name} = (bls12_381_G1_uncompress bls12_381_G1_compressed_zero)\n")
+                        format!("{p_name} :: BuiltinBLS12_381_G1_Element\n{p_name} = g1_zero\n")
                     } else {
                         format!("{p_name} :: BuiltinBLS12_381_G1_Element\n{p_name} = rec_commitments !! {}\n", id + offset + vki_fixed_len)
                     }
