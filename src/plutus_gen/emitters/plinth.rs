@@ -760,8 +760,8 @@ where
             let challenge_bytes = format!("      !challenge_bytes =  blake2b_256 ((bls12_381_G1_compress el) <> (bls12_381_G1_compress er) <> (bls12_381_G1_compress acc_left) <> (bls12_381_G1_compress acc_right_final))\n");
             let challenge = format!("      !challenge =  mkScalar((byteStringToInteger LittleEndian challenge_bytes) `modulo` bls12_381_field_prime)\n");
 
-            let updated_el = format!(" + (scale challenge acc_left)\n");
-            let updated_er = format!(" + (scale challenge acc_right_final)\n");
+            let updated_el = format!(" + (scale challenge acc_left)");
+            let updated_er = format!(" + (scale challenge acc_right_final)");
 
             ([check_vk, neg_g1, acc_left, acc_right, acc_fixed, acc_right_final, challenge_bytes, challenge].iter().join(""), updated_el, updated_er, final_check_vks)
         });
