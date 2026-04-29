@@ -116,11 +116,6 @@ impl InstantiationSpecificData {
         // Extracting number of public_inputs
         self.public_inputs_count = instances.len();
 
-        let mut index_public_inputs = 0;
-        if self.committed_instances_supported {
-            index_public_inputs = 1;
-        }
-
         self.recursion_vks = recursion_vks.map(|recursion_vks| {
             recursion_vks
                 .into_iter()
