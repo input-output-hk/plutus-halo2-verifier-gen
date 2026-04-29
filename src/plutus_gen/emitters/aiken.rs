@@ -677,7 +677,11 @@ where
 
             let nb_vks = 1 + circuit.proof_instantiation_data.recursion_vks.as_ref().map_or(0, |vks| vks.len());
 
-            let check_vk = "    let b = b && (transcript_rep == i_1)\n".to_string();
+            let check_self_vk = "    let b = b && (transcript_rep == i_1)\n".to_string();
+            let check_inner_vks = recursion_vks.iter().enumerate().map(|(i, vki)| {
+                format!("    let b = b && (transcript_rep_{} = i_{}\n", vki.name, i+2)
+            }).join("");
+            let check_vk = [check_self_vk, check_inner_vks].join("");
 
             assert!(nb_public_inputs >= (nb_vks + fixed_bases_len + serialized_acc), "Not enough public inputs to support recursion. Required at least {}, but only {} provided.", fixed_bases_len + serialized_acc + nb_vks, nb_public_inputs);
 
@@ -1098,7 +1102,12 @@ where
                         })
                         .join("\n");
 
-                    format!("{}\n{}", fixed_commitments, permutation_commitments)
+                    let transcript_repr = format!(
+                        "pub const transcript_rep_{} = {:?}",
+                        vki.name, vki.transcript_representation
+                    );
+
+                    [transcript_repr, fixed_commitments, permutation_commitments].join("\n")
                 })
                 .join("\n")
         });
