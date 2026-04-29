@@ -662,7 +662,7 @@ where
     data.insert("RECURSION_COMMITMENT_LIFTS".to_string(), recursion_lift);
 
     let (recursion_map, recursion_el, recursion_er, recursion_vks) = circuit.proof_instantiation_data.recursion_vks.clone().map_or((String::new(),String::new(),String::new(),String::new()), |recursion_vks| {
-            let check_self_vk = format!("      let b = i1 PlutusTx.== VKConstants.transcriptRepr");
+            let check_self_vk = format!("      !b = i1 PlutusTx.== VKConstants.transcriptRepr");
             let check_inner_vks = recursion_vks.iter().enumerate().map(|(i, vki)| {
                 format!("PlutusTx.&& (i{} PlutusTx.== VKConstants.transcriptRepr{})", 2+i, capitalize_first(&vki.name))
             } ).join(" ");
