@@ -681,13 +681,17 @@ where
 
             assert!(nb_public_inputs >= (nb_vks + fixed_bases_len + serialized_acc), "Not enough public inputs to support recursion. Required at least {}, but only {} provided.", fixed_bases_len + serialized_acc + nb_vks, nb_public_inputs);
 
+
+            let batching_coeff = "72057594037927936".to_string();
+            let base_field_modulo = "0x1a0111ea397fe69a4b1ba7b6434bacd764774b84f38512bf6730d2a0f6b0f6241eabfffeb153ffffb9feffffffffaaab".to_string();
+
             let acc_left : String = {
-                let serialized_x = format!("    let acc_left_x_int = (1 + {}) % 0x1a0111ea397fe69a4b1ba7b6434bacd764774b84f38512bf6730d2a0f6b0f6241eabfffeb153ffffb9feffffffffaaab\n", (0..7).fold("0".to_string(), |acc, i| {
-                        format!("(({} * 72057594037927936) + to_int(i_{}))", acc, nb_public_inputs - fixed_bases_len - 3*7 - 2 - i)
+                let serialized_x = format!("    let acc_left_x_int = (1 + {}) % {base_field_modulo}\n", (0..7).fold("0".to_string(), |acc, i| {
+                        format!("(({} * {batching_coeff}) + to_int(i_{}))", acc, nb_public_inputs - fixed_bases_len - 3*7 - 2 - i)
                     }).to_string());
 
-                let serialized_y = format!("    let acc_left_y_int = (1 + {}) % 0x1a0111ea397fe69a4b1ba7b6434bacd764774b84f38512bf6730d2a0f6b0f6241eabfffeb153ffffb9feffffffffaaab\n", (0..7).fold("0".to_string(), |acc, i| {
-                        format!("(({} * 72057594037927936) + to_int(i_{}))", acc, nb_public_inputs - fixed_bases_len - 2*7 - 2 - i)
+                let serialized_y = format!("    let acc_left_y_int = (1 + {}) % {base_field_modulo}\n", (0..7).fold("0".to_string(), |acc, i| {
+                        format!("(({} * {batching_coeff}) + to_int(i_{}))", acc, nb_public_inputs - fixed_bases_len - 2*7 - 2 - i)
                     }).to_string());
 
                 // let result = format!("    let acc_left = scaleG1(g1_from_coords_unsafe(acc_left_x_int, acc_left_y_int), i_{})\n", nb_public_inputs - fixed_bases_len - 2*7 - 1).to_string();
@@ -700,12 +704,12 @@ where
 
 
             let acc_right : String = {
-                let serialized_x = format!("\n    let acc_right_x_int = (1 + {}) % 0x1a0111ea397fe69a4b1ba7b6434bacd764774b84f38512bf6730d2a0f6b0f6241eabfffeb153ffffb9feffffffffaaab\n", (0..7).fold("0".to_string(), |acc, i| {
-                        format!("(({} * 72057594037927936) + to_int(i_{}))", acc, nb_public_inputs - fixed_bases_len - 7 - 1 - i)
+                let serialized_x = format!("\n    let acc_right_x_int = (1 + {}) % {base_field_modulo}\n", (0..7).fold("0".to_string(), |acc, i| {
+                        format!("(({} * {batching_coeff}) + to_int(i_{}))", acc, nb_public_inputs - fixed_bases_len - 7 - 1 - i)
                     }).to_string());
 
-                let serialized_y = format!("    let acc_right_y_int = (1 + {}) % 0x1a0111ea397fe69a4b1ba7b6434bacd764774b84f38512bf6730d2a0f6b0f6241eabfffeb153ffffb9feffffffffaaab\n", (0..7).fold("0".to_string(), |acc, i| {
-                        format!("(({} * 72057594037927936) + to_int(i_{}))", acc, nb_public_inputs - fixed_bases_len - 1 - i)
+                let serialized_y = format!("    let acc_right_y_int = (1 + {}) % {base_field_modulo}\n", (0..7).fold("0".to_string(), |acc, i| {
+                        format!("(({} * {batching_coeff}) + to_int(i_{}))", acc, nb_public_inputs - fixed_bases_len - 1 - i)
                     }).to_string());
 
                 let result = format!("    let acc_right_unscaled = g1_from_coords_unsafe(acc_right_x_int, acc_right_y_int)\n").to_string();
