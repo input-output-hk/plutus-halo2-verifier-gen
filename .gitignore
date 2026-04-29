@@ -11,6 +11,7 @@ kzg_params/
 serialized_proof.json
 serialized_proof.hex
 serialized_public_input.hex
+serialized_committed_input.hex
 Verifier.hs
 VKConstants.hs
 VerifierScript.flat
