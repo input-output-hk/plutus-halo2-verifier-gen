@@ -698,9 +698,7 @@ where
                         format!("(({} * {batching_coeff}) + to_int(i_{}))", acc, nb_public_inputs - fixed_bases_len - 2*7 - 2 - i)
                     }).to_string());
 
-                // let result = format!("    let acc_left = scaleG1(g1_from_coords_unsafe(acc_left_x_int, acc_left_y_int), i_{})\n", nb_public_inputs - fixed_bases_len - 2*7 - 1).to_string();
-
-                let result = format!("    let acc_left_unscaled = g1_from_coords_unsafe(acc_left_x_int, acc_left_y_int)\n").to_string();
+                let result = format!("    let acc_left_unscaled = g1_from_coords(acc_left_x_int, acc_left_y_int)\n").to_string();
                 let result2 = format!("    let acc_left = scaleG1(acc_left_unscaled, i_{})\n", nb_public_inputs - fixed_bases_len - 2*7 - 1).to_string();
 
                [serialized_x, serialized_y, result, result2].iter().join("")
@@ -716,7 +714,7 @@ where
                         format!("(({} * {batching_coeff}) + to_int(i_{}))", acc, nb_public_inputs - fixed_bases_len - 1 - i)
                     }).to_string());
 
-                let result = format!("    let acc_right_unscaled = g1_from_coords_unsafe(acc_right_x_int, acc_right_y_int)\n").to_string();
+                let result = format!("    let acc_right_unscaled = g1_from_coords(acc_right_x_int, acc_right_y_int)\n").to_string();
                 let result2 = format!("    let acc_right = scaleG1(acc_right_unscaled, i_{})\n", nb_public_inputs - fixed_bases_len).to_string();
 
                [serialized_x, serialized_y, result, result2].iter().join("")

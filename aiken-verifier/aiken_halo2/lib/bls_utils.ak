@@ -11,8 +11,8 @@ use aiken/option.{is_some}
 use aiken/primitive/bytearray
 
 // Function returning a G1 element from two scalar coordinates
-// We assume the point is already on the curve and it is not at infinity
-pub fn g1_from_coords_unsafe(x: Int, y: Int) -> G1Element {
+// We assume the point is not at infinity
+pub fn g1_from_coords(x: Int, y: Int) -> G1Element {
   // 1. Build the flags
   // The compression flag (first bit) is set to 1
   // The parity flag (third bit) is set to 1 if y is the lexicographically largest
@@ -106,7 +106,7 @@ test coord_generator() {
   let y =
     0x8b3f481e3aaa0f1a09d8a7e0e1f7b6b8f3d3d5a7b7a2c6b6d2f5e8c3b9a1d0e4c8f6a1b2c3d4e5f60718293a4b5c6d7
 
-  let p = g1_from_coords_unsafe(x, y)
+  let p = g1_from_coords(x, y)
 
   expect equal(p, generator)
 }
