@@ -1,19 +1,18 @@
 use anyhow::{Context as _, Result};
-use log::{debug, info};
+use log::info;
 use rand::prelude::StdRng;
 use rand_core::SeedableRng;
-use std::fs::File;
-use std::{collections::BTreeMap, ops::Neg};
+use std::collections::BTreeMap;
 
 use ff::Field;
-use group::{Curve, Group, prime::PrimeCurveAffine};
+use group::Group;
 
 use midnight_circuits::{
     hash::poseidon::PoseidonState,
     types::{AssignedNative, Instantiable},
     verifier::{Accumulator, AssignedAccumulator, AssignedVk, BlstrsEmulation, Msm, SelfEmulation},
 };
-use midnight_curves::{Bls12, BlsScalar as Scalar, G1Affine, G1Projective};
+use midnight_curves::{Bls12, BlsScalar as Scalar};
 use midnight_proofs::{
     plonk::{ConstraintSystem, create_proof, keygen_pk, keygen_vk_with_k, prepare},
     poly::{
@@ -26,10 +25,8 @@ use midnight_proofs::{
     transcript::{CircuitTranscript, Transcript},
 };
 
-use num_bigint::BigUint;
 use plutus_halo2_verifier_gen::plutus_gen::{
-    CardanoFriendlyBlake2b, export_proof, export_public_inputs, generate_aiken_verifier,
-    generate_plinth_verifier, serialize_proof,
+    CardanoFriendlyBlake2b, generate_aiken_verifier, generate_plinth_verifier,
 };
 use plutus_halo2_verifier_gen::{
     circuits::ivc_circuit::{IvcCircuit, configure_ivc_circuit, from_ivc, new_ivc},
@@ -46,6 +43,9 @@ pub type Params = ParamsKZG<Bls12>;
 pub type ParamsVK = ParamsVerifierKZG<Bls12>;
 pub type InnerTranscript = PoseidonState<F>;
 pub type CTranscript = CardanoFriendlyBlake2b;
+
+#[path = "shared_utils/mod.rs"]
+mod shared_utils;
 
 const MAX_RECURSION_DEPTH: usize = 2;
 
@@ -152,11 +152,11 @@ fn main() -> Result<()> {
     let mut state = prev_state + F::ONE;
     let mut acc = trivial_acc;
 
-    let mut instances: Vec<Scalar> = AssignedVk::<S>::as_public_input(&vk);
-    instances.extend(AssignedNative::<F>::as_public_input(&state));
-    instances.extend(AssignedAccumulator::as_public_input(&acc));
+    let mut instance: Vec<Scalar> = AssignedVk::<S>::as_public_input(&vk);
+    instance.extend(AssignedNative::<F>::as_public_input(&state));
+    instance.extend(AssignedAccumulator::as_public_input(&acc));
 
-    info!("Nb public inputs: {:?}", instances.len());
+    info!("Nb public inputs: {:?}", instance.len());
 
     // Run the IVC loop.
     for i in 1..=MAX_RECURSION_DEPTH {
@@ -170,9 +170,9 @@ fn main() -> Result<()> {
         );
 
         if i != 0 {
-            instances = AssignedVk::<S>::as_public_input(&vk);
-            instances.extend(AssignedNative::<F>::as_public_input(&state));
-            instances.extend(AssignedAccumulator::as_public_input(&acc));
+            instance = AssignedVk::<S>::as_public_input(&vk);
+            instance.extend(AssignedNative::<F>::as_public_input(&state));
+            instance.extend(AssignedAccumulator::as_public_input(&acc));
         }
 
         // Computing the i-th step proof
@@ -185,7 +185,7 @@ fn main() -> Result<()> {
                     circuit,
                     &kzg_params,
                     &pk,
-                    &instances,
+                    &instance,
                     rng.clone()
                 )
             } else {
@@ -196,7 +196,7 @@ fn main() -> Result<()> {
                     circuit,
                     &kzg_params,
                     &pk,
-                    &instances,
+                    &instance,
                     rng.clone()
                 )
             }
@@ -206,15 +206,14 @@ fn main() -> Result<()> {
             info!("proof size {:?}", proof.len());
         }
 
-        println!("------------- Verifying");
         // Extracting from the proof the i-th step accumulator, collapsed to a single point
         proof_acc = {
             let dual_msm = if i != MAX_RECURSION_DEPTH {
                 // For the inner IVC steps, we use Poseidon hash as the transcript.
-                verify_prepare!(i, InnerTranscript, &proof, &vk, &instances)
+                verify_prepare!(i, InnerTranscript, &proof, &vk, &instance)
             } else {
                 // For the last IVC step, we use Cardano's Blake2b hash as the transcript.
-                verify_prepare!(i, CTranscript, &proof, &vk, &instances)
+                verify_prepare!(i, CTranscript, &proof, &vk, &instance)
             };
 
             assert!(dual_msm.clone().check(&kzg_params.verifier_params()));
@@ -254,46 +253,26 @@ fn main() -> Result<()> {
     let negated_firs_byte = !firs_byte;
     invalid_proof[index] = negated_firs_byte;
 
-    let instances_file =
-        "./plinth-verifier/plutus-halo2/test/Generic/serialized_public_input.hex".to_string();
-    let mut output = File::create(instances_file).context("failed to create instances file")?;
-    export_public_inputs(&[&[&instances]], &mut output)
-        .context("failed to export public inputs")?;
-
-    serialize_proof(
-        "./plinth-verifier/plutus-halo2/test/Generic/serialized_proof.json".to_string(),
-        prev_proof.clone(),
+    shared_utils::export_plinth(&instance, Some(C::identity()), &prev_proof)?;
+    generate_plinth_verifier(
+        &kzg_params,
+        &vk,
+        Some(Vec::new()), // We perform recursion, without inner vks
+        &instance,
+        Some(C::identity()),
     )
-    .context("json proof serialization failed")?;
+    .context("Plinth verifier generation failed")?;
 
-    export_proof(
-        "./plinth-verifier/plutus-halo2/test/Generic/serialized_proof.hex".to_string(),
-        prev_proof.clone(),
-    )
-    .context("hex proof serialization failed")?;
-
-    generate_plinth_verifier(&kzg_params, &vk, Some(Vec::new()), &[&[&[], &instances]])
-        .context("Plinth verifier generation failed")?;
-
+    shared_utils::export_aiken(&instance, Some(C::identity()), &prev_proof)?;
     generate_aiken_verifier(
         &kzg_params,
         &vk,
-        Some(Vec::new()),
-        &[&[&[], &instances]],
+        Some(Vec::new()), // We perform recursion, without inner vks
+        &instance,
         Some(C::identity()),
         Some((prev_proof.clone(), invalid_proof)),
     )
     .context("Aiken verifier generation failed")?;
-    export_proof(
-        "./aiken-verifier/submitter/serialized_proof.hex".to_string(),
-        prev_proof,
-    )
-    .context("hex proof serialization failed")?;
-
-    let instances_file = "./aiken-verifier/submitter/serialized_public_input.hex".to_string();
-    let mut output = File::create(instances_file).context("failed to create instances file")?;
-    export_public_inputs(&[&[&instances]], &mut output)
-        .context("Failed to export the public inputs")?;
 
     Ok(())
 }
