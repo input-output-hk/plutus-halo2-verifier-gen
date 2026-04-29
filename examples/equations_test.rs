@@ -40,15 +40,16 @@ fn main() -> Result<()> {
     let kzg_params: ParamsKZG<Bls12> = get_or_create_kzg_params(k, rng.clone())?;
     let vk: VerifyingKey<Scalar, KZG> = keygen_vk(&kzg_params, &circuit)?;
 
-    let instances: &[&[&[Scalar]]] = &[&[&[pks_comm, msg, Base::from(THRESHOLD as u64)]]];
+    let instance = [pks_comm, msg, Base::from(THRESHOLD as u64)];
 
-    let circuit_representation = extract_circuit(&kzg_params, &vk, instances)
+    let circuit_representation = extract_circuit(&kzg_params, &vk, &instance)
         .map_err(|e| anyhow!("{e}"))
         .context("Circuit extraction failed")?;
 
     emit_verifier_aiken(
         Path::new("aiken-verifier/templates/gates_test.hbs"),
         Path::new("aiken-verifier/aiken_halo2/lib/gates_test.ak"),
+        None,
         None,
         &circuit_representation,
         None,

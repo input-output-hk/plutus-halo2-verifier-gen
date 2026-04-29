@@ -29,14 +29,14 @@ use halo2_proofs::poly::kzg::params::ParamsKZG;
 /// # Arguments
 /// * `params` - Parameters for the KZG polynomial commitment scheme
 /// * `vk` - Verifying key for the circuit, it can have either GWC19, or halo2 based KZG
-/// * `instances` - Public inputs to the circuit
+/// * `instance` - Public inputs to the circuit
 ///
 /// # Returns
 /// * `Result<(), String>` - Ok(()) if the generation is successful, Err(String) otherwise
 pub fn generate_plinth_verifier<PCS>(
     params: &ParamsKZG<Bls12>,
     vk: &VerifyingKey<Scalar, PCS>,
-    instances: &[&[&[Scalar]]],
+    instance: &[Scalar],
 ) -> Result<()>
 where
     PCS: ExtractPCS + PolynomialCommitmentScheme<Scalar, Commitment = G1Projective>,
@@ -51,13 +51,18 @@ where
     };
 
     let vk_template_file = Path::new("plinth-verifier/templates/vk_constants.hbs");
+    let test_template_file = Path::new("plinth-verifier/templates/test.hbs");
+    let test_plutus_template_file = Path::new("plinth-verifier/templates/generic_vf_plutus.hbs");
+    let test_haskell_template_file = Path::new("plinth-verifier/templates/generic_vf_haskell.hbs");
+    let test_compiled_template_file =
+        Path::new("plinth-verifier/templates/generic_vf_compiled.hbs");
     let verifier_generated_file =
         Path::new("plinth-verifier/plutus-halo2/src/Plutus/Crypto/Halo2/Generic/Verifier.hs");
     let vk_generated_file =
         Path::new("plinth-verifier/plutus-halo2/src/Plutus/Crypto/Halo2/Generic/VKConstants.hs");
 
     // Step 1: extract circuit representation
-    let circuit_representation = extract_circuit(params, vk, instances)
+    let circuit_representation = extract_circuit(params, vk, instance)
         .context("Failed to extract the circuit representation")?;
 
     // Step 2: Based on the circuit repr generate Plinth verifier and verification key constants
@@ -65,6 +70,10 @@ where
     emit_verifier_plinth(
         verifier_template_file,
         verifier_generated_file,
+        test_template_file,
+        test_plutus_template_file,
+        test_haskell_template_file,
+        test_compiled_template_file,
         &circuit_representation,
     )
     .context("Failed to emit the verifier code for plutus")?;
@@ -81,20 +90,20 @@ where
 /// # Arguments
 /// * `params` - Parameters for the KZG polynomial commitment scheme
 /// * `vk` - Verifying key for the circuit, it can have either GWC19, or halo2 based KZG
-/// * `instances` - Public inputs to the circuit
+/// * `instance` - Public inputs to the circuit
 ///
 /// # Returns
 /// * `Result<(), String>` - Ok(()) if the generation is successful, Err(String) otherwise
 pub fn generate_aiken_verifier<PCS>(
     params: &ParamsKZG<Bls12>,
     vk: &VerifyingKey<Scalar, PCS>,
-    instances: &[&[&[Scalar]]],
+    instance: &[Scalar],
     test_proofs: Option<(Vec<u8>, Vec<u8>)>,
 ) -> Result<()>
 where
     PCS: ExtractPCS + PolynomialCommitmentScheme<Scalar, Commitment = G1Projective>,
 {
-    let circuit_representation = extract_circuit(params, vk, instances)
+    let circuit_representation = extract_circuit(params, vk, instance)
         .context("Failed to extract the circuit representation")?;
 
     // static locations of files in aiken directory
@@ -102,18 +111,24 @@ where
         PCSType::GWC19 => Path::new("aiken-verifier/templates/verification_gwc19.hbs"),
         PCSType::Halo2MultiOpen => Path::new("aiken-verifier/templates/verification_h2.hbs"),
     };
-
+    let verifier_file = Path::new("aiken-verifier/aiken_halo2/lib/proof_verifier.ak");
+    let profiler_template_file = Path::new("aiken-verifier/templates/profiler.hbs");
+    let validator_template_file = Path::new("aiken-verifier/templates/validator.hbs");
     emit_verifier_aiken(
         verifier_template_file,
-        Path::new("aiken-verifier/aiken_halo2/lib/proof_verifier.ak"),
-        Some(Path::new("aiken-verifier/templates/profiler.hbs")),
+        verifier_file,
+        Some(profiler_template_file),
+        Some(validator_template_file),
         &circuit_representation,
-        test_proofs.map(|(p, invalid_p)| (p, invalid_p, instances[0][0].to_vec())),
+        test_proofs.map(|(p, invalid_p)| (p, invalid_p, instance.to_vec())),
     )
     .context("Failed to emit the verifier code for aiken")?;
+
+    let verification_key_file = Path::new("aiken-verifier/aiken_halo2/lib/verifier_key.ak");
+    let vk_template_file = Path::new("aiken-verifier/templates/vk_constants.hbs");
     emit_vk_aiken(
-        Path::new("aiken-verifier/templates/vk_constants.hbs"),
-        Path::new("aiken-verifier/aiken_halo2/lib/verifier_key.ak"),
+        vk_template_file,
+        verification_key_file,
         &circuit_representation,
     )
     .context("Failed to emit the verifier key constants for aiken")?;

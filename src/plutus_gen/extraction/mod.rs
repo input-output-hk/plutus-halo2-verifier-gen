@@ -26,15 +26,6 @@ use data::{
 pub(crate) mod pcs;
 pub use pcs::ExtractPCS;
 
-/// Function returning the maximal length of the instances.
-fn instance_max_length(instances: &[&[&[Scalar]]]) -> usize {
-    instances
-        .iter()
-        .flat_map(|instance| instance.iter().map(|instance| instance.len()))
-        .max_by(Ord::cmp)
-        .unwrap_or_default()
-}
-
 /// Function returning the minimal and maximal rotations.
 fn rotations<PCS>(vk: &VerifyingKey<Scalar, PCS>) -> (i32, i32)
 where
@@ -55,32 +46,22 @@ where
 }
 
 /// Function extracting the circuit description from a verification key,
-/// parameters and instances.
+/// parameters and instance.
 pub fn extract_circuit<PCS>(
     params: &ParamsKZG<Bls12>,
     vk: &VerifyingKey<Scalar, PCS>,
-    instances: &[&[&[Scalar]]],
+    instance: &[Scalar],
 ) -> Result<CircuitRepresentation<PCS>, Error>
 where
     PCS: ExtractPCS + PolynomialCommitmentScheme<Scalar, Commitment = G1Projective>,
 {
     let chunk_len = vk.cs().degree() - 2;
 
-    for instances in instances.iter() {
-        if instances.len() != vk.cs().num_instance_columns() {
-            return Err(anyhow!(
-                "Invalid number of instances, #instances ({}) != #instance_columns ({})",
-                instances.len(),
-                vk.cs().num_instance_columns()
-            ));
-        }
-    }
-
-    // We suppose we only are verifying a single proof
-    if instances.len() > 1 {
+    if 1 != vk.cs().num_instance_columns() {
         return Err(anyhow!(
-            "Only one proof can be processed at a time, {} were received",
-            instances.len()
+            "Invalid number of instance, #instance ({}) != #instance_columns ({})",
+            instance.len(),
+            vk.cs().num_instance_columns()
         ));
     }
 
@@ -88,20 +69,10 @@ where
 
     // Extracting instantiation_data
     let (min_rotation, max_rotation) = rotations(vk);
-    let max_instance_len = instance_max_length(instances) as i32;
-    let rotations = -max_rotation..max_instance_len + min_rotation.abs();
+    let rotations = -max_rotation..(instance.len() as i32) + min_rotation.abs();
     circuit_description
         .proof_instantiation_data
-        .extract(params, vk, instances, rotations.len());
-
-    // Extracting (number of) public_inputs
-    for instance in instances.iter() {
-        for instance in instance.iter() {
-            for _value in instance.iter() {
-                circuit_description.increment_public_inputs();
-            }
-        }
-    }
+        .extract(params, vk, instance, rotations.len());
 
     // Extracting proof_extraction_steps
     extract_proof_steps(&mut circuit_description, vk);

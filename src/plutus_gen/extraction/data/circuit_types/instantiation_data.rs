@@ -36,7 +36,7 @@ impl InstantiationSpecificData {
         &mut self,
         params: &ParamsKZG<Bls12>,
         vk: &VerifyingKey<Scalar, PCS>,
-        instances: &[&[&[Scalar]]],
+        instances: &[Scalar],
         rotations: usize,
     ) where
         PCS: PolynomialCommitmentScheme<Scalar, Commitment = G1Projective>,
@@ -71,6 +71,6 @@ impl InstantiationSpecificData {
 
         self.transcript_representation = vk.transcript_repr();
 
-        self.public_inputs_count = instances[0][0].len();
+        self.public_inputs_count = instances.len();
     }
 }

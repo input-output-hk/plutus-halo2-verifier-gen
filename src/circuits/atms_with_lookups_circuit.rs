@@ -280,7 +280,7 @@ mod tests {
     use rand::prelude::StdRng;
 
     #[test]
-    fn test_circuit() {
+    fn test_atms_lookup_circuit() {
         // const NUM_PARTIES: usize = 2001;
         // const THRESHOLD: usize = 1602;
 
@@ -308,8 +308,8 @@ mod tests {
         let pi = vec![vec![pks_comm, msg, Base::from(THRESHOLD as u64)]];
 
         let k: u32 = k_from_circuit(&circuit);
-        let prover =
-            MockProver::run(k, &circuit, pi).expect("Failed to run ATMS verifier mock prover");
+        let prover = MockProver::run(k, &circuit, pi)
+            .expect("Failed to run ATMS with lookup verifier mock prover");
 
         prover.assert_satisfied();
     }

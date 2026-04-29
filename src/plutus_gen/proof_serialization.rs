@@ -5,7 +5,7 @@ use blstrs::Scalar;
 use std::fs::File;
 use std::io::Write;
 
-pub fn export_proof(proof_file: String, proof: Vec<u8>) -> Result<()> {
+pub fn export_proof(proof_file: String, proof: &[u8]) -> Result<()> {
     let hex = hex::encode(proof);
 
     let mut output = File::create(&proof_file)
@@ -20,7 +20,7 @@ pub fn export_proof(proof_file: String, proof: Vec<u8>) -> Result<()> {
     Ok(())
 }
 
-pub fn serialize_proof(proof_file: String, proof: Vec<u8>) -> Result<()> {
+pub fn serialize_proof(proof_file: String, proof: &[u8]) -> Result<()> {
     let serialized_proof = serde_json::to_string(&proof)
         .with_context(|| anyhow!("Failed to serialise Proof for `{proof_file}'"))?;
 
@@ -35,9 +35,9 @@ pub fn serialize_proof(proof_file: String, proof: Vec<u8>) -> Result<()> {
     Ok(())
 }
 
-pub fn export_public_inputs(instances: &[&[&[Scalar]]], output: &mut File) -> Result<()> {
-    for instance in instances[0][0].iter() {
-        let mut value = instance.to_bytes_le();
+pub fn export_public_inputs(instance: &[Scalar], output: &mut File) -> Result<()> {
+    for instance_i in instance.iter() {
+        let mut value = instance_i.to_bytes_le();
         value.reverse();
         output
             .write((hex::encode(value) + "\n").as_bytes())
