@@ -13,7 +13,7 @@ pub use extraction::pcs::PCSType;
 pub use extraction::{CircuitRepresentation, extract_circuit};
 
 pub(crate) mod stats;
-pub use stats::{estimate_proof_size, estimate_verifier_code, estimate_vk_size};
+pub use stats::{estimate_proof_size, compute_verifier_code, estimate_vk_size};
 
 pub(crate) mod proof_serialization;
 pub use proof_serialization::{export_proof, export_public_inputs, serialize_proof};
@@ -69,7 +69,7 @@ where
         .context("Failed to extract the circuit representation")?;
     println!(
         "\n{:#?}",
-        estimate_verifier_code(&vk, &circuit_representation)
+        compute_verifier_code(&vk, &circuit_representation)
     );
     Ok(())
 }

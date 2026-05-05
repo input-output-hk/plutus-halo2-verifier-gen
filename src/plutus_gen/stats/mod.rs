@@ -84,7 +84,7 @@ where
 }
 
 // Estimate the cost of a verifier given a circuit
-pub fn estimate_verifier_code<PCS>(
+pub fn compute_verifier_code<PCS>(
     vk: &VerifyingKey<Scalar, PCS>,
     circuit: &CircuitRepresentation<PCS>,
 ) -> CircuitStatistics
