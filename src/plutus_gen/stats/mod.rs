@@ -83,7 +83,288 @@ where
     nb_commitments * 48 + nb_scalars * 32
 }
 
-// Estimate the cost of a verifier given a circuit
+// Estimate a _lower bound_ of the verifier.
+// This is a lower bound as the number of evaluation points and set depends on the gates
+pub fn estimate_verifier_code<PCS>(
+    nb_public_inputs: usize,
+    nb_advice: usize,
+    nb_fixed: usize,
+    nb_lookups: usize,
+    circuit_degree: usize,
+) -> CircuitStatistics
+where
+    PCS: ExtractPCS,
+{
+    let size_proof = estimate_proof_size::<PCS>(
+        nb_public_inputs,
+        nb_advice,
+        nb_fixed,
+        nb_lookups,
+        circuit_degree,
+    );
+    let vk_size = estimate_vk_size::<PCS>(nb_public_inputs, nb_advice, nb_fixed);
+
+    let mut stats = CircuitStatistics::new(size_proof, vk_size, nb_public_inputs);
+
+    let blinding_factors = 5; // Default and lower number of blinding factors.
+
+    let nb_non_fixed = nb_advice + if nb_public_inputs > 0 { 1 } else { 0 };
+    let nb_permutations = nb_non_fixed.div_ceil(circuit_degree - 2);
+
+    // Absorbing vk
+    stats.common_scalar();
+
+    // Absorbing number of PIs and each PI
+    stats.common_scalar();
+    stats.from_int_scalar();
+    (1..=nb_public_inputs).for_each(|_| stats.common_scalar());
+
+    // PES: advice commitments (one per advice column)
+    (0..nb_advice).for_each(|_| stats.read_point());
+
+    // PES: Theta challenge, then lookup permuted commitments (input + table per lookup)
+    stats.squeeze_challenge();
+    (0..nb_lookups).for_each(|_| {
+        stats.read_point();
+        stats.read_point();
+    });
+
+    // PES: Beta and Gamma challenges
+    stats.squeeze_challenge();
+    stats.squeeze_challenge();
+
+    // PES: permutation product commitments, lookup product commitments, vanishing randomness
+    (0..nb_permutations).for_each(|_| stats.read_point());
+    (0..nb_lookups).for_each(|_| stats.read_point());
+    stats.read_point();
+
+    // PES: Y challenge, vanishing polynomial splits, X challenge
+    stats.squeeze_challenge();
+    (0..circuit_degree - 1).for_each(|_| stats.read_point());
+    stats.squeeze_challenge();
+
+    // PES: evaluations — advice, fixed, random, permutation common, permutation cross, lookup
+    (0..nb_non_fixed).for_each(|_| stats.read_scalar());
+    (0..nb_fixed).for_each(|_| stats.read_scalar());
+    stats.read_scalar();
+    (0..nb_non_fixed).for_each(|_| stats.read_scalar());
+    // Each permutation set contributes: eval + eval_next + cross_eval (except the last set)
+    (0..3 * nb_permutations - 1).for_each(|_| stats.read_scalar());
+    (0..nb_lookups).for_each(|_| {
+        stats.read_scalar(); // product_eval
+        stats.read_scalar(); // product_eval_next
+        stats.read_scalar(); // permuted_input_eval
+        stats.read_scalar(); // permuted_input_inv_eval
+        stats.read_scalar(); // permuted_table_eval
+    });
+
+    // PCS extraction steps (lower bound: assumes 3 point sets = prev/current/next rotations)
+    if PCS::pcs_type() == PCSType::Halo2MultiOpen {
+        let num_point_sets = 3;
+        stats.squeeze_challenge(); // x1
+        stats.squeeze_challenge(); // x2
+        stats.read_point(); // f_commitment
+        stats.squeeze_challenge(); // x3
+        (0..num_point_sets).for_each(|_| stats.read_scalar()); // q_evals
+        stats.squeeze_challenge(); // x4
+        stats.read_point(); // pi_term
+    } else if PCS::pcs_type() == PCSType::GWC19 {
+        let num_witnesses = 3;
+        stats.squeeze_challenge(); // v
+        (0..num_witnesses).for_each(|_| stats.read_point()); // witnesses
+        stats.squeeze_challenge(); // u
+    }
+
+    // Rotations for vanishing polynomial (0..=blinding_factors)
+    (0..=blinding_factors).for_each(|_| stats.rotate_omega());
+
+    // Computing powers of the evaluation point and surrounding rotations
+    stats.pow_scalar(); // x^n
+    stats.rotate_omega(); // x_prev
+    stats.rotate_omega(); // x_current
+    stats.rotate_omega(); // x_next
+    stats.rotate_omega(); // x_last
+
+    // Lagrange polynomial basis for blinding factors
+    stats.lagrange_polynomial_basis(1 + blinding_factors);
+    (1..=blinding_factors).for_each(|_| stats.add_scalar());
+    stats.add_scalar(); // active_rows: add(last_eval, sum)
+    stats.sub_scalar(); // active_rows: sub(1, ...)
+
+    // Lagrange polynomial basis and inner product for public inputs
+    (0..nb_public_inputs).for_each(|_| stats.rotate_omega());
+    stats.lagrange_polynomial_basis(nb_public_inputs);
+    stats.inner_product(nb_public_inputs);
+
+    // Gate equations: one classic arithmetic gate ql*l + qr*r + qm*m + qc*c + qo*o = 0
+    // Each of the 5 terms is Product(Fixed, Advice) → 1 mul; 4 Sum nodes → 4 adds
+    (0..5).for_each(|_| stats.mul_scalar());
+    (0..4).for_each(|_| stats.add_scalar());
+
+    // Lookup input/table expression folding (expression contents are circuit-specific)
+    (0..nb_lookups).for_each(|_| {
+        stats.add_scalar();
+        stats.mul_scalar();
+    });
+    (0..nb_lookups).for_each(|_| {
+        stats.add_scalar();
+        stats.mul_scalar();
+    });
+
+    // Lookup constraint equations — fixed structure per lookup
+    (0..nb_lookups).for_each(|_| {
+        stats.sub_scalar(); // l1: 1 - product_eval
+        stats.mul_scalar(); // l1: eval_at_0 * (...)
+        stats.mul_scalar(); // l2: product_eval * product_eval
+        stats.sub_scalar(); // l2: ... - product_eval
+        stats.mul_scalar(); // l2: last_eval * (...)
+        stats.add_scalar(); // lookup_left: permuted_input + beta
+        stats.add_scalar(); // lookup_left: permuted_table + gamma
+        stats.mul_scalar(); // lookup_left: product * (...)
+        stats.mul_scalar(); // lookup_left: * (...)
+        stats.add_scalar(); // lookup_right: input_eq + beta
+        stats.add_scalar(); // lookup_right: table_eq + gamma
+        stats.mul_scalar(); // lookup_right: product * (...)
+        stats.mul_scalar(); // lookup_right: * (...)
+        stats.sub_scalar(); // l3: lookup_left - lookup_right
+        stats.mul_scalar(); // l3: * active_rows
+        stats.sub_scalar(); // l4: permuted_input - permuted_table
+        stats.mul_scalar(); // l4: eval_at_0 * (...)
+        stats.sub_scalar(); // l5: permuted_input - permuted_table
+        stats.mul_scalar(); // l5: * (...)
+        stats.sub_scalar(); // l5: permuted_input - permuted_input_inv
+        stats.mul_scalar(); // l5: * active_rows
+    });
+
+    // Permutation evaluated terms (2 fixed + nb_permutations-1 cross-product constraints):
+    //   term1 = eval_0 * (one - perm_eval_first)        → Product(var, Sum(var, Neg(var)))
+    //   term2 = eval_last * (perm_eval * perm_eval - perm_eval)  → Product(var, Sum(Product(v,v), Neg(v)))
+    //   cross = (perm_eval_next - perm_eval_current) * eval_0    → Product(Sum(var, Neg(var)), var)
+    stats.mul_scalar(); // term1: outer Product
+    stats.add_scalar(); // term1: Sum
+    stats.neg_scalar(); // term1: Negated
+    stats.mul_scalar(); // term2: outer Product
+    stats.mul_scalar(); // term2: inner Product(perm_eval, perm_eval)
+    stats.add_scalar(); // term2: Sum
+    stats.neg_scalar(); // term2: Negated
+    (0..nb_permutations - 1).for_each(|_| {
+        stats.mul_scalar(); // cross: outer Product
+        stats.add_scalar(); // cross: Sum
+        stats.neg_scalar(); // cross: Negated
+    });
+
+    // Permutation left terms: Sum(Sum(eval, Product(beta, sigma)), gamma) per column
+    // → 1 mul + 2 adds from scalar_expression, plus tree-structure muls for set batching
+    (0..nb_non_fixed).for_each(|_| {
+        stats.mul_scalar(); // Product(beta, sigma)
+        stats.add_scalar(); // inner Sum
+        stats.add_scalar(); // outer Sum with gamma
+    });
+    (nb_permutations..nb_non_fixed).for_each(|_| stats.mul_scalar()); // non-first terms in each set
+    (0..nb_permutations).for_each(|_| stats.mul_scalar()); // batching sets together
+
+    // Permutation right terms: Sum(Sum(eval, Product(Product(beta, x), PowMod(delta, p))), gamma)
+    // → 2 muls + 2 adds + 1 pow per column, plus same tree-structure muls
+    (0..nb_non_fixed).for_each(|_| {
+        stats.mul_scalar(); // inner Product(beta, x)
+        stats.mul_scalar(); // outer Product(..., PowMod)
+        stats.pow_scalar(); // PowMod(delta, power)
+        stats.add_scalar(); // inner Sum
+        stats.add_scalar(); // outer Sum with gamma
+    });
+    (nb_permutations..nb_non_fixed).for_each(|_| stats.mul_scalar());
+    (0..nb_permutations).for_each(|_| stats.mul_scalar());
+
+    // Combining left and right permutation sets
+    (0..nb_permutations).for_each(|_| {
+        stats.mul_scalar();
+        stats.sub_scalar();
+        stats.sub_scalar();
+        stats.add_scalar();
+    });
+
+    // Expressions combiner: 1 gate + (1+nb_permutations) evaluated terms + nb_permutations sets + 5*nb_lookups
+    let approx_total_nb_expressions = 2 + 2 * nb_permutations + 5 * nb_lookups;
+    (0..approx_total_nb_expressions).for_each(|_| {
+        stats.add_scalar();
+        stats.mul_scalar();
+    });
+
+    // Vanishing check: inverted = recip(x^n - 1), vanishing_s = h_eval * inverted
+    stats.sub_scalar();
+    stats.inv_scalar();
+    stats.mul_scalar();
+
+    // h_commitments: 1 init + (nb_splits-2) loop + 1 final = circuit_degree-1 entries,
+    // each with 1 Scale (mul_point) and 1 Sum (add_point)
+    (0..circuit_degree - 1).for_each(|_| {
+        stats.scale();
+        stats.add_point();
+    });
+
+    // Compress the final combined vanishing point
+    stats.compress_point();
+
+    // PCS-specific post-computation (lower bound)
+    if PCS::pcs_type() == PCSType::Halo2MultiOpen {
+        let num_point_sets = 3;
+        // Powers of x4
+        (2..=num_point_sets + 1).for_each(|_| stats.mul_scalar());
+        // Powers of x1: not counted as lower bound (depends on max commitments per point set)
+    } else if PCS::pcs_type() == PCSType::GWC19 {
+        // Assumes vanilla arithmetic circuit with lookups:
+        //   x (current):   advice + fixed + perm_products + lookup_products + 2*lookup_permuted
+        //   x·ω (next):    perm_product cross-terms + lookup_product next-evals
+        //   x·ω⁻¹ (prev):  lookup_permuted_input prev-evals
+        let q_curr = nb_advice + nb_fixed + nb_permutations + 3 * nb_lookups;
+        let q_next = nb_permutations + nb_lookups;
+        let q_prev = nb_lookups;
+        let q_total = q_curr + q_next + q_prev;
+
+        // Left MSM: one witness per rotation point; all scalars are precomputed u powers (free)
+        (0..3).for_each(|_| {
+            stats.decompress_point();
+            stats.scale();
+            stats.add_point();
+        });
+
+        // Right MSM after optimize_msm: multi-rotation commitments are merged per commitment key
+        // Elements: advice + fixed (at x only) + nb_permutations + 3*nb_lookups + 3 witnesses + 1 negated G1
+        let right_msm_size = nb_advice + nb_fixed + nb_permutations + 3 * nb_lookups + 4;
+        (0..right_msm_size).for_each(|_| {
+            stats.decompress_point();
+            stats.scale();
+            stats.add_point();
+        });
+
+        // W1 and W2 scalars are MulS(u^{1,2}, rotation) → 1 mul each; W0 (u^0) is free
+        stats.mul_scalar();
+        stats.mul_scalar();
+        // Merged dual-rotation elements have scalar Add(free, MulS(u^i, v^j)) → 1 add + 1 mul each
+        (0..nb_permutations + 2 * nb_lookups).for_each(|_| {
+            stats.add_scalar();
+            stats.mul_scalar();
+        });
+        // AppendNegatedG1 scalar traverses the full eval_multi tree: (q_total-1) muls + adds
+        if q_total > 1 {
+            (1..q_total).for_each(|_| {
+                stats.mul_scalar();
+                stats.add_scalar();
+            });
+        }
+
+        // Powers of v: max exponent = q_curr - 1 (most queries at x), so q_curr - 2 muls
+        if q_curr > 1 {
+            (2..q_curr).for_each(|_| stats.mul_scalar());
+        }
+        // Powers of u: u^0, u^1, u^2 → 1 mul for u^2
+        stats.mul_scalar();
+    }
+
+    stats
+}
+
+// Compute the cost of a verifier given a circuit
 pub fn compute_verifier_code<PCS>(
     vk: &VerifyingKey<Scalar, PCS>,
     circuit: &CircuitRepresentation<PCS>,
@@ -197,9 +478,9 @@ where
     stats.sub_scalar();
     // rotations_for_instances
     (1..=circuit.proof_instantiation_data.public_inputs_count).for_each(|_| stats.rotate_omega());
-    // TODO lagrange_polynomial_instances
+    // Lagrange_polynomial_instances
     stats.lagrange_polynomial_basis(circuit.proof_instantiation_data.public_inputs_count);
-    // TODO instance_eval_1 if any
+    // instance_eval_1 if any
     stats.inner_product(circuit.proof_instantiation_data.public_inputs_count);
 
     circuit
@@ -380,8 +661,6 @@ where
 
         // Powers of x4: powers(HALO2_X4_POWERS_COUNT, x4)
         (2..=num_point_sets + 1).for_each(|_| stats.mul_scalar());
-
-        // TODO: count compute_msm operations (decompress + scale + add per commitment)
     }
 
     if PCS::pcs_type() == PCSType::GWC19 {
