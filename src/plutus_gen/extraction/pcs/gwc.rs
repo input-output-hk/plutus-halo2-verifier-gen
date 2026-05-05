@@ -3,7 +3,7 @@
 use crate::plutus_gen::extraction::data::CircuitRepresentation;
 use itertools::Itertools;
 
-use super::{ExtractPCS, PCSType};
+use super::{CircuitStatistics, ExtractPCS, PCSType};
 
 use blstrs::Bls12;
 use halo2_proofs::poly::gwc_kzg::GwcKZGCommitmentScheme;
@@ -92,6 +92,21 @@ impl ExtractPCS for GWC19Scheme {
             GWC19Steps::U => "  !u <- M.squeezeChallenge\n".to_string(),
             GWC19Steps::V => "  !v <- M.squeezeChallenge\n".to_string(),
             GWC19Steps::Witnesses => format!("  !w{} <- M.readPoint\n", number),
+        }
+    }
+
+    fn step_stat_operation(stats: &mut CircuitStatistics, step: &Self::PCSExtractionSteps) {
+        match step {
+            GWC19Steps::U => stats.squeeze_challenge(),
+            GWC19Steps::V => stats.squeeze_challenge(),
+            GWC19Steps::Witnesses => stats.read_point(),
+        }
+    }
+
+    fn step_stat(step: &Self::PCSExtractionSteps) -> (usize, usize) {
+        match step {
+            GWC19Steps::Witnesses => (1, 0),
+            _ => (0, 0),
         }
     }
 }

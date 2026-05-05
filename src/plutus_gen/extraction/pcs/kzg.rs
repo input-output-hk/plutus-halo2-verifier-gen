@@ -1,7 +1,7 @@
 //! Module for extracting the Halo2 variant of KZG PCS' steps and data.
 use crate::plutus_gen::extraction::data::CircuitRepresentation;
 
-use super::{ExtractPCS, PCSType};
+use super::{CircuitStatistics, ExtractPCS, PCSType};
 
 use blstrs::Bls12;
 use halo2_proofs::poly::kzg::KZGCommitmentScheme;
@@ -115,6 +115,27 @@ impl ExtractPCS for Halo2MultiOpenScheme {
             HMOSteps::PI => "  !pi_term <- M.readPoint\n".to_string(),
             HMOSteps::FCommitment => "  !f_commitment <- M.readPoint\n".to_string(),
             HMOSteps::QEvals => format!("  !q_eval_on_x3_{} <- M.readScalar\n", number),
+        }
+    }
+
+    fn step_stat_operation(stats: &mut CircuitStatistics, step: &Self::PCSExtractionSteps) {
+        match step {
+            HMOSteps::X1 => stats.squeeze_challenge(),
+            HMOSteps::X2 => stats.squeeze_challenge(),
+            HMOSteps::X3 => stats.squeeze_challenge(),
+            HMOSteps::X4 => stats.squeeze_challenge(),
+            HMOSteps::PI => stats.read_point(),
+            HMOSteps::FCommitment => stats.read_point(),
+            HMOSteps::QEvals => stats.read_scalar(),
+        }
+    }
+
+    fn step_stat(step: &Self::PCSExtractionSteps) -> (usize, usize) {
+        match step {
+            HMOSteps::PI => (1, 0),
+            HMOSteps::FCommitment => (1, 0),
+            HMOSteps::QEvals => (0, 1),
+            _ => (0, 0),
         }
     }
 }

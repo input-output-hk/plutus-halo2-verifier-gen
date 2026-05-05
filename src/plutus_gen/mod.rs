@@ -11,6 +11,10 @@ pub use emitters::{
 pub use extraction::pcs::ExtractPCS;
 pub use extraction::pcs::PCSType;
 pub use extraction::{CircuitRepresentation, extract_circuit};
+
+pub(crate) mod stats;
+pub use stats::{estimate_proof_size, estimate_verifier_code, estimate_vk_size};
+
 pub(crate) mod proof_serialization;
 pub use proof_serialization::{export_proof, export_public_inputs, serialize_proof};
 
@@ -18,9 +22,57 @@ use anyhow::{Context as _, Result};
 use std::path::Path;
 
 use blstrs::{Bls12, G1Projective, Scalar};
-use halo2_proofs::plonk::VerifyingKey;
+use halo2_proofs::plonk::{Any, VerifyingKey};
 use halo2_proofs::poly::commitment::PolynomialCommitmentScheme;
 use halo2_proofs::poly::kzg::params::ParamsKZG;
+
+pub fn cost_evaluation<PCS>(
+    params: &ParamsKZG<Bls12>,
+    vk: &VerifyingKey<Scalar, PCS>,
+    instance: &[Scalar],
+) -> Result<()>
+where
+    PCS: ExtractPCS + PolynomialCommitmentScheme<Scalar, Commitment = G1Projective>,
+{
+    let pis = vk.cs().num_instance_columns();
+    let advices = vk.cs().num_advice_columns();
+    let fixed = vk.cs().num_fixed_columns();
+    let lookups = vk.cs().lookups().len();
+    let circuit_degree = vk.cs().degree();
+
+    let perm_columns = vk.cs().permutation().get_columns();
+    let advice_count = perm_columns
+        .iter()
+        .filter(|c| matches!(c.column_type(), Any::Advice(_)))
+        .count();
+    let fixed_count = perm_columns
+        .iter()
+        .filter(|c| matches!(c.column_type(), Any::Fixed))
+        .count();
+    let instance_count = perm_columns
+        .iter()
+        .filter(|c| matches!(c.column_type(), Any::Instance))
+        .count();
+
+    println!(
+        "Estimating vk size: {}",
+        estimate_vk_size::<PCS>(pis, advices, fixed)
+    );
+
+    println!(
+        "\nEstimating proof size: {}",
+        estimate_proof_size::<PCS>(pis, advices, fixed, lookups, circuit_degree)
+    );
+
+    // Step 1: extract circuit representation
+    let circuit_representation = extract_circuit(params, vk, instance)
+        .context("Failed to extract the circuit representation")?;
+    println!(
+        "\n{:#?}",
+        estimate_verifier_code(&vk, &circuit_representation)
+    );
+    Ok(())
+}
 
 /// Generates a Plinth verifier for a specific circuit and saves the generated
 /// code to the specified file paths.

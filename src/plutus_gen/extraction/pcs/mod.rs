@@ -8,6 +8,8 @@
 
 use super::data::{CircuitRepresentation, CommitmentData, Commitments, Query, RotationDescription};
 
+use crate::plutus_gen::stats::circuit_statistics::CircuitStatistics;
+
 #[cfg(feature = "plutus_debug")]
 use log::info;
 
@@ -113,6 +115,10 @@ pub trait ExtractPCS {
     fn step_to_aiken(step: Self::PCSExtractionSteps, number: usize) -> String;
     /// Function for emitting the PCS steps in Plinth.
     fn step_to_plinth(step: Self::PCSExtractionSteps, number: usize) -> String;
+    /// Function to compute the PCS steps costs.
+    fn step_stat_operation(stats: &mut CircuitStatistics, step: &Self::PCSExtractionSteps);
+    /// Function to compute the PCS steps' number of commitments and scalars.
+    fn step_stat(step: &Self::PCSExtractionSteps) -> (usize, usize);
 
     /// Function for extracting the PCS data to the circuit representation
     /// structure.

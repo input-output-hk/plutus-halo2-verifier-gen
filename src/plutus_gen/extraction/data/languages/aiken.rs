@@ -1,6 +1,9 @@
 //! All functions related to data's name and manipulation in Aiken language
 
-use super::super::{Commitments, Evaluations, ExpressionG1, ScalarExpression, constants::*};
+use super::super::{
+    Commitments, ElementMSM, Evaluations, ExpressionG1, OptimizedMSM, RotationDescription,
+    ScalarExpression, ScalarOperation, constants::*,
+};
 
 use blstrs::Scalar;
 use halo2_proofs::plonk::Expression;
@@ -230,6 +233,86 @@ impl AikenTranspiler for ScalarExpression<Scalar> {
             ScalarExpression::PermutationCommon(index) => {
                 write!(writer, "permutation_common_{:?}", index)
             }
+        }
+    }
+}
+
+impl AikenExpression for OptimizedMSM {
+    fn compile_expression(&self) -> String {
+        let elements = self
+            .elements
+            .iter()
+            .map(|element| match element {
+                ElementMSM::Element(scalar, commitment) => format!(
+                    "\n\t\t\t\tMSMElement {{ scalar: {}, g1: {} }}",
+                    scalar.compile_expression(),
+                    commitment.compile_expression(),
+                ),
+                ElementMSM::ElementW(scalar, index) => format!(
+                    "\n\t\t\t\tMSMElement {{ scalar: {}, g1: w{} }}",
+                    scalar.compile_expression(),
+                    index + 1,
+                ),
+                ElementMSM::ElementNegatedG1(scalar) => {
+                    format!(
+                        "\n\t\t\t\tMSMElement {{ scalar: {}, g1: neg_g1_generator }}",
+                        scalar.compile_expression(),
+                    )
+                }
+            })
+            .collect::<Vec<String>>()
+            .join(", ");
+        format!("MSM{{elements: [ {} ]}}", elements)
+    }
+}
+
+impl AikenExpression for ScalarOperation {
+    fn compile_expression(&self) -> String {
+        match self {
+            //if rules are for eliminating operations that outcome can be predicted
+            Self::Mul(scalar, evaluation) if matches!(**scalar, Self::Power(_, 0)) => {
+                evaluation.compile_expression()
+            }
+            Self::MulS(scalar_a, scalar_b) if matches!(**scalar_a, Self::Power(_, 0)) => {
+                scalar_b.compile_expression()
+            }
+            Self::MulS(scalar_a, scalar_b) if matches!(**scalar_b, Self::Power(_, 0)) => {
+                scalar_a.compile_expression()
+            }
+            Self::Power(_name, exponent) if *exponent == 0 => ONE_STR.to_string(),
+            Self::Add(scalar_a, scalar_b) if **scalar_a == Self::Zero => {
+                scalar_b.compile_expression()
+            }
+
+            Self::Zero => ZERO_STR.to_string(),
+            Self::Mul(scalar, evaluation) => {
+                format!(
+                    "mul({}, {})",
+                    scalar.compile_expression(),
+                    evaluation.compile_expression()
+                )
+            }
+            Self::MulS(scalar_a, scalar_b) => {
+                format!(
+                    "mul({}, {})",
+                    scalar_a.compile_expression(),
+                    scalar_b.compile_expression()
+                )
+            }
+            Self::Power(name, exponent) => {
+                // All powers of `v` and `u` are pre-computed to avoid duplication
+                // so here instead of calling `scale(v, X)` we just refer to `vX` variable
+                // format!("scale({}, {})", name, exponent)
+                format!("{}{}", name, exponent)
+            }
+            Self::Add(scalar_a, scalar_b) => {
+                format!(
+                    "add({}, {})",
+                    scalar_a.compile_expression(),
+                    scalar_b.compile_expression()
+                )
+            }
+            Self::Rotation(x) => RotationDescription::to_string(x),
         }
     }
 }
