@@ -33,10 +33,12 @@ use halo2_proofs::{
         },
     },
     transcript::{CircuitTranscript, Transcript},
+    utils::SerdeFormat,
 };
 
 use plutus_halo2_verifier_gen::plutus_gen::{
-    CardanoFriendlyBlake2b, ExtractPCS, generate_aiken_verifier, generate_plinth_verifier,
+    CardanoFriendlyBlake2b, ExtractPCS, cost_evaluation, generate_aiken_verifier,
+    generate_plinth_verifier,
 };
 use plutus_halo2_verifier_gen::{
     circuits::{
@@ -129,6 +131,7 @@ pub fn compile_atms_lookup_circuit<
 
     let proof = transcript.finalize();
     info!("proof size {:?}", proof.len());
+    info!("vk size: {}", vk.bytes_length(SerdeFormat::Processed));
 
     let mut invalid_proof = proof.clone();
     // index points to bytes of first scalar that is part of the proof
@@ -149,6 +152,8 @@ pub fn compile_atms_lookup_circuit<
         .verify(&kzg_params.verifier_params())
         .map_err(|e| anyhow!("{e:?}"))
         .context("verify failed")?;
+
+    cost_evaluation(&kzg_params, &vk, &instance)?;
 
     shared_utils::export_plinth(&instance, &proof)?;
     generate_plinth_verifier(&kzg_params, &vk, &instance)

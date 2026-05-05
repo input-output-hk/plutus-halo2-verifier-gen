@@ -19,10 +19,12 @@ use halo2_proofs::{
         },
     },
     transcript::{CircuitTranscript, Transcript},
+    utils::SerdeFormat,
 };
 
 use plutus_halo2_verifier_gen::plutus_gen::{
-    CardanoFriendlyBlake2b, ExtractPCS, generate_aiken_verifier, generate_plinth_verifier,
+    CardanoFriendlyBlake2b, ExtractPCS, cost_evaluation, generate_aiken_verifier,
+    generate_plinth_verifier,
 };
 use plutus_halo2_verifier_gen::{
     circuits::simple_mul_circuit::SimpleMulCircuit, kzg_params::get_or_create_kzg_params,
@@ -87,6 +89,7 @@ fn compile_simple_mul_circuit<
     let kzg_params: Params = get_or_create_kzg_params(k, rng.clone())?;
     let vk: VerifyingKey<Scalar, PCS> = keygen_vk(&kzg_params, &circuit)?;
     let pk: ProvingKey<Scalar, PCS> = keygen_pk(vk.clone(), &circuit)?;
+    info!("vk size: {}", vk.bytes_length(SerdeFormat::Processed));
 
     let mut transcript = CTranscript::init();
 
@@ -126,6 +129,8 @@ fn compile_simple_mul_circuit<
         .verify(&kzg_params.verifier_params())
         .map_err(|e| anyhow!("{e:?}"))
         .context("verify failed")?;
+
+    cost_evaluation(&kzg_params, &vk, &instance)?;
 
     shared_utils::export_plinth(&instance, &proof)?;
     generate_plinth_verifier(&kzg_params, &vk, &instance)

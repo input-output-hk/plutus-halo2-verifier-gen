@@ -22,7 +22,8 @@ use halo2_proofs::{
 };
 
 use plutus_halo2_verifier_gen::plutus_gen::{
-    CardanoFriendlyBlake2b, ExtractPCS, generate_aiken_verifier, generate_plinth_verifier,
+    CardanoFriendlyBlake2b, ExtractPCS, cost_evaluation, generate_aiken_verifier,
+    generate_plinth_verifier,
 };
 use plutus_halo2_verifier_gen::{
     circuits::lookup_table_circuit::LookupTest, kzg_params::get_or_create_kzg_params,
@@ -120,6 +121,8 @@ pub fn compile_lookup_table_circuit<
     )
     .context("proof generation should not fail")?;
     let invalid_proof = invalid_transcript.finalize();
+
+    cost_evaluation(&kzg_params, &vk, &instance)?;
 
     shared_utils::export_plinth(&instance, &proof)?;
     generate_plinth_verifier(&kzg_params, &vk, &instance)

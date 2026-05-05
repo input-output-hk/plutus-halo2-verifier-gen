@@ -18,10 +18,12 @@ use halo2_proofs::{
         },
     },
     transcript::{CircuitTranscript, Transcript},
+    utils::SerdeFormat,
 };
 
 use plutus_halo2_verifier_gen::plutus_gen::{
-    CardanoFriendlyBlake2b, ExtractPCS, generate_aiken_verifier, generate_plinth_verifier,
+    CardanoFriendlyBlake2b, ExtractPCS, cost_evaluation, generate_aiken_verifier,
+    generate_plinth_verifier,
 };
 use plutus_halo2_verifier_gen::{
     circuits::atms_circuit::{AtmsSignatureCircuit, prepare_test_signatures},
@@ -90,6 +92,7 @@ pub fn compile_atms_circuit<
     // no instance, just dummy 42 to make prover and verifier happy
     let instance = [pks_comm, msg, Base::from(threshold as u64)];
     info!("Public inputs: {:?}", instance);
+    info!("vk size: {}", vk.bytes_length(SerdeFormat::Processed));
 
     let mut transcript = CTranscript::init();
 
@@ -126,6 +129,8 @@ pub fn compile_atms_circuit<
         .verify(&kzg_params.verifier_params())
         .map_err(|e| anyhow!("{e:?}"))
         .context("verify failed")?;
+
+    cost_evaluation(&kzg_params, &vk, &instance)?;
 
     shared_utils::export_plinth(&instance, &proof)?;
     generate_plinth_verifier(&kzg_params, &vk, &instance)

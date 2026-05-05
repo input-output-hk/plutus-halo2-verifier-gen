@@ -8,7 +8,9 @@ use blstrs::{Base, Bls12, Scalar};
 use plutus_halo2_verifier_gen::circuits::atms_circuit::prepare_test_signatures;
 use plutus_halo2_verifier_gen::circuits::atms_with_lookups_circuit::AtmsLookupCircuit;
 use plutus_halo2_verifier_gen::kzg_params::get_or_create_kzg_params;
-use plutus_halo2_verifier_gen::plutus_gen::{emit_verifier_aiken, extract_circuit};
+use plutus_halo2_verifier_gen::plutus_gen::{
+    cost_evaluation, emit_verifier_aiken, extract_circuit,
+};
 
 use halo2_proofs::plonk::{VerifyingKey, k_from_circuit, keygen_vk};
 use halo2_proofs::poly::kzg::KZGCommitmentScheme;
@@ -45,6 +47,8 @@ fn main() -> Result<()> {
     let circuit_representation = extract_circuit(&kzg_params, &vk, &instance)
         .map_err(|e| anyhow!("{e}"))
         .context("Circuit extraction failed")?;
+
+    cost_evaluation(&kzg_params, &vk, &instance)?;
 
     emit_verifier_aiken(
         Path::new("aiken-verifier/templates/gates_test.hbs"),
