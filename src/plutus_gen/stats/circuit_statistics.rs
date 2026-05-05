@@ -7,7 +7,7 @@ use crate::plutus_gen::extraction::data::{
 
 #[derive(Clone, Debug)]
 pub struct CircuitStatistics {
-    pub(crate) transcript_size: usize,
+    pub(crate) transcript_size: i32,
     pub(crate) public_inputs: usize,
     pub(crate) proof_size: usize,
     pub(crate) vk_size: usize,
@@ -33,7 +33,7 @@ pub struct CircuitStatistics {
 impl CircuitStatistics {
     pub(crate) fn new(proof_size: usize, vk_size: usize, public_inputs: usize) -> Self {
         CircuitStatistics {
-            transcript_size: proof_size,
+            transcript_size: proof_size as i32,
             public_inputs,
             proof_size,
             vk_size,
@@ -227,7 +227,7 @@ impl CircuitStatistics {
     }
 
     pub(crate) fn squeeze_challenge(&mut self) {
-        self.hash.push(self.transcript_size);
+        self.hash.push(self.transcript_size.max(0) as usize);
     }
 
     pub(crate) fn rotate_omega(&mut self) {

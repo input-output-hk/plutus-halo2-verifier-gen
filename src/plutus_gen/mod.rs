@@ -13,7 +13,7 @@ pub use extraction::pcs::PCSType;
 pub use extraction::{CircuitRepresentation, extract_circuit};
 
 pub(crate) mod stats;
-pub use stats::{estimate_proof_size, compute_verifier_code, estimate_vk_size};
+pub use stats::{compute_verifier_code, estimate_proof_size, estimate_vk_size};
 
 pub(crate) mod proof_serialization;
 pub use proof_serialization::{export_proof, export_public_inputs, serialize_proof};
@@ -25,6 +25,8 @@ use blstrs::{Bls12, G1Projective, Scalar};
 use halo2_proofs::plonk::{Any, VerifyingKey};
 use halo2_proofs::poly::commitment::PolynomialCommitmentScheme;
 use halo2_proofs::poly::kzg::params::ParamsKZG;
+
+use crate::plutus_gen::stats::estimate_verifier_code;
 
 pub fn cost_evaluation<PCS>(
     params: &ParamsKZG<Bls12>,
@@ -62,6 +64,11 @@ where
     println!(
         "\nEstimating proof size: {}",
         estimate_proof_size::<PCS>(pis, advices, fixed, lookups, circuit_degree)
+    );
+
+    println!(
+        "\n----------------\nEstimating verifier: {:#?}\n----------------\n",
+        estimate_verifier_code::<PCS>(pis, advices, fixed, lookups, circuit_degree)
     );
 
     // Step 1: extract circuit representation

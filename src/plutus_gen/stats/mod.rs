@@ -178,6 +178,8 @@ where
         .iter()
         .for_each(|step| PCS::step_stat_operation(&mut stats, step));
 
+    assert_eq!(stats.transcript_size, 0);
+
     // Computing powers of evaluation point
     stats.pow_scalar(); // x^n
     stats.rotate_omega(); // x_prev
