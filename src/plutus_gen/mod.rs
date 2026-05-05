@@ -13,6 +13,7 @@ pub use extraction::pcs::PCSType;
 pub use extraction::{CircuitRepresentation, extract_circuit};
 
 pub(crate) mod stats;
+pub use stats::pcs::PcsEstimate;
 pub use stats::{compute_verifier_code, estimate_proof_size, estimate_vk_size};
 
 pub(crate) mod proof_serialization;
@@ -22,11 +23,12 @@ use anyhow::{Context as _, Result};
 use std::path::Path;
 
 use blstrs::{Bls12, G1Projective, Scalar};
-use halo2_proofs::plonk::{Any, VerifyingKey};
+use halo2_proofs::plonk::VerifyingKey;
 use halo2_proofs::poly::commitment::PolynomialCommitmentScheme;
 use halo2_proofs::poly::kzg::params::ParamsKZG;
 
 use crate::plutus_gen::stats::estimate_verifier_code;
+use crate::plutus_gen::stats::pcs::{GWC19, H2MO};
 
 pub fn cost_evaluation<PCS>(
     params: &ParamsKZG<Bls12>,
@@ -42,34 +44,20 @@ where
     let lookups = vk.cs().lookups().len();
     let circuit_degree = vk.cs().degree();
 
-    let perm_columns = vk.cs().permutation().get_columns();
-    let advice_count = perm_columns
-        .iter()
-        .filter(|c| matches!(c.column_type(), Any::Advice(_)))
-        .count();
-    let fixed_count = perm_columns
-        .iter()
-        .filter(|c| matches!(c.column_type(), Any::Fixed))
-        .count();
-    let instance_count = perm_columns
-        .iter()
-        .filter(|c| matches!(c.column_type(), Any::Instance))
-        .count();
-
-    println!(
-        "Estimating vk size: {}",
-        estimate_vk_size::<PCS>(pis, advices, fixed)
-    );
-
-    println!(
-        "\nEstimating proof size: {}",
-        estimate_proof_size::<PCS>(pis, advices, fixed, lookups, circuit_degree)
-    );
-
-    println!(
-        "\n----------------\nEstimating verifier: {:#?}\n----------------\n",
-        estimate_verifier_code::<PCS>(pis, advices, fixed, lookups, circuit_degree)
-    );
+    match PCS::pcs_type() {
+        PCSType::Halo2MultiOpen => println!(
+            "Estimating vk size: {}\nEstimating proof size: {}\nEstimating verifier: {:#?}",
+            estimate_vk_size::<H2MO>(pis, advices, fixed),
+            estimate_proof_size::<H2MO>(pis, advices, fixed, lookups, circuit_degree),
+            estimate_verifier_code::<H2MO>(pis, advices, fixed, lookups, circuit_degree)
+        ),
+        PCSType::GWC19 => println!(
+            "Estimating vk size: {}\nEstimating proof size: {}\nEstimating verifier: {:#?}",
+            estimate_vk_size::<GWC19>(pis, advices, fixed),
+            estimate_proof_size::<GWC19>(pis, advices, fixed, lookups, circuit_degree),
+            estimate_verifier_code::<GWC19>(pis, advices, fixed, lookups, circuit_degree)
+        ),
+    };
 
     // Step 1: extract circuit representation
     let circuit_representation = extract_circuit(params, vk, instance)

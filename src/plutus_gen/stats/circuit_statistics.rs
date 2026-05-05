@@ -205,9 +205,9 @@ impl CircuitStatistics {
     }
 
     pub(crate) fn inner_product(&mut self, size: usize) {
-        (1..=size).for_each(|_| {
-            self.add_scalar += 1;
-            self.mul_scalar += 1;
+        (0..size).for_each(|_| {
+            self.add_scalar();
+            self.mul_scalar();
         });
     }
 
