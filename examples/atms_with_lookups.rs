@@ -42,9 +42,11 @@ use plutus_halo2_verifier_gen::plutus_gen::{
 };
 use plutus_halo2_verifier_gen::{
     circuits::{
-        atms_circuit::prepare_test_signatures, atms_with_lookups_circuit::AtmsLookupCircuit,
+        atms_circuit::prepare_test_signatures,
+        atms_with_lookups_circuit::{AtmsLookupCircuit, NB_POW2RANGE_COLS},
     },
     kzg_params::get_or_create_kzg_params,
+    plutus_gen::{SupportedChips, lookup_chip},
 };
 
 pub type Params = ParamsKZG<Bls12>;
@@ -153,7 +155,23 @@ pub fn compile_atms_lookup_circuit<
         .map_err(|e| anyhow!("{e:?}"))
         .context("verify failed")?;
 
-    cost_evaluation(&kzg_params, &vk, &instance)?;
+    let chips = vec![
+        SupportedChips::SchnorrRescueSidechain,
+        lookup_chip("pow2range", NB_POW2RANGE_COLS),
+    ];
+    // AtmsLookupCircuit: NB_POW2RANGE_COLS extra advice, 4 extra fixed (complex selector +
+    // tag_col + 2 lookup_table_columns), 0 extra lookups (lookup_chip already covers the 1
+    // meta.lookup() call).
+    cost_evaluation(
+        &kzg_params,
+        &vk,
+        &instance,
+        &chips,
+        NB_POW2RANGE_COLS,
+        4,
+        0,
+        0,
+    )?;
 
     shared_utils::export_plinth(&instance, &proof)?;
     generate_plinth_verifier(&kzg_params, &vk, &instance)

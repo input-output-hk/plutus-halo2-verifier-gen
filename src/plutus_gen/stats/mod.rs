@@ -12,7 +12,7 @@ pub(crate) mod compute;
 pub(crate) mod estimate;
 pub(crate) mod pcs;
 
-pub(crate) use chips::{Arith, Chip};
+pub use chips::{SupportedChips, lookup_chip};
 pub use compute::compute_verifier_code;
 pub use estimate::estimate_verifier_code;
 
@@ -59,7 +59,7 @@ pub fn estimate_proof_size<PCS: PcsEstimate>(
         + nb_fixed
         + 1 // random evaluation
         + nb_non_fixed // permutation common evaluations
-        + (nb_permutations * nb_permutations - 1) // perm cross-terms (lower bound)
+        + (3 * nb_permutations - 1) // perm cross-terms: Z_i(x), Z_i(x*omega), Z_{i-1}->Z_i cross (except last)
         + 5 * nb_lookups // product, product_next, input, input_inv, table
         + match PCS::pcs_type() {
             PCSType::Halo2MultiOpen => 3, // q_evals (lower bound: 3 point sets)

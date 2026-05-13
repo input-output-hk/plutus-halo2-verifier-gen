@@ -21,12 +21,15 @@ use halo2_proofs::{
     transcript::{CircuitTranscript, Transcript},
 };
 
-use plutus_halo2_verifier_gen::plutus_gen::{
-    CardanoFriendlyBlake2b, ExtractPCS, cost_evaluation, generate_aiken_verifier,
-    generate_plinth_verifier,
-};
 use plutus_halo2_verifier_gen::{
     circuits::lookup_table_circuit::LookupTest, kzg_params::get_or_create_kzg_params,
+};
+use plutus_halo2_verifier_gen::{
+    circuits::lookup_table_circuit::NB_POW2RANGE_COLS,
+    plutus_gen::{
+        CardanoFriendlyBlake2b, ExtractPCS, cost_evaluation, generate_aiken_verifier,
+        generate_plinth_verifier, lookup_chip,
+    },
 };
 
 pub type Params = ParamsKZG<Bls12>;
@@ -122,7 +125,9 @@ pub fn compile_lookup_table_circuit<
     .context("proof generation should not fail")?;
     let invalid_proof = invalid_transcript.finalize();
 
-    cost_evaluation(&kzg_params, &vk, &instance)?;
+    let chips = &[lookup_chip("pow2range", NB_POW2RANGE_COLS)];
+    // LookupTest: 4 advice, 4 fixed (complex selector + tag_col + 2 table cols), 4 lookups
+    cost_evaluation(&kzg_params, &vk, &instance, chips, 4, 4, 0, 5)?;
 
     shared_utils::export_plinth(&instance, &proof)?;
     generate_plinth_verifier(&kzg_params, &vk, &instance)

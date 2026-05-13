@@ -27,44 +27,60 @@ use halo2_proofs::plonk::VerifyingKey;
 use halo2_proofs::poly::commitment::PolynomialCommitmentScheme;
 use halo2_proofs::poly::kzg::params::ParamsKZG;
 
-use crate::plutus_gen::stats::estimate_verifier_code;
 use crate::plutus_gen::stats::pcs::{GWC19, H2MO};
+pub use crate::plutus_gen::stats::{SupportedChips, lookup_chip};
+use crate::plutus_gen::stats::{circuit_statistics::CircuitStatistics, estimate_verifier_code};
 
 pub fn cost_evaluation<PCS>(
     params: &ParamsKZG<Bls12>,
     vk: &VerifyingKey<Scalar, PCS>,
     instance: &[Scalar],
+    chips: &[SupportedChips],
+    extra_nb_advice: usize,
+    extra_nb_fixed: usize,
+    extra_nb_lookups: usize,
+    circuit_degree: usize,
 ) -> Result<()>
 where
     PCS: ExtractPCS + PolynomialCommitmentScheme<Scalar, Commitment = G1Projective>,
 {
-    let pis = vk.cs().num_instance_columns();
-    let advices = vk.cs().num_advice_columns();
-    let fixed = vk.cs().num_fixed_columns();
-    let lookups = vk.cs().lookups().len();
-    let circuit_degree = vk.cs().degree();
+    let pis = instance.len();
 
-    match PCS::pcs_type() {
-        PCSType::Halo2MultiOpen => println!(
-            "Estimating vk size: {}\nEstimating proof size: {}\nEstimating verifier: {:#?}",
-            estimate_vk_size::<H2MO>(pis, advices, fixed),
-            estimate_proof_size::<H2MO>(pis, advices, fixed, lookups, circuit_degree),
-            estimate_verifier_code::<H2MO>(pis, advices, fixed, lookups, circuit_degree)
+    let estimated = match PCS::pcs_type() {
+        PCSType::Halo2MultiOpen => estimate_verifier_code::<H2MO>(
+            pis,
+            extra_nb_advice,
+            extra_nb_fixed,
+            extra_nb_lookups,
+            circuit_degree,
+            chips,
         ),
-        PCSType::GWC19 => println!(
-            "Estimating vk size: {}\nEstimating proof size: {}\nEstimating verifier: {:#?}",
-            estimate_vk_size::<GWC19>(pis, advices, fixed),
-            estimate_proof_size::<GWC19>(pis, advices, fixed, lookups, circuit_degree),
-            estimate_verifier_code::<GWC19>(pis, advices, fixed, lookups, circuit_degree)
+        PCSType::GWC19 => estimate_verifier_code::<GWC19>(
+            pis,
+            extra_nb_advice,
+            extra_nb_fixed,
+            extra_nb_lookups,
+            circuit_degree,
+            chips,
         ),
     };
+    println!(
+        "Estimating vk size: {}\nEstimating proof size: {}\n{:#?}",
+        estimated.vk_size, estimated.proof_size, estimated
+    );
 
     // Step 1: extract circuit representation
     let circuit_representation = extract_circuit(params, vk, instance)
         .context("Failed to extract the circuit representation")?;
+    let exact = compute_verifier_code(&vk, &circuit_representation);
+
     println!(
-        "\n{:#?}",
-        compute_verifier_code(&vk, &circuit_representation)
+        "Exact vk size: {}\nexact proof size: {}\n{:#?}",
+        exact.vk_size, exact.proof_size, exact
+    );
+    println!(
+        "\nDifference between exact and estimated numbers:\n{:#?}",
+        CircuitStatistics::difference(&exact, &estimated)
     );
     Ok(())
 }

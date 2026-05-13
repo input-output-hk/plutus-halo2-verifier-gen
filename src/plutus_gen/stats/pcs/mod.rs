@@ -6,7 +6,7 @@ pub(crate) use h2mo::H2MO;
 
 use super::circuit_statistics::CircuitStatistics;
 
-pub(crate) enum PCSType {
+pub enum PCSType {
     Halo2MultiOpen,
     GWC19,
 }

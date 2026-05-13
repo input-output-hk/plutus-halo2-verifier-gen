@@ -23,7 +23,7 @@ use halo2_proofs::{
 };
 
 use plutus_halo2_verifier_gen::plutus_gen::{
-    CardanoFriendlyBlake2b, ExtractPCS, cost_evaluation, generate_aiken_verifier,
+    CardanoFriendlyBlake2b, ExtractPCS, SupportedChips, cost_evaluation, generate_aiken_verifier,
     generate_plinth_verifier,
 };
 use plutus_halo2_verifier_gen::{
@@ -130,7 +130,8 @@ fn compile_simple_mul_circuit<
         .map_err(|e| anyhow!("{e:?}"))
         .context("verify failed")?;
 
-    cost_evaluation(&kzg_params, &vk, &instance)?;
+    let chips: &[SupportedChips] = &[];
+    cost_evaluation(&kzg_params, &vk, &instance, chips, 2, 1, 0, 3)?;
 
     shared_utils::export_plinth(&instance, &proof)?;
     generate_plinth_verifier(&kzg_params, &vk, &instance)

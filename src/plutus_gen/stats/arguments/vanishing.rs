@@ -27,7 +27,8 @@ pub(crate) fn check_vanishing(stats: &mut CircuitStatistics, circuit_degree: usi
     stats.inv_scalar(); // recip
     stats.mul_scalar(); // h_eval * inverted
 
-    // h_commitments: circuit_degree - 1 entries, each Scale + Sum
+    // h_commitments: circuit_degree - 1 entries; each is Sum(Scale(_, xn), VanishingSplit).
+    // Each entry contributes 1 scale + 1 add_point.
     (0..circuit_degree - 1).for_each(|_| {
         stats.scale();
         stats.add_point();

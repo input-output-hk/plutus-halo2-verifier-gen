@@ -1,5 +1,7 @@
 use super::super::circuit_statistics::CircuitStatistics;
 
+pub(crate) const PERM_NB_EVAL_POINTS: usize = 3;
+
 pub(crate) fn evaluate_permutation_terms(
     stats: &mut CircuitStatistics,
     nb_non_fixed: usize,

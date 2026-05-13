@@ -11,10 +11,7 @@ impl Chip for Arith {
     const DEGREE: usize = 3;
     const NB_EVAL_POINTS: usize = 1;
     const NB_LOOKUP_EXPRESSION_OPS: usize = 0;
-
-    fn lookup_tables(&self) -> &'static [LookupTable] {
-        &[]
-    }
+    const LOOKUP_TABLES: &'static [LookupTable] = &[];
 
     fn update_stats(&self, stats: &mut CircuitStatistics) {
         // ql·l + qr·r + qm·l·r + qc + qo·o

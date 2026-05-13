@@ -57,6 +57,41 @@ impl CircuitStatistics {
         }
     }
 
+    pub(crate) fn difference(stat1: &Self, stat2: &Self) -> Self {
+        CircuitStatistics {
+            transcript_size: stat1.transcript_size - stat2.transcript_size,
+            public_inputs: stat1.public_inputs.abs_diff(stat2.public_inputs),
+            proof_size: stat1.proof_size.abs_diff(stat2.proof_size),
+            vk_size: stat1.vk_size.abs_diff(stat2.vk_size),
+            hash: {
+                let max_len = stat1.hash.len().max(stat2.hash.len());
+                (0..max_len)
+                    .map(|i| {
+                        let a = stat1.hash.get(i).cloned().unwrap_or(0);
+                        let b = stat2.hash.get(i).cloned().unwrap_or(0);
+                        a.abs_diff(b)
+                    })
+                    .collect()
+            },
+            neg_scalar: stat1.neg_scalar.abs_diff(stat2.neg_scalar),
+            add_scalar: stat1.add_scalar.abs_diff(stat2.add_scalar),
+            sub_scalar: stat1.sub_scalar.abs_diff(stat2.sub_scalar),
+            mul_scalar: stat1.mul_scalar.abs_diff(stat2.mul_scalar),
+            inv_scalar: stat1.inv_scalar.abs_diff(stat2.inv_scalar),
+            pow_scalar: stat1.pow_scalar.abs_diff(stat2.pow_scalar),
+            to_bytes_scalar: stat1.to_bytes_scalar.abs_diff(stat2.to_bytes_scalar),
+            from_bytes_scalar: stat1.from_bytes_scalar.abs_diff(stat2.from_bytes_scalar),
+            from_int_scalar: stat1.from_int_scalar.abs_diff(stat2.from_int_scalar),
+            add_point: stat1.add_point.abs_diff(stat2.add_point),
+            mul_point: stat1.mul_point.abs_diff(stat2.mul_point),
+            from_bytes_point: stat1.from_bytes_point.abs_diff(stat2.from_bytes_point),
+            decompress_point: stat1.decompress_point.abs_diff(stat2.decompress_point),
+            compress_point: stat1.compress_point.abs_diff(stat2.compress_point),
+            miller_loop: stat1.miller_loop.abs_diff(stat2.miller_loop),
+            pairing: stat1.pairing.abs_diff(stat2.pairing),
+        }
+    }
+
     pub(crate) fn msm_operation(&mut self, msm: &OptimizedMSM) {
         msm.elements.iter().for_each(|element| {
             // Evaluating the scalars
