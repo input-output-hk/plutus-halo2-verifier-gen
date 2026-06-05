@@ -86,8 +86,9 @@ squeezeChallenge bs =
     let re_hash = blake2b_256 hash in
     let scalar1 = mkScalar ( byteStringToInteger LittleEndian hash `modulo` bls12_381_field_prime ) in
     let scalar2 = mkScalar ( byteStringToInteger LittleEndian re_hash `modulo` bls12_381_field_prime ) in
-    ( scalar1 + scalarR * scalar2
-    , bs <> blake2bPrefixChallenge
+    let scalar = scalar1 + scalarR * scalar2 in
+    ( scalar
+    , bs <> blake2bPrefixChallenge <> (integerToByteString LittleEndian 32 (unScalar scalar))
     )
 
 {-# INLINEABLE addPointToTranscript #-}
