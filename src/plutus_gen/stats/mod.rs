@@ -16,5 +16,5 @@ pub use chips::types::scalar_ops::ScalarOps;
 pub use chips::{SupportedChips, lookup_chip};
 
 pub use data::CircuitConfig;
-pub(crate) use data::CircuitStatistics;
+
 pub use estimate::{proof_size, verifier_stats, vk_size};

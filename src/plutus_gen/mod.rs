@@ -1,12 +1,14 @@
 //! Module for generating the Plinth and Aiken verifiers for a given circuit
 //! the correct mustashe templates and emitting them to the correct locations.
 pub(crate) mod adjusted_types;
+pub mod cli;
 pub(crate) mod emitters;
 pub(crate) mod extraction;
-pub(crate) mod proof_serialization;
 pub(crate) mod stats;
 
 pub use adjusted_types::CardanoFriendlyBlake2b;
+use anyhow::{Context, Result};
+pub use cli::EstimateCliArguments;
 pub use emitters::{
     aiken::{emit_verifier_code as emit_verifier_aiken, emit_vk_code as emit_vk_aiken},
     plinth::{emit_verifier_code as emit_verifier_plinth, emit_vk_code as emit_vk_plinth},
@@ -14,17 +16,46 @@ pub use emitters::{
 pub use extraction::pcs::ExtractPCS;
 pub use extraction::pcs::PCSType;
 pub use extraction::{CircuitRepresentation, extract_circuit};
-pub use proof_serialization::{
-    export_committed_inputs, export_proof, export_public_inputs, serialize_proof,
+use midnight_curves::{Bls12, BlsScalar as Scalar, G1Projective};
+use midnight_proofs::{
+    plonk::VerifyingKey,
+    poly::{commitment::PolynomialCommitmentScheme, kzg::params::ParamsKZG},
 };
-
-use anyhow::{Context as _, Result};
+use stats::pcs::H2MO;
+pub use stats::{
+    CircuitConfig, ScalarOps, SupportedChips, lookup_chip, proof_size, verifier_stats, vk_size,
+};
 use std::path::Path;
 
-use midnight_curves::{Bls12, BlsScalar as Scalar, G1Projective};
-use midnight_proofs::plonk::VerifyingKey;
-use midnight_proofs::poly::commitment::PolynomialCommitmentScheme;
-use midnight_proofs::poly::kzg::params::ParamsKZG;
+pub fn estimate_cost(
+    nb_public_inputs: usize,
+    nb_committed_instances: usize,
+    config: CircuitConfig,
+    chips: &[SupportedChips],
+) {
+    let stats = verifier_stats::<H2MO>(nb_public_inputs, nb_committed_instances, config, chips);
+    println!("{}", stats);
+}
+
+pub fn estimate_proof_size_cmd(
+    nb_public_inputs: usize,
+    nb_committed_instances: usize,
+    config: CircuitConfig,
+    chips: &[SupportedChips],
+) {
+    let size = proof_size::<H2MO>(nb_public_inputs, nb_committed_instances, config, chips);
+    println!("Proof size: {} bytes", size);
+}
+
+pub fn estimate_vk_size_cmd(
+    nb_public_inputs: usize,
+    nb_committed_instances: usize,
+    config: CircuitConfig,
+    chips: &[SupportedChips],
+) {
+    let size = vk_size::<H2MO>(nb_public_inputs, nb_committed_instances, config, chips);
+    println!("VK size: {} bytes", size);
+}
 
 /// Generates a Plinth verifier for a specific circuit and saves the generated
 /// code to the specified file paths.

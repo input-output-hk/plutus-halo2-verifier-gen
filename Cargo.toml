@@ -17,6 +17,7 @@ serde = { version = "1.0.219", features = ["derive"] }
 rand = "0.8"
 rand_chacha = "0.3.1"
 anyhow = "1.0.100"
+clap = { version = "4", features = ["derive"] }
 atms-halo2 = { git = "https://github.com/input-output-hk/sidechains-zk/", package = "atms-halo2", branch = "midnight-zk", features = ["circuit-params"] }
 midnight-circuits = { version = "=6.0.0", default-features=false }
 midnight-curves = { version = "=0.2.0" }
