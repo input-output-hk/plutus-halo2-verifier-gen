@@ -1,5 +1,5 @@
 pub(crate) mod curve;
-pub(crate) use curve::EdwardsJubjub;
+pub(crate) use curve::{EdwardsJubjub, HashToCurve};
 
 pub(crate) mod hash;
 pub(crate) use hash::Poseidon;
