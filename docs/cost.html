@@ -1,0 +1,964 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Estimators — Plutus Halo2 Verifier</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #0b0f1a;
+      --bg2:       #111827;
+      --bg3:       #1a2236;
+      --border:    #1e2d4a;
+      --accent:    #3b82f6;
+      --accent2:   #60a5fa;
+      --teal:      #14b8a6;
+      --text:      #e2e8f0;
+      --muted:     #94a3b8;
+      --radius:    10px;
+
+      /* breakdown colors */
+      --c-advice:  #3b82f6;
+      --c-perm:    #8b5cf6;
+      --c-vanish:  #06b6d4;
+      --c-lookup:  #f59e0b;
+      --c-pcs:     #10b981;
+      --c-fixed:   #f43f5e;
+      --c-trash:   #ec4899;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      font-size: 16px;
+    }
+
+    a { color: var(--accent2); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    /* ── NAV ──────────────────────────── */
+    nav {
+      position: sticky; top: 0; z-index: 100;
+      background: rgba(11,15,26,0.92);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      padding: 0 2rem;
+      display: flex; align-items: center; justify-content: space-between;
+      height: 56px;
+    }
+    .nav-brand { font-weight: 600; font-size: 14px; color: var(--text); display: flex; align-items: center; gap: 8px; }
+    .nav-brand .dot { color: var(--accent); }
+    .nav-links { display: flex; gap: 1.5rem; list-style: none; }
+    .nav-links a { font-size: 13px; color: var(--muted); transition: color 0.15s; }
+    .nav-links a:hover { color: var(--text); text-decoration: none; }
+    .subnav {
+      background: var(--bg2); border-bottom: 1px solid var(--border);
+      padding: 0 2rem; display: flex; gap: 2rem;
+      height: 40px; align-items: center;
+      position: sticky; top: 56px; z-index: 99;
+    }
+    .subnav a { font-size: 13px; color: var(--muted); transition: color 0.15s; text-decoration: none; }
+    .subnav a:hover { color: var(--text); }
+    .subnav a.active { color: var(--text); font-weight: 600; border-bottom: 2px solid var(--accent); padding-bottom: 2px; }
+
+    /* ── HEADER ───────────────────────── */
+    .page-header {
+      padding: 3rem 2rem 2rem;
+      max-width: 1200px; margin: 0 auto;
+    }
+    .back-link { font-size: 12px; color: var(--muted); display: inline-flex; align-items: center; gap: 4px; margin-bottom: 1rem; }
+    .back-link:hover { color: var(--text); text-decoration: none; }
+    .page-header h1 { font-size: 2rem; font-weight: 700; letter-spacing: -0.02em; margin-bottom: 0.5rem; }
+    .page-header p { color: var(--muted); font-size: 0.95rem; }
+
+    /* ── MAIN LAYOUT ──────────────────── */
+    .main {
+      max-width: 1200px; margin: 0 auto;
+      padding: 0 2rem 4rem;
+      display: grid;
+      grid-template-columns: 340px 1fr;
+      gap: 1.5rem;
+      align-items: start;
+    }
+
+    /* ── CONTROLS PANEL ───────────────── */
+    .controls {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.5rem;
+      position: sticky;
+      top: 72px;
+    }
+
+    .controls h2 { font-size: 13px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); margin-bottom: 1.25rem; }
+
+    .ctrl-group { margin-bottom: 1.5rem; }
+    .ctrl-group-title {
+      font-size: 10px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
+      color: var(--teal); margin-bottom: 0.75rem; padding-bottom: 0.4rem;
+      border-bottom: 1px solid var(--border);
+    }
+    details.ctrl-group { margin-bottom: 1.5rem; }
+    details.ctrl-group > summary {
+      display: flex; align-items: center; gap: 0.4rem;
+      font-size: 10px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
+      color: var(--teal); padding-bottom: 0.4rem;
+      cursor: pointer; user-select: none; list-style: none;
+      transition: color 0.15s;
+    }
+    details.ctrl-group > summary:hover { color: var(--accent2); }
+    details.ctrl-group > summary::-webkit-details-marker { display: none; }
+    details.ctrl-group > summary::before {
+      content: '▶'; font-size: 7px; color: currentColor;
+      transition: transform 0.15s; display: inline-block; flex-shrink: 0;
+    }
+    details.ctrl-group[open] > summary::before { transform: rotate(90deg); }
+    details.ctrl-group[open] > summary { border-bottom: 1px solid var(--border); margin-bottom: 0.75rem; }
+
+    .ctrl-row {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 0.5rem; margin-bottom: 0.75rem;
+    }
+    .ctrl-label { font-size: 12.5px; color: var(--text); flex: 1; min-width: 0; }
+    .ctrl-label code {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px; color: var(--muted);
+      display: block; margin-top: 1px;
+    }
+
+    .ctrl-value {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px; font-weight: 600;
+      color: var(--accent2);
+      min-width: 28px; text-align: right;
+    }
+
+    input[type=range] {
+      -webkit-appearance: none;
+      width: 110px; height: 4px;
+      background: var(--bg3);
+      border-radius: 2px; outline: none; cursor: pointer;
+    }
+    input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 14px; height: 14px; border-radius: 50%;
+      background: var(--accent); cursor: pointer;
+      transition: background 0.15s;
+    }
+    input[type=range]::-webkit-slider-thumb:hover { background: var(--accent2); }
+
+    .reset-btn {
+      width: 100%; padding: 7px;
+      background: var(--bg3); border: 1px solid var(--border);
+      border-radius: 6px; color: var(--muted);
+      font-size: 12px; cursor: pointer; margin-top: 0.5rem;
+      transition: color 0.15s, border-color 0.15s;
+    }
+    .reset-btn:hover { color: var(--text); border-color: var(--accent); }
+
+    /* ── RESULTS PANEL ────────────────── */
+    .results { display: flex; flex-direction: column; gap: 1.25rem; }
+
+    /* ── SIZE CARDS ───────────────────── */
+    .size-cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; }
+
+    .size-card {
+      background: var(--bg2); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 1.25rem;
+    }
+    .size-card-label { font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); margin-bottom: 0.4rem; }
+    .size-card-value {
+      font-size: 1.6rem; font-weight: 700; letter-spacing: -0.02em;
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .size-card-sub { font-size: 11px; color: var(--muted); margin-top: 0.25rem; }
+
+    .derived-card {
+      background: var(--bg2); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 1rem 1.25rem;
+      display: flex; gap: 1.5rem; flex-wrap: wrap; justify-content: center;
+    }
+    .derived-item { text-align: center; }
+    .derived-label { font-size: 10px; font-weight: 600; letter-spacing: 0.07em; text-transform: uppercase; color: var(--muted); }
+    .derived-value { font-family: 'JetBrains Mono', monospace; font-size: 14px; font-weight: 600; color: var(--text); }
+
+    /* ── BREAKDOWN ────────────────────── */
+    .panel {
+      background: var(--bg2); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 1.5rem;
+    }
+    .panel-title {
+      font-size: 12px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+      color: var(--muted); margin-bottom: 1.25rem;
+    }
+
+    /* stacked bar breakdown */
+    .breakdown-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+    .breakdown-table th {
+      text-align: left; padding: 0 8px 8px 0;
+      font-size: 10px; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase;
+      color: var(--muted); white-space: nowrap;
+    }
+    .breakdown-table th:not(:first-child) { text-align: right; }
+    .breakdown-table td {
+      padding: 6px 8px 6px 0; border-top: 1px solid var(--border);
+      vertical-align: middle;
+    }
+    .breakdown-table td:not(:first-child) {
+      text-align: right; font-family: 'JetBrains Mono', monospace; color: var(--muted);
+    }
+    .breakdown-table td.highlight { color: var(--text); font-weight: 600; }
+
+    .tag {
+      display: inline-block; border-radius: 3px;
+      width: 10px; height: 10px; margin-right: 5px;
+      vertical-align: middle; flex-shrink: 0;
+    }
+
+    .bar-wrap { position: relative; height: 8px; background: var(--bg3); border-radius: 4px; overflow: hidden; min-width: 80px; }
+    .bar-fill { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 4px; transition: width 0.3s ease; }
+
+    .stacked-bar {
+      height: 20px; border-radius: 6px; overflow: hidden;
+      display: flex; margin-bottom: 0.5rem; gap: 1px;
+      background: var(--bg3);
+    }
+    .stacked-segment { height: 100%; transition: flex 0.3s ease; min-width: 0; }
+
+    .legend { display: flex; flex-wrap: wrap; gap: 0.5rem 1rem; font-size: 11px; color: var(--muted); justify-content: center; }
+    .legend-item { display: flex; align-items: center; gap: 4px; }
+    .legend-dot { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; }
+
+    /* ── CHIP TOGGLES ────────────────────── */
+    .chip-toggle {
+      display: flex; align-items: center; gap: 0.5rem;
+      padding: 0.4rem 0.5rem; border-radius: 6px;
+      cursor: pointer; margin-bottom: 0.3rem;
+      transition: background 0.15s;
+      border: 1px solid transparent;
+      user-select: none;
+    }
+    .chip-toggle:hover { background: var(--bg3); }
+    .chip-toggle input[type=checkbox] { width:14px; height:14px; accent-color:var(--accent); cursor:pointer; flex-shrink:0; }
+    .chip-name { font-size: 12.5px; color: var(--text); flex: 1; }
+    .chip-dep  { font-size: 10px; color: var(--muted); font-family: 'JetBrains Mono', monospace; }
+    .chip-toggle.chip-active  { background: rgba(59,130,246,0.08); border-color: rgba(59,130,246,0.18); }
+    .chip-toggle.chip-dep-implied { background: rgba(20,184,166,0.06); border-color: rgba(20,184,166,0.20); }
+    .chip-profile-label { font-size: 11px; color: var(--teal); margin-top: 0.5rem; padding: 0.35rem 0.5rem; background: rgba(20,184,166,0.07); border-radius: 4px; }
+    details.table-subgroup { margin-top: 1rem; }
+    details.table-subgroup > summary {
+      font-size: 11px; color: var(--muted); cursor: pointer; user-select: none;
+      list-style: none; display: flex; align-items: center; gap: 4px;
+    }
+    details.table-subgroup > summary:hover { color: var(--text); }
+    details.table-subgroup > summary::-webkit-details-marker { display: none; }
+    details.table-subgroup > summary::before {
+      content: '▶'; font-size: 9px; transition: transform 0.15s; display: inline-block;
+    }
+    details.table-subgroup[open] > summary::before { transform: rotate(90deg); }
+    details.chip-subgroup { margin-bottom: 0.2rem; }
+    details.chip-subgroup summary {
+      display: flex; align-items: center; gap: 0.35rem;
+      font-size: 9px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
+      color: var(--muted); padding: 0.4rem 0.5rem 0.25rem;
+      cursor: pointer; user-select: none; list-style: none; opacity: 0.7;
+      transition: opacity 0.15s;
+    }
+    details.chip-subgroup summary:hover { opacity: 1; }
+    details.chip-subgroup summary::-webkit-details-marker { display: none; }
+    details.chip-subgroup summary::before {
+      content: '▶';
+      font-size: 7px; color: var(--muted);
+      transition: transform 0.15s;
+      display: inline-block;
+    }
+    details.chip-subgroup[open] summary::before { transform: rotate(90deg); }
+
+    /* ── FOOTER ───────────────────────── */
+    footer { border-top: 1px solid var(--border); text-align: center; padding: 2rem; font-size: 13px; color: var(--muted); }
+    footer a { color: var(--muted); }
+
+    @media (max-width: 900px) {
+      .main { grid-template-columns: 1fr; }
+      .controls { position: static; }
+      .size-cards { grid-template-columns: 1fr 1fr; grid-template-rows: auto auto; }
+      .formula-grid { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 600px) {
+      .size-cards { grid-template-columns: 1fr; }
+      nav .nav-links { display: none; }
+    }
+  </style>
+  <link rel="stylesheet" href="shared.css" />
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <a class="nav-brand" href="index.html"><img src="assets/halo2-verifier-icon-no-text.svg" height="40" alt="Halo2 Verifier" style="display:block;" /> Plutus Halo2 Verifier</a>
+  <ul class="nav-links">
+    <li><a href="index.html">Overview</a></li>
+    <li><a href="cost-estimator.html" style="color:var(--text)">Cost Estimator</a></li>
+    <li><a href="verifier.html">Plutus Verifier</a></li>
+    <li><a href="https://github.com/input-output-hk/plutus-halo2-verifier-gen">GitHub ↗</a></li>
+  </ul>
+</nav>
+<div class="subnav">
+  <a href="cost-estimator.html">CLI</a>
+  <a href="cost.html" class="active">Estimators</a>
+  <a href="chips.html">Chips</a>
+  <a href="circuits.html">Circuit</a>
+  <a href="algorithms.html">Algorithms</a>
+</div>
+
+<!-- HEADER -->
+<div class="page-header">
+  <a class="back-link" href="cost-estimator.html">← Cost Estimator</a>
+  <h1>Verifier Estimators</h1>
+  <p>
+    Adjust circuit parameters to see how they affect <strong>proof size</strong> and
+    <strong>verification key size</strong> in real time.
+    Formulas are derived directly from the cost estimator source code.
+  </p>
+</div>
+
+<!-- MAIN -->
+<div class="main">
+
+  <!-- LEFT: CONTROLS -->
+  <div class="controls">
+    <h2>Circuit Parameters</h2>
+
+    <details class="ctrl-group" open>
+      <summary>Proof Inputs</summary>
+
+      <div class="ctrl-row">
+        <div class="ctrl-label">Public inputs</div>
+        <input type="range" id="s-pi" min="0" max="20" value="3" />
+        <div class="ctrl-value" id="v-pi">3</div>
+      </div>
+
+      <div class="ctrl-row">
+        <div class="ctrl-label">Committed inputs</div>
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;">
+          <input type="checkbox" id="s-ci" onchange="update()" style="width:14px;height:14px;accent-color:var(--accent);cursor:pointer;" />
+          <span style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--muted);">enabled</span>
+        </label>
+      </div>
+    </details>
+
+    <details class="ctrl-group" open id="chips-group">
+      <summary>Chips</summary>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:0.5rem;">
+        Higher chips include their dependencies.
+        <br><br>
+        N.B. The native chip is used by default when using Midnight-zk's zk_stdlib library. When creating a circuit (not a zk_stdlib's relation) or chip from other libraries of Midnight-zk, the chip is not automatically used however.
+      </div>
+
+      <details class="chip-subgroup" open>
+        <summary>Base</summary>
+        <label class="chip-toggle" id="ct-native">
+          <input type="checkbox" id="cb-native" onchange="update()" />
+          <span class="chip-name">Arith</span>
+          <span class="chip-dep">base chip</span>
+        </label>
+      </details>
+
+      <details class="chip-subgroup" open>
+        <summary>Hash</summary>
+        <label class="chip-toggle" id="ct-poseidon">
+          <input type="checkbox" id="cb-poseidon" onchange="update()" />
+          <span class="chip-name">Poseidon</span>
+          <span class="chip-dep">⊃ Native</span>
+        </label>
+      </details>
+
+      <details class="chip-subgroup" open>
+        <summary>ECC</summary>
+        <label class="chip-toggle" id="ct-jubjub">
+          <input type="checkbox" id="cb-jubjub" onchange="update()" />
+          <span class="chip-name">JubJub</span>
+          <span class="chip-dep">⊃ Native</span>
+        </label>
+        <label class="chip-toggle" id="ct-htc">
+          <input type="checkbox" id="cb-htc" onchange="update()" />
+          <span class="chip-name">Hash-to-Curve</span>
+          <span class="chip-dep">⊃ JubJub + Poseidon</span>
+        </label>
+        <label class="chip-toggle" id="ct-bls12381">
+          <input type="checkbox" id="cb-bls12381" onchange="update()" />
+          <span class="chip-name">BLS12-381</span>
+          <span class="chip-dep">⊃ Native · 15 adv</span>
+        </label>
+        <label class="chip-toggle" id="ct-secp256k1">
+          <input type="checkbox" id="cb-secp256k1" onchange="update()" />
+          <span class="chip-name">secp256k1</span>
+          <span class="chip-dep">⊃ Native · 9 adv</span>
+        </label>
+      </details>
+
+      <div class="chip-profile-label" id="chip-profile-label">Active profile: <strong>none</strong></div>
+    </details>
+
+    <details class="ctrl-group" open>
+      <summary>Additional Configuration</summary>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:0.75rem;line-height:1.6;">
+        Extra columns, selectors and lookup arguments are added <em>on top of</em> those provided by the selected chips.
+        The circuit degree is the maximum of the value set here and the degree required by the chips.
+      </div>
+
+      <div class="ctrl-row">
+        <div class="ctrl-label">Degree hint</div>
+        <input type="range" id="s-deg" min="0" max="12" value="0" />
+        <div class="ctrl-value" id="v-deg">0</div>
+      </div>
+
+      <div class="ctrl-row">
+        <div class="ctrl-label">Advice columns</div>
+        <input type="range" id="s-adv" min="0" max="40" value="0" />
+        <div class="ctrl-value" id="v-adv">0</div>
+      </div>
+
+      <div class="ctrl-row">
+        <div class="ctrl-label">Fixed columns</div>
+        <input type="range" id="s-fix" min="0" max="30" value="0" />
+        <div class="ctrl-value" id="v-fix">0</div>
+      </div>
+
+      <div class="ctrl-row">
+        <div class="ctrl-label">Selectors</div>
+        <input type="range" id="s-sel" min="0" max="20" value="0" />
+        <div class="ctrl-value" id="v-sel">0</div>
+      </div>
+
+      <div class="ctrl-row">
+        <div class="ctrl-label">
+          Column evaluations
+        </div>
+        <input type="range" id="s-eva" min="0" max="80" value="0" />
+        <div class="ctrl-value" id="v-eva">0</div>
+      </div>
+
+      <div class="ctrl-row">
+        <div class="ctrl-label">Lookup arguments</div>
+        <input type="range" id="s-lkp" min="0" max="10" value="0" />
+        <div class="ctrl-value" id="v-lkp">0</div>
+      </div>
+    </details>
+
+    <button class="reset-btn" onclick="resetAll()">Reset to defaults</button>
+  </div>
+
+  <!-- RIGHT: RESULTS -->
+  <div class="results">
+
+    <!-- Summary cards -->
+    <div class="size-cards">
+      <div class="size-card">
+        <div class="size-card-label">VK Size</div>
+        <div class="size-card-value" id="r-vk-size">—</div>
+        <div class="size-card-sub" id="r-vk-breakdown">— fixed · — perm</div>
+      </div>
+      <div class="size-card">
+        <div class="size-card-label">Proof Size</div>
+        <div class="size-card-value" id="r-proof-size">—</div>
+        <div class="size-card-sub" id="r-proof-breakdown">— commits · — scalars</div>
+      </div>
+      <div class="size-card">
+        <div class="size-card-label">Input Size</div>
+        <div class="size-card-value" id="r-input-size">—</div>
+        <div class="size-card-sub" id="r-input-breakdown">— field elements · — commits</div>
+      </div>
+      <div class="size-card">
+        <div class="size-card-label">Total</div>
+        <div class="size-card-value" id="r-total-size">—</div>
+        <div class="size-card-sub" id="r-total-breakdown">proof + vk + input</div>
+      </div>
+    </div>
+
+    <!-- Derived values -->
+    <div class="derived-card">
+      <div class="derived-item">
+        <div class="derived-label">Circuit degree</div>
+        <div class="derived-value" id="d-degree">—</div>
+      </div>
+      <div class="derived-item">
+        <div class="derived-label">Gate args</div>
+        <div class="derived-value" id="d-gates">—</div>
+      </div>
+      <div class="derived-item">
+        <div class="derived-label">Permutation args</div>
+        <div class="derived-value" id="d-cc">—</div>
+      </div>
+      <div class="derived-item">
+        <div class="derived-label">Lookup args</div>
+        <div class="derived-value" id="d-lookups">—</div>
+      </div>
+      <div class="derived-item">
+        <div class="derived-label">Trashcab args</div>
+        <div class="derived-value" id="d-trash">—</div>
+      </div>
+    </div>
+
+
+    <!-- VK breakdown -->
+    <div class="panel">
+      <div class="panel-title">VK size breakdown</div>
+
+      <!-- stacked bar for VK commitments -->
+      <div style="font-size:11px;color:var(--muted);margin-bottom:4px;display:flex;justify-content:space-between;">
+        <span>Commitments (×48 bytes each)</span>
+        <span id="d-vk-nb-comms" style="font-family:'JetBrains Mono',monospace;font-size:15px;font-weight:700;color:var(--accent2);">—</span>
+      </div>
+      <div class="stacked-bar" id="bar-vk-comms">
+        <div class="stacked-segment" style="background:var(--c-fixed)"  data-id="vk-fixed"></div>
+        <div class="stacked-segment" style="background:var(--c-perm)"   data-id="vk-perm"></div>
+      </div>
+
+      <div class="legend" style="margin-top:0.75rem;margin-bottom:1rem;">
+        <div class="legend-item"><div class="legend-dot" style="background:var(--c-fixed)"></div>Fixed columns</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--c-perm)"></div>Permutation polys</div>
+      </div>
+
+      <details class="table-subgroup">
+        <summary>Detailed breakdown</summary>
+        <table class="breakdown-table" style="margin-top:0.5rem;">
+          <thead>
+            <tr>
+              <th>Component</th>
+              <th>Count</th>
+              <th>×48B</th>
+              <th>Bytes</th>
+            </tr>
+          </thead>
+          <tbody id="vk-tbody"></tbody>
+          <tfoot id="vk-tfoot"></tfoot>
+        </table>
+      </details>
+    </div>
+
+    <!-- Proof size breakdown -->
+    <div class="panel">
+      <div class="panel-title">Proof size breakdown</div>
+
+      <!-- stacked bar for commitments -->
+      <div style="font-size:11px;color:var(--muted);margin-bottom:4px;display:flex;justify-content:space-between;">
+        <span>Commitments (×48 bytes each)</span>
+        <span id="d-nb-comms" style="font-family:'JetBrains Mono',monospace;font-size:15px;font-weight:700;color:var(--accent2);">—</span>
+      </div>
+      <div class="stacked-bar" id="bar-comms">
+        <div class="stacked-segment" style="background:var(--c-advice)" data-id="bc-advice"></div>
+        <div class="stacked-segment" style="background:var(--c-perm)"   data-id="bc-perm"></div>
+        <div class="stacked-segment" style="background:var(--c-vanish)" data-id="bc-vanish"></div>
+        <div class="stacked-segment" style="background:var(--c-lookup)" data-id="bc-lookup"></div>
+        <div class="stacked-segment" style="background:var(--c-pcs)"    data-id="bc-pcs"></div>
+        <div class="stacked-segment" style="background:var(--c-trash)"  data-id="bc-trash"></div>
+      </div>
+
+      <!-- stacked bar for scalars -->
+      <div style="font-size:11px;color:var(--muted);margin-bottom:4px;margin-top:0.75rem;display:flex;justify-content:space-between;">
+        <span>Scalars (×32 bytes each)</span>
+        <span id="d-nb-scalars" style="font-family:'JetBrains Mono',monospace;font-size:15px;font-weight:700;color:var(--accent2);">—</span>
+      </div>
+      <div class="stacked-bar" id="bar-scalars">
+        <div class="stacked-segment" style="background:var(--c-advice)" data-id="bs-evals"></div>
+        <div class="stacked-segment" style="background:var(--c-perm)"   data-id="bs-perm"></div>
+        <div class="stacked-segment" style="background:var(--c-vanish)" data-id="bs-vanish"></div>
+        <div class="stacked-segment" style="background:var(--c-lookup)" data-id="bs-lookup"></div>
+        <div class="stacked-segment" style="background:var(--c-pcs)"    data-id="bs-pcs"></div>
+        <div class="stacked-segment" style="background:var(--c-trash)"  data-id="bs-trash"></div>
+      </div>
+
+      <div class="legend" style="margin-top:0.75rem;">
+        <div class="legend-item"><div class="legend-dot" style="background:var(--c-advice)"></div>Advice / Evals</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--c-perm)"></div>Permutation</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--c-vanish)"></div>Vanishing</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--c-lookup)"></div>Lookup</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--c-pcs)"></div>Polynomial Commitment Scheme</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--c-trash)"></div>Trash args</div>
+      </div>
+
+      <!-- detail table -->
+      <details class="table-subgroup">
+        <summary>Detailed breakdown</summary>
+        <table class="breakdown-table" style="margin-top:0.5rem;">
+          <thead>
+            <tr>
+              <th>Argument</th>
+              <th>Commits</th>
+              <th>×48B</th>
+              <th>Scalars</th>
+              <th>×32B</th>
+              <th>Total</th>
+            </tr>
+          </thead>
+          <tbody id="breakdown-tbody"></tbody>
+          <tfoot id="breakdown-tfoot"></tfoot>
+        </table>
+      </details>
+    </div>
+
+    <!-- Verifier operations -->
+    <div class="panel">
+      <div class="panel-title">Verifier Operations
+        <span style="font-weight:400;font-size:10px;color:var(--muted);text-transform:none;letter-spacing:0">— adjusted for pi &amp; ci</span>
+      </div>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:1.25rem;">
+        <div>
+          <div style="font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--teal);padding-bottom:0.35rem;border-bottom:1px solid var(--border);margin-bottom:0.75rem;">Scalar ops</div>
+          <table class="breakdown-table" style="font-size:12px;">
+            <thead><tr><th>Operation</th><th>Count</th></tr></thead>
+            <tbody id="vops-scalar-tbody"></tbody>
+          </table>
+        </div>
+        <div>
+          <div style="font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--teal);padding-bottom:0.35rem;border-bottom:1px solid var(--border);margin-bottom:0.75rem;">Point &amp; pairing ops</div>
+          <table class="breakdown-table" style="font-size:12px;">
+            <thead><tr><th>Operation</th><th>Count</th></tr></thead>
+            <tbody id="vops-point-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+      <div style="margin-top:1.5rem;">
+        <div style="font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--teal);padding-bottom:0.35rem;border-bottom:1px solid var(--border);margin-bottom:0.75rem;">Transcript ops</div>
+        <table class="breakdown-table" style="font-size:12px;">
+          <thead><tr><th>Operation</th><th>Count</th><th>Input sizes (bytes)</th></tr></thead>
+          <tbody id="vops-transcript-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+  </div><!-- /results -->
+</div><!-- /main -->
+
+<footer>
+  <p>
+    <a href="index.html">← Back to overview</a> ·
+    <a href="https://iohk.io"><img src="assets/iog-mark.png" alt="Input Output Global" style="height:20px;vertical-align:middle;margin-right:4px;" /></a> ·
+    <a href="https://github.com/input-output-hk/plutus-halo2-verifier-gen">GitHub</a>
+  </p>
+</footer>
+
+<script type="module">
+import init, { estimate as wasmEstimate } from './wasm/plutus_halo2_verifier_gen.js';
+
+// ─── CHIP MAP ─────────────────────────────────────────────────────────────────
+const CHIP_ID_TO_RUST = {
+  'cb-native':    'Native',
+  'cb-poseidon':  'Poseidon',
+  'cb-jubjub':    'EdwardsJubjub',
+  'cb-htc':       'HashToCurve',
+  'cb-bls12381':  'WeierstrassBls12381',
+  'cb-secp256k1': 'WeierstrassSecp256k1',
+};
+
+const ALL_CHIP_KEYS = ['native', 'poseidon', 'jubjub', 'htc', 'bls12381', 'secp256k1'];
+
+// Chip profiles loaded from chip_profiles.json for client-side dep highlighting.
+let chipProfiles = {};
+
+function getSelectedChips() {
+  return Object.entries(CHIP_ID_TO_RUST)
+    .filter(([id]) => document.getElementById(id).checked)
+    .map(([, chip]) => chip);
+}
+
+// ─── WASM CALL ────────────────────────────────────────────────────────────────
+let wasmReady = false;
+
+function callWasm(chips, p) {
+  if (!wasmReady) return null;
+  const json = wasmEstimate(
+    JSON.stringify(chips),
+    p.pi, p.ci,
+    p.sel, p.adv, p.fix,
+    p.eva, p.lkp, p.deg,
+  );
+  return JSON.parse(json);
+}
+
+// ─── SLIDERS ──────────────────────────────────────────────────────────────────
+const sliders = [
+  { id: 's-pi',  val: 'v-pi',  key: 'pi',  def: 3 },
+  { id: 's-adv', val: 'v-adv', key: 'adv', def: 0 },
+  { id: 's-fix', val: 'v-fix', key: 'fix', def: 0 },
+  { id: 's-sel', val: 'v-sel', key: 'sel', def: 0 },
+  { id: 's-eva', val: 'v-eva', key: 'eva', def: 0 },
+  { id: 's-lkp', val: 'v-lkp', key: 'lkp', def: 0 },
+  { id: 's-deg', val: 'v-deg', key: 'deg', def: 0 },
+];
+
+function getParams() {
+  const p = {};
+  sliders.forEach(s => { p[s.key] = parseInt(document.getElementById(s.id).value); });
+  p.ci = document.getElementById('s-ci').checked ? 1 : 0;
+  return p;
+}
+
+// ─── EVA SLIDER BOUNDS ────────────────────────────────────────────────────────
+function updateEvaSliderBounds() {
+  const adv = parseInt(document.getElementById('s-adv').value) || 0;
+  const fix = parseInt(document.getElementById('s-fix').value) || 0;
+  const sel = parseInt(document.getElementById('s-sel').value) || 0;
+  const sl  = document.getElementById('s-eva');
+  const vl  = document.getElementById('v-eva');
+  const minV = adv;
+  const maxV = Math.max(adv, 2 * (adv + fix + sel));
+  sl.min = minV;
+  sl.max = maxV;
+  const clamped = Math.max(minV, Math.min(parseInt(sl.value) || 0, maxV));
+  sl.value = clamped;
+  vl.textContent = clamped;
+}
+
+function resetAll() {
+  sliders.forEach(s => {
+    document.getElementById(s.id).value = s.def;
+    document.getElementById(s.val).textContent = s.def;
+  });
+  document.getElementById('s-ci').checked = false;
+  Object.keys(CHIP_ID_TO_RUST).forEach(id => {
+    document.getElementById(id).checked = false;
+  });
+  updateEvaSliderBounds();
+  update();
+}
+
+sliders.forEach(s => {
+  const sl = document.getElementById(s.id);
+  const vl = document.getElementById(s.val);
+  sl.addEventListener('input', () => {
+    vl.textContent = sl.value;
+    if (['s-adv','s-fix','s-sel'].includes(s.id)) updateEvaSliderBounds();
+    update();
+  });
+});
+
+// ─── FORMATTING ───────────────────────────────────────────────────────────────
+function fmtBytes(b) {
+  if (b >= 1024) return (b/1024).toFixed(1) + ' KB';
+  return b + ' B';
+}
+
+// ─── STACKED BARS ─────────────────────────────────────────────────────────────
+function setBar(barId, segments, total) {
+  const bar = document.getElementById(barId);
+  const segs = bar.querySelectorAll('.stacked-segment');
+  segs.forEach(seg => {
+    const did = seg.getAttribute('data-id');
+    const val = segments[did] || 0;
+    seg.style.flex = total > 0 ? (val / total) : (1 / segs.length);
+    seg.title = `${did}: ${val}`;
+  });
+}
+
+// ─── MAIN UPDATE ──────────────────────────────────────────────────────────────
+function update() {
+  const chips = getSelectedChips();
+  const p     = getParams();
+  const r     = callWasm(chips, p);
+  if (!r) return;
+
+  // Chip toggle visual state — highlight checked chips and implied deps
+  const checkedKeys = Object.entries(CHIP_ID_TO_RUST)
+    .filter(([id]) => document.getElementById(id).checked)
+    .map(([id]) => id.replace('cb-', ''));
+  const activeLabel = checkedKeys.length
+    ? checkedKeys.map(k => CHIP_ID_TO_RUST['cb-' + k]).join(', ')
+    : 'none';
+  document.getElementById('chip-profile-label').innerHTML =
+    `Active: <strong>${activeLabel}</strong>`;
+
+  // Collect transitive deps of all checked chips (from chip_profiles.json)
+  const impliedKeys = new Set();
+  checkedKeys.forEach(k => {
+    const prof = chipProfiles[k];
+    if (prof && prof.deps) prof.deps.forEach(d => impliedKeys.add(d));
+  });
+
+  ALL_CHIP_KEYS.forEach(k => {
+    const el = document.getElementById('ct-' + k);
+    if (!el) return;
+    const isChecked = checkedKeys.includes(k);
+    const isImplied = !isChecked && impliedKeys.has(k);
+    el.classList.toggle('chip-active',      isChecked);
+    el.classList.toggle('chip-dep-implied', isImplied);
+  });
+
+  // Summary cards
+  document.getElementById('r-vk-size').textContent    = fmtBytes(r.vk_size);
+  document.getElementById('r-vk-breakdown').textContent = `${r.nb_fix} fixed · ${r.nb_cc} perm`;
+  document.getElementById('r-proof-size').textContent = fmtBytes(r.proof_size);
+  document.getElementById('r-proof-breakdown').textContent =
+    `${r.nb_comms} commits · ${r.nb_scalars} scalars`;
+  document.getElementById('r-input-size').textContent = fmtBytes(r.input_size);
+  document.getElementById('r-input-breakdown').textContent =
+    `${r.nb_pi} field elems · ${r.nb_ci} commits`;
+  document.getElementById('r-total-size').textContent =
+    fmtBytes(r.proof_size + r.vk_size + r.input_size);
+
+  // Derived values
+  document.getElementById('d-degree').textContent  = r.degree;
+  document.getElementById('d-gates').textContent   = r.nb_gates;
+  document.getElementById('d-cc').textContent      = r.nb_cc;
+  document.getElementById('d-lookups').textContent = r.nb_lkp;
+  document.getElementById('d-trash').textContent   = r.nb_trash;
+
+  // Count labels
+  document.getElementById('d-nb-comms').textContent   = `${r.nb_comms} commits`;
+  document.getElementById('d-nb-scalars').textContent = `${r.nb_scalars} scalars`;
+
+  // Stacked bars — commitments
+  setBar('bar-comms', {
+    'bc-advice': r.bc_advice, 'bc-perm': r.bc_perm,
+    'bc-vanish': r.bc_vanish, 'bc-lookup': r.bc_lookup,
+    'bc-pcs':    r.bc_pcs,    'bc-trash':  r.bc_trash,
+  }, r.nb_comms);
+
+  // Stacked bars — scalars
+  setBar('bar-scalars', {
+    'bs-evals':  r.bs_evals,  'bs-perm':   r.bs_perm,
+    'bs-vanish': r.bs_vanish, 'bs-lookup': r.bs_lookup,
+    'bs-pcs':    r.bs_pcs,    'bs-trash':  r.bs_trash,
+  }, r.nb_scalars);
+
+  // Breakdown table rows
+  const rows = [
+    { name: 'Advice / Evals',               color: '--c-advice', bc: r.bc_advice, bs: r.bs_evals  },
+    { name: 'Permutation',                  color: '--c-perm',   bc: r.bc_perm,   bs: r.bs_perm   },
+    { name: 'Vanishing',                    color: '--c-vanish', bc: r.bc_vanish, bs: r.bs_vanish },
+    { name: `Lookup (×${r.nb_lkp})`,        color: '--c-lookup', bc: r.bc_lookup, bs: r.bs_lookup },
+    { name: `Trash args (×${r.nb_trash})`,  color: '--c-trash',  bc: r.bc_trash,  bs: r.bs_trash  },
+    { name: 'Polynomial Commitment Scheme', color: '--c-pcs',    bc: r.bc_pcs,    bs: r.bs_pcs    },
+  ];
+
+  document.getElementById('breakdown-tbody').innerHTML = rows.map(row => {
+    const total = row.bc * 48 + row.bs * 32;
+    return `<tr>
+      <td><span class="tag" style="background:var(${row.color})"></span>${row.name}</td>
+      <td>${row.bc || '—'}</td>
+      <td>${row.bc ? fmtBytes(row.bc * 48) : '—'}</td>
+      <td>${row.bs || '—'}</td>
+      <td>${row.bs ? fmtBytes(row.bs * 32) : '—'}</td>
+      <td class="highlight">${total ? fmtBytes(total) : '—'}</td>
+    </tr>`;
+  }).join('');
+
+  document.getElementById('breakdown-tfoot').innerHTML = `<tr style="border-top:2px solid var(--border)">
+    <td><strong>Total</strong></td>
+    <td><strong>${r.nb_comms}</strong></td>
+    <td><strong>${fmtBytes(r.nb_comms*48)}</strong></td>
+    <td><strong>${r.nb_scalars}</strong></td>
+    <td><strong>${fmtBytes(r.nb_scalars*32)}</strong></td>
+    <td class="highlight"><strong>${fmtBytes(r.proof_size)}</strong></td>
+  </tr>`;
+
+  // VK breakdown — stacked bar
+  const vkNbComms = r.nb_fix + r.nb_cc;
+  document.getElementById('d-vk-nb-comms').textContent = `${vkNbComms} commits`;
+  setBar('bar-vk-comms', { 'vk-fixed': r.nb_fix, 'vk-perm': r.nb_cc }, vkNbComms);
+
+  const vkRows = [
+    { name: 'Fixed columns',     count: r.nb_fix, bytes: r.nb_fix * 48 },
+    { name: 'Permutation polys', count: r.nb_cc,  bytes: r.nb_cc  * 48 },
+  ];
+  document.getElementById('vk-tbody').innerHTML = vkRows.map(row =>
+    `<tr>
+      <td>${row.name}</td>
+      <td>${row.count || '—'}</td>
+      <td>${row.count ? fmtBytes(row.count * 48) : '—'}</td>
+      <td class="highlight">${fmtBytes(row.bytes)}</td>
+    </tr>`
+  ).join('');
+  document.getElementById('vk-tfoot').innerHTML = `<tr style="border-top:2px solid var(--border)">
+    <td><strong>Total</strong></td>
+    <td><strong>${vkNbComms}</strong></td>
+    <td><strong>${fmtBytes(vkNbComms * 48)}</strong></td>
+    <td class="highlight"><strong>${fmtBytes(r.vk_size)}</strong></td>
+  </tr>`;
+
+  // ── Verifier operations ──────────────────────────────────────────────────────
+  const msmStr = r.msm && r.msm.length ? r.msm.join(', ') : '—';
+  const scalarRows = [
+    ['Neg scalar',          r.neg_scalar],
+    ['Add scalar',          r.add_scalar],
+    ['Sub scalar',          r.sub_scalar],
+    ['Mul scalar',          r.mul_scalar],
+    ['Inv scalar',          r.inv_scalar],
+    ['Pow scalar',          r.pow_scalar],
+    ['From int',            r.from_int_scalar],
+    ['From bytes (scalar)', r.from_bytes_scalar],
+    ['To bytes (scalar)',   r.to_bytes_scalar],
+  ];
+  const pointRows = [
+    ['Add point',           r.add_point],
+    ['Mul point (scale)',   r.mul_point],
+    ['Decompress point',    r.decompress_point],
+    ['Compress point',      r.compress_point],
+    ['From bytes (point)',  r.from_bytes_point],
+    ['MSM sizes',           msmStr],
+    ['Miller loop',         r.miller_loop],
+    ['Final pairing',       r.pairing],
+  ];
+
+  document.getElementById('vops-scalar-tbody').innerHTML =
+    scalarRows.map(([name, count]) =>
+      `<tr><td>${name}</td><td>${count || '—'}</td></tr>`
+    ).join('');
+
+  document.getElementById('vops-point-tbody').innerHTML =
+    pointRows.map(([name, count]) =>
+      `<tr><td>${name}</td><td>${count || '—'}</td></tr>`
+    ).join('');
+
+  const nbHash = r.hash ? r.hash.length : 0;
+  document.getElementById('vops-transcript-tbody').innerHTML =
+    `<tr>
+      <td>Hash (Fiat-Shamir squeeze)</td>
+      <td>${nbHash || '—'}</td>
+      <td style="font-family:'JetBrains Mono',monospace;color:var(--muted);font-size:11px;">
+        ${nbHash ? r.hash.join(', ') : '—'}
+      </td>
+    </tr>`;
+}
+
+// Expose to inline handlers (onchange="update()", onclick="resetAll()")
+window.update   = update;
+window.resetAll = resetAll;
+
+// ─── INIT ─────────────────────────────────────────────────────────────────────
+// Requires HTTP — open via: python3 -m http.server 8080  (from docs/)
+try {
+  const [_, profilesResp] = await Promise.all([
+    init(),
+    fetch('chip_profiles.json').then(r => r.json()),
+  ]);
+  wasmReady = true;
+  chipProfiles = profilesResp;
+} catch (e) {
+  document.querySelector('.results').insertAdjacentHTML('afterbegin',
+    `<div style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.4);
+       border-radius:8px;padding:1rem 1.25rem;color:#fca5a5;font-size:13px;line-height:1.6">
+      <strong>⚠ WASM failed to load.</strong> This page must be served over HTTP, not opened as a local file.<br>
+      Run: <code style="font-family:'JetBrains Mono',monospace">python3 -m http.server 8080</code>
+      from the <code style="font-family:'JetBrains Mono',monospace">docs/</code> directory,
+      then open <code style="font-family:'JetBrains Mono',monospace">http://localhost:8080/cost.html</code>
+    </div>`
+  );
+}
+updateEvaSliderBounds();
+update();
+</script>
+</body>
+</html>

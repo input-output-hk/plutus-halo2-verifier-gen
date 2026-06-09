@@ -1,0 +1,11 @@
+/* ── PROSE TEXT BOXES ─────────────────────────────────────────────
+   Single source of truth for prose container widths and justification.
+   Linked from every page; file-specific <style> blocks keep colours,
+   margins, and font-sizes but must not redeclare max-width / text-align
+   for these selectors.
+──────────────────────────────────────────────────────────────────── */
+.page-header p   { max-width: 760px; text-align: justify; }
+.section-desc    { max-width: 900px; text-align: justify; }
+.subsection-desc { max-width: 900px; text-align: justify; }
+.note-box        { text-align: justify; }
+.prop-table td:last-child { text-align: justify; }

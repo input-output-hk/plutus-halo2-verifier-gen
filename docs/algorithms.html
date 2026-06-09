@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Algorithms — Plutus Halo2 Verifier</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css" />
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+    onload="renderMathInElement(document.body,{delimiters:[{left:'\\[',right:'\\]',display:true},{left:'\\(',right:'\\)',display:false}]})"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #0b0f1a;
+      --bg2:       #111827;
+      --bg3:       #1a2236;
+      --border:    #1e2d4a;
+      --accent:    #3b82f6;
+      --accent2:   #60a5fa;
+      --teal:      #14b8a6;
+      --text:      #e2e8f0;
+      --muted:     #94a3b8;
+      --radius:    10px;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      font-size: 16px;
+    }
+
+    a { color: var(--accent2); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    /* ── NAV ──────────────────────────── */
+    nav {
+      position: sticky; top: 0; z-index: 100;
+      background: rgba(11,15,26,0.92);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      padding: 0 2rem;
+      display: flex; align-items: center; justify-content: space-between;
+      height: 56px;
+    }
+    .nav-brand { font-weight: 600; font-size: 14px; color: var(--text); display: flex; align-items: center; gap: 8px; }
+    .nav-links { display: flex; gap: 1.5rem; list-style: none; }
+    .nav-links a { font-size: 13px; color: var(--muted); transition: color 0.15s; }
+    .nav-links a:hover { color: var(--text); text-decoration: none; }
+    .subnav {
+      background: var(--bg2); border-bottom: 1px solid var(--border);
+      padding: 0 2rem; display: flex; gap: 2rem;
+      height: 40px; align-items: center;
+      position: sticky; top: 56px; z-index: 99;
+    }
+    .subnav a { font-size: 13px; color: var(--muted); transition: color 0.15s; text-decoration: none; }
+    .subnav a:hover { color: var(--text); }
+    .subnav a.active { color: var(--text); font-weight: 600; border-bottom: 2px solid var(--accent); padding-bottom: 2px; }
+
+    /* ── HEADER ───────────────────────── */
+    .page-header {
+      padding: 3rem 2rem 2rem;
+      max-width: 1100px; margin: 0 auto;
+    }
+    .back-link { font-size: 12px; color: var(--muted); display: inline-flex; align-items: center; gap: 4px; margin-bottom: 1rem; }
+    .back-link:hover { color: var(--text); text-decoration: none; }
+    .page-header h1 { font-size: 2rem; font-weight: 700; letter-spacing: -0.02em; margin-bottom: 0.5rem; }
+    .page-header p { color: var(--muted); font-size: 0.95rem; }
+
+    /* ── CONTENT ──────────────────────── */
+    .content { max-width: 1100px; margin: 0 auto; padding: 0 2rem 4rem; }
+
+    /* ── SECTIONS ─────────────────────── */
+    .section { margin-bottom: 3.5rem; }
+    .section-title {
+      font-size: 1.2rem; font-weight: 700; letter-spacing: -0.01em;
+      margin-bottom: 0.4rem;
+      padding-bottom: 0.6rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .section-desc { color: var(--muted); font-size: 13.5px; margin: 0.75rem 0 1.5rem; }
+
+    .subsection { margin-bottom: 2rem; }
+    .subsection-title {
+      font-size: 0.7rem; font-weight: 700; letter-spacing: 0.08em;
+      text-transform: uppercase; color: var(--teal);
+      margin-bottom: 0.5rem; margin-top: 1.75rem;
+    }
+    .phase-title {
+      font-size: 0.65rem; font-weight: 600; letter-spacing: 0.07em;
+      text-transform: uppercase; color: var(--accent2);
+      margin-bottom: 0.5rem; margin-top: 2rem; opacity: 0.85;
+    }
+    .subsection-desc { color: var(--muted); font-size: 13px; margin-bottom: 1rem; }
+
+    /* ── FORMULA GRID ─────────────────── */
+    .formula-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; }
+    .formula-grid.cols-3 { grid-template-columns: 1fr 1fr 1fr; }
+    .formula-card {
+      background: var(--bg2); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 1.25rem;
+    }
+    .formula-card h3 {
+      font-size: 11px; font-weight: 700; letter-spacing: 0.07em;
+      text-transform: uppercase; color: var(--muted); margin-bottom: 1rem;
+    }
+    .formula-card pre {
+      font-family: 'JetBrains Mono', monospace; font-size: 11.5px;
+      color: #c9d1d9; line-height: 1.8; white-space: pre-wrap;
+    }
+    #sec-params .formula-card pre {
+      white-space: pre; overflow-x: auto;
+    }
+    .fkw  { color: #ff7b72; }
+    .fnum { color: #79c0ff; }
+    .fcm  { color: #8b949e; font-style: italic; }
+
+    /* ── PROP TABLE ───────────────────── */
+    .prop-table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 0.75rem; }
+    .prop-table th {
+      padding: 8px 12px; text-align: left;
+      font-size: 10px; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase;
+      color: var(--muted); border-bottom: 1px solid var(--border);
+      background: var(--bg3);
+    }
+    .prop-table td {
+      padding: 9px 12px; border-bottom: 1px solid var(--border);
+      vertical-align: top;
+    }
+    .prop-table td:first-child {
+      font-family: 'JetBrains Mono', monospace; font-size: 12px;
+      color: var(--accent2); white-space: nowrap; width: 160px;
+    }
+    .prop-table td:last-child { color: var(--muted); font-size: 12.5px; }
+    .prop-table tr:last-child td { border-bottom: none; }
+
+    /* ── CIRCUIT TABLE ───────────────── */
+    .circuit-table { border-collapse: collapse; font-family: 'JetBrains Mono', monospace; font-size: 12px; margin-top: 1rem; }
+    .circuit-table th {
+      padding: 6px 14px; text-align: center;
+      font-size: 10px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+      color: var(--muted); border: 1px solid var(--border); background: var(--bg3);
+    }
+    .circuit-table th.ct-group { color: var(--text); background: var(--bg2); border-bottom: 2px solid var(--border); }
+    .circuit-table th.ct-var { font-size: 14px; font-weight: 400; letter-spacing: 0; text-transform: none; color: var(--text); }
+    .circuit-table th.ct-row-hdr { width: 52px; }
+    .circuit-table td {
+      padding: 7px 14px; border: 1px solid var(--border);
+      text-align: center; color: var(--muted); vertical-align: middle;
+    }
+    .circuit-table td.ct-row-lbl { color: var(--muted); font-size: 11px; background: var(--bg3); }
+    .circuit-table td.ct-val   { color: var(--accent2); }
+    .circuit-table td.ct-fixed { color: var(--yellow, #fbbf24); }
+    .circuit-table td.ct-zero  { color: var(--border); }
+    .circuit-table .ct-sep td, .circuit-table .ct-sep th { border-left: 2px solid var(--border); }
+    .circuit-table tbody tr:hover td { background: rgba(255,255,255,0.02); }
+
+    /* ── EQUATION BLOCK ─────────────── */
+    .eq-block {
+      display: inline-block;
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 0.75rem 1.25rem;
+    }
+    .eq-block .katex-display { text-align: left; margin: 0.25rem 0; }
+    .eq-block .circuit-table { margin-top: 0; }
+
+    /* ── EQUATION CARDS ──────────────── */
+    .eq-display { text-align: center; padding: 0.5rem 0 0.75rem; overflow-x: auto; }
+    .eq-legend {
+      font-size: 11px; color: var(--muted); font-family: 'JetBrains Mono', monospace;
+      border-top: 1px solid var(--border); padding-top: 0.6rem; margin-top: 0.25rem;
+      line-height: 2;
+    }
+    .eq-legend .sym { color: #79c0ff; }
+
+    /* ── NOTE BOX ─────────────────────── */
+    .note-box {
+      background: rgba(59,130,246,0.06);
+      border: 1px solid rgba(59,130,246,0.2);
+      border-radius: var(--radius);
+      padding: 1rem 1.25rem; font-size: 13px; color: #93c5fd;
+      margin-top: 1.25rem;
+    }
+
+    @media (max-width: 900px) {
+      .formula-grid, .formula-grid.cols-3 { grid-template-columns: 1fr; }
+    }
+
+    /* ── FOOTER ───────────────────────── */
+    footer { border-top: 1px solid var(--border); text-align: center; padding: 2rem; font-size: 13px; color: var(--muted); }
+    footer a { color: var(--muted); }
+
+    @media (max-width: 600px) { nav .nav-links { display: none; } }
+  </style>
+  <link rel="stylesheet" href="shared.css" />
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <a class="nav-brand" href="index.html"><img src="assets/halo2-verifier-icon-no-text.svg" height="40" alt="Halo2 Verifier" style="display:block;" /> Plutus Halo2 Verifier</a>
+  <ul class="nav-links">
+    <li><a href="index.html">Overview</a></li>
+    <li><a href="cost-estimator.html" style="color:var(--text)">Cost Estimator</a></li>
+    <li><a href="verifier.html">Plutus Verifier</a></li>
+    <li><a href="https://github.com/input-output-hk/plutus-halo2-verifier-gen">GitHub ↗</a></li>
+  </ul>
+</nav>
+<div class="subnav">
+  <a href="cost-estimator.html">CLI</a>
+  <a href="cost.html">Estimators</a>
+  <a href="chips.html">Chips</a>
+  <a href="circuits.html">Circuit</a>
+  <a href="algorithms.html" class="active">Algorithms</a>
+</div>
+
+<!-- HEADER -->
+<div class="page-header">
+  <a class="back-link" href="circuits.html">← Circuit</a>
+  <h1>Algorithms</h1>
+  <p>
+    How chip columns and arguments are aggregated, and how the resulting circuit
+    parameters determine proof size, verification key size, and verifier cost.
+  </p>
+</div>
+
+<div class="content">
+
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <!-- SECTION — ALGORITHM OVERVIEW                                    -->
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <div class="section">
+    <div class="section-title">Algorithm Overview</div>
+    <div class="section-desc">
+      A Halo2 KZG proof is a structured byte string — a Fiat-Shamir transcript — whose length
+      is determined entirely by the circuit's column and argument counts. Every element is either
+      a compressed <strong>G1 point</strong> (48 bytes) or a <strong>scalar field element</strong>
+      (32 bytes). The verifier reads this transcript in order, hashing each element to derive
+      random challenges, then evaluates all argument expressions as field arithmetic before
+      performing a final KZG pairing check.
+    </div>
+
+    <!-- VK SIZE -->
+    <div class="subsection">
+      <div class="subsection-title">VK Size</div>
+      <div class="subsection-desc">
+        The verification key is computed once per circuit and reused for every proof. It contains
+        G1 commitments to the circuit's fixed column polynomials and to the permutation polynomials
+        that encode the copy constraints. All VK data is hashed into a single 32-byte digest that
+        is the first element absorbed by the proof transcript.
+        The H2MO PCS contributes no extra VK commitments — all PCS state lives in the proof.
+      </div>
+      <div class="formula-grid">
+        <div class="formula-card">
+          <h3>VK Commitments</h3>
+          <pre><span class="fkw">vk_commits</span> = nb_fixed + nb_cc
+
+<span class="fcm">// nb_fixed: one G1 per fixed-col polynomial
+// (selectors, constants, lookup table cols)</span>
+
+<span class="fcm">// nb_cc: one G1 per copy-constrained column
+// These are the permutation polynomials σᵢ(X)
+// that encode which cells must be equal.
+// They are fixed (witness-independent) so
+// they belong in the VK, not the proof.</span>
+<span class="fkw">nb_cc</span> = (pi > 0 ? 1 : 0)   <span class="fcm">// instance col</span>
+       + (ci > 0 ? 1 : 0)  <span class="fcm">// committed-instance col</span>
+       + chip_cc            <span class="fcm">// chip advice + fixed cc</span>
+       + nb_advice          <span class="fcm">// extra advice cols (all cc)</span></pre>
+        </div>
+        <div class="formula-card">
+          <h3>VK Size Formula</h3>
+          <pre><span class="fkw">vk_size</span> =
+  <span class="fnum">10</span>                    <span class="fcm">// header bytes</span>
+  + <span class="fnum">48</span> × vk_commits
+
+<span class="fcm">// Extra fixed cols added via --nb-fixed
+// and --nb-selectors are not cc, so they
+// appear in nb_fixed but not nb_cc.
+
+// Lookup table columns count toward
+// nb_fixed (one commit per table col)
+// but are not cc.</span></pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- PROOF SIZE -->
+    <div class="subsection">
+      <div class="subsection-title">Proof Size</div>
+      <div class="subsection-desc">
+        Proof elements are grouped by the argument that produces them. Each argument contributes
+        a fixed number of commitments and scalar evaluations determined by the circuit structure.
+        Formulas reference <a href="#sec-params">key derived parameters</a> defined below.
+      </div>
+      <div class="formula-grid">
+        <div class="formula-card">
+          <h3>Proof Commitments</h3>
+          <pre><span class="fkw">nb_commitments</span> =
+  nb_advice               <span class="fcm">// one per advice col</span>
+  + 2 × nb_lkp            <span class="fcm">// A_perm + S_perm per lookup</span>
+  + ⌈nb_cc / (degree−2)⌉  <span class="fcm">// permutation product polys Z</span>
+  + nb_lkp                <span class="fcm">// lookup product poly Z</span>
+  + nb_trash              <span class="fcm">// one per trashcan</span>
+  + 1                     <span class="fcm">// vanishing random poly</span>
+  + (degree−1)            <span class="fcm">// vanishing h-splits</span>
+  + 2                     <span class="fcm">// H2MO: F and Pi</span>
+
+<span class="fcm">// Simplified: degree + nb_advice + 3×nb_lkp
+//   + ⌈nb_cc/(degree−2)⌉ + nb_trash + 2</span>
+
+<span class="fkw">commit_bytes</span> = nb_commitments × <span class="fnum">48</span></pre>
+        </div>
+        <div class="formula-card">
+          <h3>Proof Scalars</h3>
+          <pre><span class="fkw">nb_scalars</span> =
+  nb_evals                    <span class="fcm">// advice + fixed col queries</span>
+  + (ci > 0 ? 1 : 0)          <span class="fcm">// committed-instance eval</span>
+  + 1                         <span class="fcm">// vanishing random eval</span>
+  + nb_cc                     <span class="fcm">// perm common evals</span>
+  + 3×⌈nb_cc/(degree−2)⌉ − 1  <span class="fcm">// perm cross-term evals</span>
+  + 5 × nb_lkp                <span class="fcm">// per lookup:
+                              //   Z(X), Z(ωX)
+                              //   A_perm(X), A_perm(ω⁻¹X)
+                              //   S_perm(X)</span>
+  + nb_trash                  <span class="fcm">// one per trashcan</span>
+  + max(nb_point_sets, 3)     <span class="fcm">// H2MO Q evals</span>
+
+<span class="fkw">scalar_bytes</span> = nb_scalars × <span class="fnum">32</span></pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- KEY PARAMETERS -->
+    <div class="subsection" id="sec-params">
+      <div class="subsection-title">Key Parameters</div>
+      <div class="subsection-desc">
+        These quantities are derived from the circuit structure and appear in both the proof size
+        and verifier cost formulas.
+      </div>
+      <div class="formula-grid cols-3">
+        <div class="formula-card">
+          <h3>Circuit Degree</h3>
+          <pre><span class="fkw">degree</span> = max(
+  degree_hint,
+  <span class="fcm">// perm requires ≥ 3</span>
+  nb_cc > 0    ? <span class="fnum">3</span> : 0,
+  <span class="fcm">// PlookUp requires ≥ 5</span>
+  nb_lkp > 0   ? <span class="fnum">5</span> : 0,
+  <span class="fcm">// trashcan requires ≥ 4</span>
+  nb_trash > 0 ? <span class="fnum">4</span> : 0,
+  <span class="fcm">// chip's gate argument degree</span>
+  max(chip gate degree)
+)
+
+<span class="fcm">// perm chunk size = degree−2
+// nb_perm_chunks = ⌈nb_cc / (degree−2)⌉
+// higher degree → fewer Z commits
+//              → more h-splits</span></pre>
+        </div>
+
+
+        <div class="formula-card">
+          <h3>Point Sets</h3>
+          <pre><span class="fkw">point_sets</span> = 
+  <span class="fcm">// if any permutation</span>
+  (nb_cc>0 ? {{cur,next}, {cur,next,last}}) ∪
+  <span class="fcm">// if any lookup</span>
+  (nb_lkp>0 ? {{prev,cur}, {cur,next}}) ∪
+  <span class="fcm">// if any trash</span>
+  (nb_trash>0 ? {{cur}}) ∪
+  <span class="fcm">// if any committed instances</span>
+  (nb_cis>0 ? {{cur}}) ∪
+  <span class="fcm">// chips gates queries</span>
+  {chips gates rotations} ∪
+  <span class="fcm">// chips fixed queries</span>
+  {chips fixed rotations}
+
+  <span class="fcm">// Each distinct rotation group across
+  // all column queries becomes one H2MO
+  // Q polynomial (one MSM in the verifier).</span>
+        </div>
+
+
+        <div class="formula-card">
+          <h3>Blinding Factors</h3>
+          <pre><span class="fkw">nb_blind</span> =
+  2
+  + nb_trash
+  + max(3, max_advice_queries)
+
+<span class="fcm">// The last nb_blind rows are random,
+// hiding the witness. The verifier
+// evaluates the Lagrange basis over
+// the full domain (constraint + blind).
+
+// max_advice_queries = max rotation
+// set size across advice columns.</span></pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- VERIFIER COST -->
+    <div class="subsection">
+      <div class="subsection-title">Verifier Cost</div>
+      <div class="subsection-desc">
+        The verifier runs in four sequential phases: it first absorbs the VK and public inputs
+        into the transcript, then reads the proof while squeezing Fiat-Shamir challenges, then
+        evaluates all argument expressions as scalar field arithmetic, and finally verifies the
+        KZG opening via the H2MO multi-open scheme. The dominant costs are the per-column scalar
+        products in the permutation argument and the per-gate polynomial evaluations.
+      </div>
+
+      <div class="phase-title">Phase 1 — Transcript &amp; Inputs</div>
+      <div class="subsection-desc">
+        Before reading the proof, the verifier initialises three scalar constants
+        (0, 1, and the coset shift δ) and absorbs the VK hash and public inputs.
+        The full transcript size is:
+        <code style="font-family:'JetBrains Mono',monospace;font-size:11px">32 + 48×ci + 32 + 32×pi + proof_size</code> bytes.
+        Each <code style="font-family:'JetBrains Mono',monospace;font-size:11px">squeeze()</code>
+        call hashes everything absorbed so far to produce a 32-byte challenge.
+        Public instance columns are not read from the proof — the verifier recomputes their
+        evaluation from the public inputs using a Lagrange basis evaluation at X.
+      </div>
+
+      <div class="phase-title">Phase 2 — Argument Evaluation</div>
+      <div class="subsection-desc">
+        After reading all proof elements, the verifier computes the evaluation of each argument
+        at the challenge point X. All operations here are scalar field arithmetic.
+        Gate expressions are the most circuit-specific cost; permutation scales with the number
+        of copy-constrained columns.
+      </div>
+      <div class="formula-grid cols-3">
+        <div class="formula-card">
+          <h3>Gates</h3>
+          <pre>Each gate is a polynomial expression
+over advice and fixed evaluations.
+
+All gate expressions within one chip
+are batched into a single combined
+expression before evaluation
+(random linear combination).
+
+Cost: entirely in scalar ops
+(neg, add, sub, mul, from_int).
+Chip-specific; scales with gate
+polynomial degree and column count.</pre>
+        </div>
+        <div class="formula-card">
+          <h3>Permutation</h3>
+          <pre><span class="fcm">// Three boundary/cross-product terms:</span>
+<span class="fcm">// l₀(X)·(1 − Z₀(X)) = 0</span>
+<span class="fcm">// l_last(X)·(Z_l(X)² − Z_l(X)) = 0</span>
+<span class="fcm">// l₀(X)·(Zᵢ(X) − Zᵢ₋₁(ωˡᵃˢᵗ·X)) = 0</span>
+<span class="fcm">// Per copy-constrained column:</span>
+<span class="fcm">// (p(X)+β·σᵢ(X)+γ) vs (p(X)+δⁱ·β·X+γ)</span>
+
+Per cc column: ~5 mul + ~3 add + 1 pow
+Per perm chunk: ~4 mul + ~2 sub
+
+Total scalar ops ≈ 9×nb_cc + 6×nb_perm_chunks
+where nb_perm_chunks = ⌈nb_cc/(degree−2)⌉</pre>
+        </div>
+        <div class="formula-card">
+          <h3>Lookups (PlookUp)</h3>
+          <pre><span class="fcm">// 5 fixed constraint equations per lookup:</span>
+<span class="fcm">// l1: (1 − Z)(A + β)(S + γ) − Z·… = 0</span>
+<span class="fcm">// l2: l_last · (Z² − Z) = 0</span>
+<span class="fcm">// l3: active · (left − right) = 0</span>
+<span class="fcm">// l4: (A_perm(X) − S_perm(X)) ·
+//       (A_perm(X) − A_perm(ω⁻¹X)) = 0</span>
+<span class="fcm">// l5: l₀ · (A_perm(X) − S_perm(X)) = 0</span>
+
+Per lookup: ~20 scalar ops (fixed)
++ expression-dependent ops from
+  the chip's lookup expression.</pre>
+        </div>
+        <div class="formula-card">
+          <h3>Trashcans</h3>
+          <pre>A trashcan argument checks that a
+wire value lies within a valid range
+using a compressed polynomial check.
+
+Per expression in a trashcan arg:
+  consume expression
+  + 1 mul + 1 add
+
+Plus final combination:
+  1 sub + 1 mul + 1 sub
+
+Requires degree ≥ max(2, expr.degree).
+Multiple chips may share one trashcan
+column (deduplicated in the merge).</pre>
+        </div>
+        <div class="formula-card">
+          <h3>Vanishing Combination</h3>
+          <pre><span class="fcm">// All constraint expressions are
+// combined via the Y-challenge:
+// h(X) = Σᵢ Yⁱ · constraintᵢ(X)
+// then h(X) / (Xⁿ − 1) must be
+// a degree-(degree−2) polynomial.</span>
+
+Terms combined:
+  nb_gates                      gate eqs
+  + 1 + 2×nb_perm_chunks       perm terms
+  + 5×nb_lkp                   lookup eqs
+  + nb_trash                   trash eqs
+
+Per term: 1 add + 1 mul (Y-fold)
+Final: 1 sub + 1 inv + 1 mul
+       + (degree−1) × (1 scale + 1 addG1)</pre>
+        </div>
+        <div class="formula-card">
+          <h3>Blinding &amp; Active Row</h3>
+          <pre><span class="fcm">// The verifier evaluates the Lagrange
+// basis over the blinding rows to
+// identify which rows are "active"
+// (non-blinding) at X.</span>
+
+nb_blind = 2 + nb_trash
+         + max(3, max_advice_queries)
+
+Steps:
+  rotate_omega × (nb_blind + 2)
+  lagrange_basis(nb_blind + 2)
+  Σ Lagrange evals  (nb_blind + 1 adds)
+  active_row = 1 − Σ  (1 add + 1 sub)</pre>
+        </div>
+      </div>
+
+      <div class="phase-title">Phase 3 — H2MO Opening (PCS)</div>
+      <div class="subsection-desc">
+        The Halo2 Multi-Open scheme reduces all KZG polynomial openings across all rotation sets
+        to a single pairing check. It introduces 4 challenges (X₁, X₂, X₃, X₄) and 2 proof
+        elements (F and Pi). The verifier computes a batched polynomial F as a linear combination
+        of all committed polynomials — grouped by rotation set — and checks that F opens correctly
+        at X₃ using the Pi commitment.
+      </div>
+      <div class="formula-grid">
+        <div class="formula-card">
+          <h3>Q Polynomial &amp; MSMs</h3>
+          <pre><span class="fcm">// One Q polynomial per rotation set.
+// Q_s = Σⱼ X₁ʲ · cⱼ  (over commits in set s)
+// Each Q is accumulated via MSM.</span>
+
+Powers of X₁: max_commits_per_set muls
+Powers of X₄: (nb_point_sets + 1) muls
+
+Per point set s:
+  MSM of size |commits in s|
+  decompress_point per commit
+  mul + add per scalar eval (X₁ power)
+  add_point + scale (X₄ accumulation)
+
+Total: nb_point_sets MSM calls</pre>
+        </div>
+        <div class="formula-card">
+          <h3>F Evaluation &amp; Final Check</h3>
+          <pre><span class="fcm">// F(X₃) from Q evaluations:</span>
+<span class="fcm">// r_s = Lagrange interpolation of
+//       (eval_points_s, evals_s) at X₃
+// F(X₃) = Σ_s x₂ˢ · (Q_s(X₃) − r_s)
+//               / Π_s (X₃ − ωʳ)  ← denom</span>
+
+Per set: lagrange_eval + denom product
+  + 1 batch_inversion (all sets)
+  + mul + sub + mul + add (fold)
+
+Final commitment check:
+  2 add_point + 2 scale + 2 decompress
+  → 1 Miller loop + 1 final pairing</pre>
+        </div>
+      </div>
+    </div>
+
+    <div class="note-box">
+      <strong>Note:</strong> All estimates are <em>lower bounds</em>. The estimator assumes extra advice columns
+      are queried only at the <code style="font-family:'JetBrains Mono',monospace;font-size:11px">current</code>
+      rotation (unless overridden via <code style="font-family:'JetBrains Mono',monospace;font-size:11px">--nb-evaluations</code>),
+      extra fixed columns are not copy-constrained, and lookup arguments follow the standard PlookUp
+      structure (degree 5). Real circuits using chips add their own fixed columns, gates, and lookup
+      tables, which are fully accounted for by the chip flags
+      (<code style="font-family:'JetBrains Mono',monospace;font-size:11px">--native</code>,
+      <code style="font-family:'JetBrains Mono',monospace;font-size:11px">--poseidon</code>, etc.).
+    </div>
+  </div><!-- /section algorithms -->
+
+</div><!-- /content -->
+
+<footer>
+  <p>
+    <a href="cost.html">← Back to Estimators</a> ·
+    <a href="https://iohk.io"><img src="assets/iog-mark.png" alt="Input Output Global" style="height:20px;vertical-align:middle;margin-right:4px;" /></a> ·
+    <a href="https://github.com/input-output-hk/plutus-halo2-verifier-gen">GitHub</a>
+  </p>
+</footer>
+
+</body>
+</html>

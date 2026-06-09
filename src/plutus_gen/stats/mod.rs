@@ -11,10 +11,13 @@ pub(crate) mod data;
 pub(crate) mod estimate;
 pub(crate) mod lookup;
 pub(crate) mod pcs;
+pub(crate) mod profile;
 
 pub use chips::types::scalar_ops::ScalarOps;
 pub use chips::{SupportedChips, lookup_chip};
 
 pub use data::CircuitConfig;
 
-pub use estimate::{proof_size, verifier_stats, vk_size};
+pub use estimate::{AllEstimates, proof_size, verifier_stats, vk_size};
+
+pub use profile::{ChipProfile, chip_profile};

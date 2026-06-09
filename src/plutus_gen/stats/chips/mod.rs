@@ -13,24 +13,32 @@ pub(crate) use types::{
     scalar_ops::ScalarOps,
 };
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, strum::EnumIter, strum::Display)]
 pub enum SupportedChips {
+    #[strum(to_string = "native")]
     Native,
     // SchnorrRescueSidechain,
     // RescueSidechain,
+    #[strum(to_string = "poseidon")]
     Poseidon,
+    #[strum(to_string = "htc")]
     HashToCurve,
     // Sha256,
     // Sha512,
+    #[strum(to_string = "jubjub")]
     EdwardsJubjub,
+    #[strum(to_string = "bls12381")]
     WeierstrassBls12381,
+    #[strum(to_string = "secp256k1")]
     WeierstrassSecp256k1,
+    #[strum(disabled)]
     P2RDecomposition(usize),
     // Automaton,
     // Base64,
     // Blake2b,
     // KeccakSha3,
     // VerifierGadget,
+    #[strum(disabled)]
     Lookup(LookupTable),
 }
 

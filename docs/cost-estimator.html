@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cost Estimator — Plutus Halo2 Verifier</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #0b0f1a;
+      --bg2:       #111827;
+      --bg3:       #1a2236;
+      --border:    #1e2d4a;
+      --accent:    #3b82f6;
+      --accent2:   #60a5fa;
+      --teal:      #14b8a6;
+      --text:      #e2e8f0;
+      --muted:     #94a3b8;
+      --code-bg:   #0d1117;
+      --warn:      #f59e0b;
+      --radius:    10px;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.65;
+      font-size: 16px;
+    }
+
+    a { color: var(--accent2); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    /* ── NAV ──────────────────────────────── */
+    nav {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: rgba(11, 15, 26, 0.92);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      padding: 0 2rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 56px;
+    }
+
+    .nav-brand {
+      font-weight: 600;
+      font-size: 14px;
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .nav-brand .dot { color: var(--accent); }
+
+    .nav-links {
+      display: flex;
+      gap: 1.5rem;
+      list-style: none;
+    }
+
+    .nav-links a {
+      font-size: 13px;
+      color: var(--muted);
+      transition: color 0.15s;
+    }
+
+    .nav-links a:hover { color: var(--text); text-decoration: none; }
+
+    /* ── HERO ─────────────────────────────── */
+    /* ── PAGE HEADER ─────────────────────── */
+    .page-header { padding: 3rem 2rem 2rem; max-width: 1100px; margin: 0 auto; }
+    .page-header h1 { font-size: 2rem; font-weight: 700; letter-spacing: -0.02em; margin-bottom: 0.5rem; }
+    .page-header p { color: var(--muted); font-size: 0.95rem; }
+
+    /* ── CONTENT ──────────────────────── */
+    .content { max-width: 1100px; margin: 0 auto; padding: 0 2rem 4rem; }
+
+    /* ── SECTIONS ─────────────────────── */
+    .section { margin-bottom: 3rem; }
+    .section-title {
+      font-size: 1.2rem; font-weight: 700; margin-bottom: 0.4rem;
+      padding-bottom: 0.6rem; border-bottom: 1px solid var(--border);
+    }
+    .section-desc { color: var(--muted); font-size: 13.5px; margin-bottom: 1.5rem; }
+
+    /* ── FEATURE CARDS ────────────────────── */
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 1.25rem;
+    }
+
+    .card {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.75rem;
+      transition: border-color 0.2s, transform 0.15s;
+    }
+
+    .card:hover { border-color: rgba(59,130,246,0.4); transform: translateY(-2px); }
+
+    .card-icon {
+      font-size: 1.75rem;
+      margin-bottom: 1rem;
+      display: block;
+    }
+
+    .card h3 {
+      font-size: 1rem;
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+    }
+
+    .card p { color: var(--muted); font-size: 13.5px; text-align: justify; }
+
+    /* ── WORKFLOW ─────────────────────────── */
+    .workflow {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0;
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+
+    .workflow-step {
+      flex: 1;
+      min-width: 160px;
+      padding: 1.5rem 1.25rem;
+      position: relative;
+      text-align: center;
+    }
+
+    .workflow-step + .workflow-step { border-left: 1px solid var(--border); }
+
+    .step-num {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: rgba(59,130,246,0.2);
+      color: var(--accent2);
+      font-size: 12px;
+      font-weight: 700;
+      margin-bottom: 0.75rem;
+    }
+
+    .workflow-step h4 { font-size: 13px; font-weight: 600; margin-bottom: 4px; }
+    .workflow-step p  { font-size: 12px; color: var(--muted); }
+
+    /* ── BENCHMARKS ───────────────────────── */
+    .table-wrap {
+      overflow-x: auto;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+
+    thead { background: var(--bg3); }
+
+    th {
+      padding: 10px 14px;
+      text-align: right;
+      font-weight: 600;
+      font-size: 11px;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: var(--muted);
+      white-space: nowrap;
+    }
+
+    th:first-child { text-align: left; }
+
+    td {
+      padding: 10px 14px;
+      text-align: right;
+      border-top: 1px solid var(--border);
+      white-space: nowrap;
+      color: var(--muted);
+    }
+
+    td:first-child { text-align: left; color: var(--text); font-weight: 500; }
+
+    tr:hover td { background: rgba(255,255,255,0.02); }
+
+    .over-limit { color: #f87171; }
+    .near-limit { color: var(--warn); }
+    .ok         { color: #4ade80; }
+
+    .limit-bar-wrap {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      min-width: 160px;
+    }
+
+    .limit-bar {
+      height: 4px;
+      border-radius: 2px;
+      flex: 1;
+      background: var(--bg3);
+      overflow: hidden;
+    }
+
+    .limit-bar-fill {
+      height: 100%;
+      border-radius: 2px;
+      transition: width 0.3s;
+    }
+
+    /* ── CODE BLOCKS ──────────────────────── */
+    .code-block {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow-x: auto;
+    }
+
+    .code-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 14px;
+      border-bottom: 1px solid var(--border);
+      font-size: 11px;
+      color: var(--muted);
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .code-dots { display: flex; gap: 5px; }
+    .code-dot { width: 10px; height: 10px; border-radius: 50%; }
+    .cd-r { background: #ff5f57; }
+    .cd-y { background: #febc2e; }
+    .cd-g { background: #28c840; }
+
+    pre {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12.5px;
+      line-height: 1.7;
+      padding: 1.25rem 1.5rem;
+      color: #c9d1d9;
+      overflow-x: auto;
+    }
+
+    .kw   { color: #ff7b72; }
+    .str  { color: #a5d6ff; }
+    .cm   { color: #8b949e; font-style: italic; }
+    .flag { color: #ffa657; }
+    .num  { color: #79c0ff; }
+
+    /* ── CHIPS GRID ───────────────────────── */
+    .chips-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 1rem;
+    }
+
+    .chip-card {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem;
+    }
+
+    .chip-card h4 {
+      font-size: 13px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 0.4rem;
+    }
+
+    .chip-tag {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      background: rgba(59,130,246,0.15);
+      color: var(--accent2);
+      border-radius: 4px;
+      padding: 1px 6px;
+    }
+
+    .chip-card p { font-size: 12.5px; color: var(--muted); text-align: justify; }
+
+    /* ── CLI FLAGS ────────────────────────── */
+    .flags-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+
+    .flags-table td { padding: 7px 10px; vertical-align: top; border-top: 1px solid var(--border); }
+    .flags-table td:first-child {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      color: var(--accent2);
+      white-space: nowrap;
+      width: 1px;
+      padding-right: 20px;
+    }
+    .flags-table td:last-child { color: var(--muted); }
+
+    .flags-section { margin-bottom: 1.5rem; }
+    .flags-section-title {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--teal);
+      padding: 8px 10px;
+      background: rgba(20,184,166,0.07);
+      border-top: 1px solid var(--border);
+    }
+
+    /* ── FOOTER ───────────────────────────── */
+    footer {
+      border-top: 1px solid var(--border);
+      text-align: center;
+      padding: 2.5rem 2rem;
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    footer a { color: var(--muted); }
+    footer a:hover { color: var(--text); }
+
+    /* ── TWO-COL ──────────────────────────── */
+    .two-col {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.5rem;
+    }
+
+    @media (max-width: 700px) {
+      .two-col { grid-template-columns: 1fr; }
+      .workflow-step + .workflow-step { border-left: none; border-top: 1px solid var(--border); }
+      nav .nav-links { display: none; }
+    }
+
+    /* ── FURTHER IMPROVEMENTS BOX ─────────── */
+    .info-box {
+      background: rgba(20,184,166,0.06);
+      border: 1px solid rgba(20,184,166,0.25);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.5rem;
+      font-size: 13.5px;
+      color: #5eead4;
+      display: flex;
+      gap: 0.75rem;
+      align-items: flex-start;
+    }
+
+    .info-box .icon { font-size: 16px; flex-shrink: 0; margin-top: 2px; }
+    .info-box p { margin: 0; color: #a7f3d0; }
+    .info-box strong { color: #5eead4; }
+
+    /* ── SUBNAV ───────────────────────────── */
+    .subnav {
+      background: var(--bg2);
+      border-bottom: 1px solid var(--border);
+      padding: 0 2rem;
+      display: flex; gap: 2rem;
+      height: 40px; align-items: center;
+      position: sticky; top: 56px; z-index: 99;
+    }
+    .subnav a { font-size: 13px; color: var(--muted); transition: color 0.15s; }
+    .subnav a:hover { color: var(--text); text-decoration: none; }
+    .subnav a.active { color: var(--text); font-weight: 600; border-bottom: 2px solid var(--accent); padding-bottom: 2px; }
+
+    /* ── BACK LINK ────────────────────────── */
+    .back-link {
+      font-size: 12px;
+      color: var(--muted);
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      margin-bottom: 1rem;
+    }
+    .back-link:hover { color: var(--text); text-decoration: none; }
+  </style>
+  <link rel="stylesheet" href="shared.css" />
+</head>
+<body>
+
+<nav>
+  <a class="nav-brand" href="index.html">
+    <img src="assets/halo2-verifier-icon-no-text.svg" height="40" alt="Halo2 Verifier" style="display:block;" />
+    Plutus Halo2 Verifier
+  </a>
+  <ul class="nav-links">
+    <li><a href="index.html">Overview</a></li>
+    <li><a href="cost-estimator.html" style="color:var(--text)">Cost Estimator</a></li>
+    <li><a href="verifier.html">Plutus Verifier</a></li>
+    <li><a href="https://github.com/input-output-hk/plutus-halo2-verifier-gen">GitHub &#8599;</a></li>
+  </ul>
+</nav>
+
+<div class="subnav">
+  <a href="cost-estimator.html" class="active">CLI</a>
+  <a href="cost.html">Estimators</a>
+  <a href="chips.html">Chips</a>
+  <a href="circuits.html">Circuit</a>
+  <a href="algorithms.html">Algorithms</a>
+</div>
+
+<div class="page-header">
+  <a class="back-link" href="index.html">← Overview</a>
+  <h1>Cost Estimator</h1>
+  <p>Predict verifier execution costs from circuit parameters alone — no full circuit instantiation required.</p>
+</div>
+
+<div class="content">
+  <div class="section">
+    <div class="section-title">CLI Binaries</div>
+    <div class="section-desc">
+      Three CLI binaries give you different views of verifier execution cost from
+      circuit parameters alone — no full circuit instantiation required.
+    </div>
+
+  <div class="info-box" style="margin-bottom: 1.5rem;">
+    <span class="icon">ℹ</span>
+    <p>
+      <strong>Estimates are lower bounds</strong> — assumes minimal column rotations
+      (prev, current, next) and table numbers. Chip flags are the most precise input; additional
+      circuit config flags trade precision for flexibility.
+    </p>
+  </div>
+
+  <div class="two-col" style="margin-bottom: 2rem;">
+    <div>
+      <div class="code-block" style="margin-bottom: 1rem;">
+        <div class="code-header">
+          <div class="code-dots">
+            <div class="code-dot cd-r"></div>
+            <div class="code-dot cd-y"></div>
+            <div class="code-dot cd-g"></div>
+          </div>
+          <span>Full cost estimate — native chip</span>
+        </div>
+        <pre><span class="cm"># Full breakdown: scalar/point ops, pairings,</span>
+<span class="cm"># MSM sizes, proof and VK byte sizes</span>
+cargo run <span class="flag">--bin</span> estimate -- \
+  <span class="flag">--nb-public-inputs</span> <span class="num">3</span> \
+  <span class="flag">--native</span></pre>
+      </div>
+
+      <div class="code-block" style="margin-bottom: 1rem;">
+        <div class="code-header">
+          <div class="code-dots">
+            <div class="code-dot cd-r"></div>
+            <div class="code-dot cd-y"></div>
+            <div class="code-dot cd-g"></div>
+          </div>
+          <span>Proof size — Poseidon + JubJub circuit</span>
+        </div>
+        <pre>cargo run <span class="flag">--bin</span> proof_size -- \
+  <span class="flag">--nb-public-inputs</span> <span class="num">5</span> \
+  <span class="flag">--committed-instances</span> \
+  <span class="flag">--poseidon</span> <span class="flag">--jubjub</span></pre>
+      </div>
+
+      <div class="code-block" style="margin-bottom: 1rem;">
+        <div class="code-header">
+          <div class="code-dots">
+            <div class="code-dot cd-r"></div>
+            <div class="code-dot cd-y"></div>
+            <div class="code-dot cd-g"></div>
+          </div>
+          <span>VK size — BLS12-381 circuit with committed inputs</span>
+        </div>
+        <pre>cargo run <span class="flag">--bin</span> vk_size -- \
+  <span class="flag">--nb-public-inputs</span> <span class="num">1</span> \
+  <span class="flag">--committed-instances</span> \
+  <span class="flag">--bls12-381</span></pre>
+      </div>
+
+    </div>
+
+    <div>
+      <div style="background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; margin-bottom: 1rem;">
+        <div class="flags-section-title" style="border-top: none;">Proof inputs</div>
+        <table class="flags-table">
+          <tr><td>--nb-public-inputs / --pi</td><td>Number of public inputs (required)</td></tr>
+          <tr><td>--committed-instances / --ci</td><td>Whether the circuit has committed inputs</td></tr>
+        </table>
+
+        <div class="flags-section-title">Chips (combine as needed)</div>
+        <table class="flags-table">
+          <tr><td>--native</td><td>Arith chip (arithmetic + parallel_add gates)</td></tr>
+          <tr><td>--poseidon</td><td>Poseidon hash chip</td></tr>
+          <tr><td>--jubjub</td><td>JubJub Edwards curve chip</td></tr>
+          <tr><td>--hash-to-curve</td><td>Poseidon hash-to-JubJub-curve chip</td></tr>
+        </table>
+
+        <div class="flags-section-title">Circuit config (default 0)</div>
+        <table class="flags-table">
+          <tr><td>--nb-advice</td><td>Number of advice columns</td></tr>
+          <tr><td>--nb-fixed</td><td>Number of extra fixed columns</td></tr>
+          <tr><td>--nb-selectors</td><td>Number of extra selectors</td></tr>
+          <tr><td>--nb-evaluations</td><td>Number of column evaluations</td></tr>
+          <tr><td>--nb-lookups</td><td>Number of lookup arguments</td></tr>
+          <tr><td>--degree</td><td>Circuit degree</td></tr>
+          <tr><td>--nr-pow2</td><td>Scalar decomposition lookup columns</td></tr>
+        </table>
+      </div>
+
+    </div>
+  </div>
+
+  <div style="margin-top: 1rem;">
+    <p style="font-size: 13px; color: var(--muted); margin-bottom: 1.25rem;">
+      Three binaries, three levels of detail:
+    </p>
+    <div class="cards">
+      <div class="card">
+        <h3><code style="color:var(--accent2);font-family:'JetBrains Mono',monospace;font-size:13px;">estimate</code></h3>
+        <p>Full breakdown — scalar/point operation counts, pairings, MSM sizes, proof byte size, VK byte size. Percentage of Cardano execution limits.</p>
+      </div>
+      <div class="card">
+        <h3><code style="color:var(--accent2);font-family:'JetBrains Mono',monospace;font-size:13px;">proof_size</code></h3>
+        <p>Proof size in bytes, derived from column layout and commitment scheme. Fast single-number answer.</p>
+      </div>
+      <div class="card">
+        <h3><code style="color:var(--accent2);font-family:'JetBrains Mono',monospace;font-size:13px;">vk_size</code></h3>
+        <p>Verification key size in bytes. Useful for on-chain storage budget planning independently of proof size.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="section" style="margin-top: 3rem;">
+    <div class="section-title">Supported Chips</div>
+    <div class="section-desc">
+      Each chip encapsulates a set of gates, advice columns, and lookup tables.
+      Combine chips to build the circuit that matches your use case.
+    </div>
+
+  <div class="chips-grid">
+    <div class="chip-card">
+      <h4><span class="chip-tag">--native</span> Arith</h4>
+      <p>Standard PLONK arithmetic gate + parallel_add gate. The baseline for any custom computation.</p>
+    </div>
+    <div class="chip-card">
+      <h4><span class="chip-tag">--poseidon</span> Poseidon Hash</h4>
+      <p>ZK-friendly Poseidon permutation over the BLS12-381 scalar field. Used in commitments and Merkle trees.</p>
+    </div>
+    <div class="chip-card">
+      <h4><span class="chip-tag">--jubjub</span> JubJub</h4>
+      <p>Edwards curve arithmetic chip for the JubJub curve (embedded in BLS12-381). Efficient scalar multiplication.</p>
+    </div>
+    <div class="chip-card">
+      <h4><span class="chip-tag">--hash-to-curve</span> Hash-to-Curve</h4>
+      <p>Maps an arbitrary message to a JubJub curve point via Poseidon hash. Required for BLS-style signature schemes.</p>
+    </div>
+    <div class="chip-card">
+      <h4><span class="chip-tag">--secp256k1</span> Secp256k1</h4>
+      <p>Bitcoin/Ethereum elliptic curve. Supports ECDSA verification and threshold multisignature (ATMS) circuits.</p>
+    </div>
+    <div class="chip-card">
+      <h4><span class="chip-tag">--bls12-381</span> BLS12-381</h4>
+      <p>Primary commitment curve. BLS signatures, G1 MSM, and KZG verification are all built on BLS12-381.</p>
+    </div>
+  </div>
+  </div><!-- /section chips -->
+
+</div><!-- /content -->
+
+<footer>
+  <p>
+    <a href="https://iohk.io"><img src="assets/iog-mark.png" alt="Input Output Global" style="height:20px;vertical-align:middle;margin-right:4px;" /></a> ·
+    <a href="https://github.com/input-output-hk/plutus-halo2-verifier-gen">GitHub</a>
+  </p>
+</footer>
+
+</body>
+</html>

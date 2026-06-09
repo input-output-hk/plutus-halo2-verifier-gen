@@ -3,6 +3,7 @@ use super::{PCSType, PcsEstimate};
 
 pub(crate) struct H2MO;
 
+#[cfg(not(target_arch = "wasm32"))]
 mod kzg_impl {
     use super::*;
     use midnight_curves::Bls12;

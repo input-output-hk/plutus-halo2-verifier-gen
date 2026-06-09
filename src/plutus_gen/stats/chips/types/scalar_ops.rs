@@ -1,10 +1,15 @@
 /// Cost breakdown of a scalar expression.
-#[derive(Default, Debug, Clone, Copy)]
+#[derive(Default, Debug, Clone, Copy, serde::Serialize)]
 pub struct ScalarOps {
+    #[serde(rename = "neg")]
     pub nb_neg: usize,
+    #[serde(rename = "add")]
     pub nb_add: usize,
+    #[serde(rename = "sub")]
     pub nb_sub: usize,
+    #[serde(rename = "mul")]
     pub nb_mul: usize,
+    #[serde(rename = "from_int")]
     pub nb_from_int: usize,
 }
 
