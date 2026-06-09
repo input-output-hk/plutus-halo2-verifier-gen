@@ -22,7 +22,10 @@ use midnight_proofs::{
 use plutus_halo2_verifier_gen::{
     circuits::simple_mul_circuit::SimpleMulCircuit,
     kzg_params::get_or_create_kzg_params,
-    plutus_gen::{CardanoFriendlyBlake2b, generate_aiken_verifier, generate_plinth_verifier},
+    plutus_gen::{
+        CardanoFriendlyBlake2b, CircuitConfig, SupportedChips, cost_evaluation,
+        generate_aiken_verifier, generate_plinth_verifier,
+    },
 };
 
 pub type KZG = KZGCommitmentScheme<Bls12>;
@@ -99,6 +102,25 @@ fn main() -> Result<()> {
         .verify(&kzg_params.verifier_params())
         .map_err(|e| anyhow!("{e:?}"))
         .context("verify failed")?;
+
+    let chips: &[SupportedChips] = &[];
+    cost_evaluation(
+        &kzg_params,
+        &vk,
+        None,
+        &instance,
+        None,
+        chips,
+        CircuitConfig {
+            nb_advice: 2,
+            nb_evaluations: 3,
+            nb_fixed: 1,
+            nb_selectors: 1,
+            nb_lookups: 0,
+            degree: 3,
+            nr_pow2range_cols: None,
+        },
+    )?;
 
     shared_utils::export_plinth(&instance, None, &proof)?;
     generate_plinth_verifier(&kzg_params, &vk, None, &instance, None)

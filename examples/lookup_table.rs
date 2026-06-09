@@ -19,10 +19,14 @@ use midnight_proofs::{
     transcript::{CircuitTranscript, Transcript},
 };
 
+use plutus_halo2_verifier_gen::circuits::lookup_table_circuit::NB_POW2RANGE_COLS;
 use plutus_halo2_verifier_gen::{
     circuits::lookup_table_circuit::LookupTest,
     kzg_params::get_or_create_kzg_params,
-    plutus_gen::{CardanoFriendlyBlake2b, generate_aiken_verifier, generate_plinth_verifier},
+    plutus_gen::{
+        CardanoFriendlyBlake2b, CircuitConfig, cost_evaluation, generate_aiken_verifier,
+        generate_plinth_verifier, lookup_chip,
+    },
 };
 
 pub type KZG = KZGCommitmentScheme<Bls12>;
@@ -95,6 +99,28 @@ fn main() -> Result<()> {
     )
     .context("proof generation should not fail")?;
     let invalid_proof = invalid_transcript.finalize();
+
+    let chips = &[lookup_chip(
+        "pow2range".to_string(),
+        NB_POW2RANGE_COLS,
+        0,
+        0,
+    )];
+    // LookupTest: 4 advice, 4 fixed (complex selector + tag_col + 2 table cols), 4 lookups
+    cost_evaluation(
+        &kzg_params,
+        &vk,
+        None,
+        &instance,
+        None,
+        chips,
+        CircuitConfig {
+            nb_advice: 4,
+            nb_fixed: 4,
+            degree: 5,
+            ..Default::default()
+        },
+    )?;
 
     shared_utils::export_plinth(&instance, None, &proof)?;
     generate_plinth_verifier(&kzg_params, &vk, None, &instance, None)

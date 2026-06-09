@@ -27,7 +27,10 @@ use midnight_zk_stdlib::Relation;
 use plutus_halo2_verifier_gen::{
     circuits::schnorr_circuit::{SchnorrExample, SchnorrSignature, utils::verify},
     kzg_params::get_or_create_kzg_params,
-    plutus_gen::{CardanoFriendlyBlake2b, generate_aiken_verifier, generate_plinth_verifier},
+    plutus_gen::{
+        CardanoFriendlyBlake2b, CircuitConfig, SupportedChips, cost_evaluation,
+        generate_aiken_verifier, generate_plinth_verifier, lookup_chip,
+    },
 };
 
 pub type KZG = KZGCommitmentScheme<Bls12>;
@@ -151,6 +154,21 @@ fn main() -> Result<()> {
         .verify(&params.verifier_params())
         .map_err(|e| anyhow!("{e:?}"))
         .context("verify failed")?;
+
+    let chips = &[
+        SupportedChips::EdwardsJubjub,
+        SupportedChips::Poseidon,
+        lookup_chip("pow2range".to_string(), 1, 0, 0),
+    ];
+    cost_evaluation(
+        &params,
+        &vk,
+        None,
+        &formatted_instance,
+        Some(committed_signature),
+        chips,
+        CircuitConfig::default(),
+    )?;
 
     shared_utils::export_plinth(&formatted_instance, Some(committed_signature), &proof)?;
     generate_plinth_verifier(
