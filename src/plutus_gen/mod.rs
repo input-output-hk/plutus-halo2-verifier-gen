@@ -1,9 +1,12 @@
 //! Module for generating the Plinth and Aiken verifiers for a given circuit
 //! the correct mustashe templates and emitting them to the correct locations.
 pub(crate) mod adjusted_types;
-pub use adjusted_types::CardanoFriendlyBlake2b;
 pub(crate) mod emitters;
 pub(crate) mod extraction;
+pub(crate) mod proof_serialization;
+pub(crate) mod stats;
+
+pub use adjusted_types::CardanoFriendlyBlake2b;
 pub use emitters::{
     aiken::{emit_verifier_code as emit_verifier_aiken, emit_vk_code as emit_vk_aiken},
     plinth::{emit_verifier_code as emit_verifier_plinth, emit_vk_code as emit_vk_plinth},
@@ -11,7 +14,6 @@ pub use emitters::{
 pub use extraction::pcs::ExtractPCS;
 pub use extraction::pcs::PCSType;
 pub use extraction::{CircuitRepresentation, extract_circuit};
-pub(crate) mod proof_serialization;
 pub use proof_serialization::{
     export_committed_inputs, export_proof, export_public_inputs, serialize_proof,
 };
