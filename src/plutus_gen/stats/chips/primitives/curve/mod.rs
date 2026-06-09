@@ -1,3 +1,6 @@
+pub(crate) mod bls12_381;
+pub(crate) use bls12_381::WeierstrassBls12381;
+
 pub(super) mod ecc;
 pub(super) use ecc::EccEmulationParams;
 
