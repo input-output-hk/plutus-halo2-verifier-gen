@@ -1,3 +1,6 @@
+pub(crate) mod hash;
+pub(crate) use hash::Poseidon;
+
 pub(crate) mod native;
 pub(crate) use native::Native;
 
