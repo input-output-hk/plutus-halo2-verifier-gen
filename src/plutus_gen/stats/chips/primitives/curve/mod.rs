@@ -13,5 +13,8 @@ pub(crate) use hash_to_curve::HashToCurve;
 pub(crate) mod jubjub;
 pub(crate) use jubjub::EdwardsJubjub;
 
+pub(crate) mod secp256k1;
+pub(crate) use secp256k1::WeierstrassSecp256k1;
+
 pub(crate) mod utils;
 pub(crate) use utils::*;
