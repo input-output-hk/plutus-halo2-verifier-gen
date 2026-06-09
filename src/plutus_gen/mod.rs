@@ -38,6 +38,8 @@ use midnight_proofs::{
 pub use proof_serialization::{
     export_committed_inputs, export_proof, export_public_inputs, serialize_proof,
 };
+#[cfg(not(target_arch = "wasm32"))]
+pub use stats::compute_verifier_code;
 use stats::pcs::H2MO;
 pub use stats::{
     AllEstimates, ChipProfile, CircuitConfig, ScalarOps, SupportedChips, lookup_chip, proof_size,
@@ -106,6 +108,34 @@ pub fn estimate_vk_size_cmd(
 ///
 /// # Returns
 /// * `Result<(), String>` - Ok(()) if the generation is successful, Err(String) otherwise
+#[cfg(not(target_arch = "wasm32"))]
+pub fn cost_evaluation<PCS>(
+    params: &ParamsKZG<Bls12>,
+    vk: &VerifyingKey<Scalar, PCS>,
+    recursion_vks: Option<Vec<(String, VerifyingKey<Scalar, PCS>)>>,
+    instance: &[Scalar],
+    committed_instance: Option<G1Projective>,
+    chips: &[SupportedChips],
+    config: CircuitConfig,
+) -> anyhow::Result<()>
+where
+    PCS: ExtractPCS + PolynomialCommitmentScheme<Scalar, Commitment = G1Projective>,
+{
+    use anyhow::Context as _;
+    let pis = instance.len();
+    let nb_committed_instances = usize::from(committed_instance.is_some());
+    let circuit_representation =
+        extract_circuit(params, vk, recursion_vks, instance, committed_instance)
+            .context("Failed to extract the circuit representation")?;
+    let exact = compute_verifier_code(vk, &circuit_representation);
+    let estimated = verifier_stats::<H2MO>(pis, nb_committed_instances, config, chips);
+    println!(
+        "\n\nDifference between exact and estimated numbers:\n{:#?}",
+        stats::CircuitStatistics::difference(&exact, &estimated)
+    );
+    Ok(())
+}
+
 #[cfg(not(target_arch = "wasm32"))]
 pub fn generate_plinth_verifier<PCS>(
     params: &ParamsKZG<Bls12>,

@@ -19,6 +19,7 @@ pub enum RotationDescription {
     #[default]
     Current,
     Next,
+    Custom(i32),
 }
 
 impl RotationDescription {
@@ -28,6 +29,7 @@ impl RotationDescription {
             RotationDescription::Previous => "x_prev".to_string(),
             RotationDescription::Current => "x_current".to_string(),
             RotationDescription::Next => "x_next".to_string(),
+            RotationDescription::Custom(n) => format!("x_rot_{}", n),
         }
     }
 
@@ -36,10 +38,7 @@ impl RotationDescription {
             -1 => RotationDescription::Previous,
             0 => RotationDescription::Current,
             1 => RotationDescription::Next,
-            _ => panic!(
-                "unknown number {} for rotation, only -1 0 and 1 are supported",
-                input
-            ),
+            n => RotationDescription::Custom(n),
         }
     }
 }

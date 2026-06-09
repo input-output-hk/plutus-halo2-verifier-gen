@@ -1,3 +1,10 @@
+#[cfg(not(target_arch = "wasm32"))]
+use crate::plutus_gen::extraction::data::{ExpressionG1, ScalarExpression};
+#[cfg(not(target_arch = "wasm32"))]
+use midnight_curves::BlsScalar as Scalar;
+#[cfg(not(target_arch = "wasm32"))]
+use midnight_proofs::plonk::Expression;
+
 use crate::plutus_gen::stats::chips::types;
 
 impl std::fmt::Display for CircuitStatistics {
@@ -121,6 +128,129 @@ impl CircuitStatistics {
             compress_point: 0,
             miller_loop: 2,
             pairing: 1,
+        }
+    }
+
+    pub(crate) fn difference(s1: &Self, s2: &Self) -> Self {
+        CircuitStatistics {
+            transcript_size: s1.transcript_size.abs_diff(s2.transcript_size),
+            public_inputs: s1.public_inputs.abs_diff(s2.public_inputs),
+            committed_instances: s1.committed_instances.abs_diff(s2.committed_instances),
+            proof_size: s1.proof_size.abs_diff(s2.proof_size),
+            vk_size: s1.vk_size.abs_diff(s2.vk_size),
+            degree: s1.degree.abs_diff(s2.degree),
+            hash: {
+                let max_len = s1.hash.len().max(s2.hash.len());
+                (0..max_len)
+                    .map(|i| {
+                        let a = s1.hash.get(i).cloned().unwrap_or(0);
+                        let b = s2.hash.get(i).cloned().unwrap_or(0);
+                        a.abs_diff(b)
+                    })
+                    .collect()
+            },
+            neg_scalar: s1.neg_scalar.abs_diff(s2.neg_scalar),
+            add_scalar: s1.add_scalar.abs_diff(s2.add_scalar),
+            sub_scalar: s1.sub_scalar.abs_diff(s2.sub_scalar),
+            mul_scalar: s1.mul_scalar.abs_diff(s2.mul_scalar),
+            inv_scalar: s1.inv_scalar.abs_diff(s2.inv_scalar),
+            pow_scalar: s1.pow_scalar.abs_diff(s2.pow_scalar),
+            to_bytes_scalar: s1.to_bytes_scalar.abs_diff(s2.to_bytes_scalar),
+            from_bytes_scalar: s1.from_bytes_scalar.abs_diff(s2.from_bytes_scalar),
+            from_int_scalar: s1.from_int_scalar.abs_diff(s2.from_int_scalar),
+            add_point: s1.add_point.abs_diff(s2.add_point),
+            mul_point: s1.mul_point.abs_diff(s2.mul_point),
+            msm: {
+                let max_len = s1.msm.len().max(s2.msm.len());
+                (0..max_len)
+                    .map(|i| {
+                        let a = s1.msm.get(i).cloned().unwrap_or(0);
+                        let b = s2.msm.get(i).cloned().unwrap_or(0);
+                        a.abs_diff(b)
+                    })
+                    .collect()
+            },
+            from_bytes_point: s1.from_bytes_point.abs_diff(s2.from_bytes_point),
+            decompress_point: s1.decompress_point.abs_diff(s2.decompress_point),
+            compress_point: s1.compress_point.abs_diff(s2.compress_point),
+            miller_loop: s1.miller_loop.abs_diff(s2.miller_loop),
+            pairing: s1.pairing.abs_diff(s2.pairing),
+        }
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(crate) fn expression(&mut self, exp: &Expression<Scalar>) {
+        match exp {
+            Expression::Advice(_) => (),
+            Expression::Challenge(_) => (),
+            Expression::Constant(_) => self.from_int_scalar(),
+            Expression::Fixed(_) => (),
+            Expression::Instance(_) => (),
+            Expression::Negated(next_exp) => {
+                self.neg_scalar();
+                self.expression(next_exp);
+            }
+            Expression::Product(next_exp, last_exp) => {
+                self.mul_scalar();
+                self.expression(next_exp);
+                self.expression(last_exp);
+            }
+            Expression::Scaled(next_exp, _) => {
+                self.mul_scalar();
+                self.expression(next_exp);
+            }
+            Expression::Selector(_) => (),
+            Expression::Sum(next_exp, last_exp) => {
+                self.add_scalar();
+                self.expression(next_exp);
+                self.expression(last_exp)
+            }
+        }
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(crate) fn point_expression(&mut self, exp: &ExpressionG1<Scalar>) {
+        match exp {
+            ExpressionG1::Scale(next_exp, last_exp) => {
+                self.scale();
+                self.point_expression(next_exp);
+                self.scalar_expression(last_exp);
+            }
+            ExpressionG1::Sum(next_exp, last_exp) => {
+                self.add_point();
+                self.point_expression(next_exp);
+                self.point_expression(last_exp);
+            }
+            ExpressionG1::VanishingSplit(_) => (),
+            ExpressionG1::Variable(_) => (),
+            ExpressionG1::Zero => (),
+        }
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(crate) fn scalar_expression(&mut self, exp: &ScalarExpression<Scalar>) {
+        match exp {
+            ScalarExpression::Advice(_) => (),
+            ScalarExpression::Constant(_) => self.from_int_scalar(),
+            ScalarExpression::Fixed(_) => (),
+            ScalarExpression::Instance(_) => (),
+            ScalarExpression::Negated(_) => self.neg_scalar(),
+            ScalarExpression::PermutationCommon(_) => (),
+            ScalarExpression::PowMod(next_exp, _) => {
+                self.pow_scalar();
+                self.scalar_expression(next_exp);
+            }
+            ScalarExpression::Product(next_exp, last_exp) => {
+                self.mul_scalar();
+                self.scalar_expression(next_exp);
+                self.scalar_expression(last_exp);
+            }
+            ScalarExpression::Sum(next_exp, last_exp) => {
+                self.add_scalar();
+                self.scalar_expression(next_exp);
+                self.scalar_expression(last_exp);
+            }
+            ScalarExpression::Variable(_) => (),
         }
     }
 

@@ -6,8 +6,9 @@
 
 pub(crate) mod arguments;
 pub(crate) mod chips;
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) mod compute;
 pub(crate) mod data;
-
 pub(crate) mod estimate;
 pub(crate) mod lookup;
 pub(crate) mod pcs;
@@ -15,8 +16,10 @@ pub(crate) mod profile;
 
 pub use chips::types::scalar_ops::ScalarOps;
 pub use chips::{SupportedChips, lookup_chip};
-
+#[cfg(not(target_arch = "wasm32"))]
+pub use compute::compute_verifier_code;
 pub use data::CircuitConfig;
+pub(crate) use data::CircuitStatistics;
 
 pub use estimate::{AllEstimates, proof_size, verifier_stats, vk_size};
 

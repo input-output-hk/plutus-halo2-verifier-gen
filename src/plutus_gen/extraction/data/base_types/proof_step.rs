@@ -37,3 +37,26 @@ pub(crate) enum ProofExtractionSteps {
     Gamma,
     Trash,
 }
+
+impl ProofExtractionSteps {
+    // Return the number of commitments and scalars from a PES
+    pub(crate) fn step_stat(&self) -> (usize, usize) {
+        match self {
+            ProofExtractionSteps::AdviceCommitments => (1, 0),
+            ProofExtractionSteps::AdviceEval => (0, 1),
+            ProofExtractionSteps::FixedEval => (0, 1),
+            ProofExtractionSteps::LookupCommitment => (1, 0),
+            ProofExtractionSteps::LookupEval => (0, 5),
+            ProofExtractionSteps::LookupPermuted => (2, 0),
+            ProofExtractionSteps::PermutationCommon => (0, 1),
+            ProofExtractionSteps::PermutationEval(_) => (0, 1),
+            ProofExtractionSteps::PermutationsCommitted => (1, 0),
+            ProofExtractionSteps::RandomEval => (0, 1),
+            ProofExtractionSteps::TrashCommitment => (1, 0),
+            ProofExtractionSteps::TrashEval => (0, 1),
+            ProofExtractionSteps::VanishingRand => (1, 0),
+            ProofExtractionSteps::VanishingSplit => (1, 0),
+            _ => (0, 0),
+        }
+    }
+}
