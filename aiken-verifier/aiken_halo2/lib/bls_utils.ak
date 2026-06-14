@@ -10,19 +10,35 @@ use aiken/fuzz
 use aiken/option.{is_some}
 use aiken/primitive/bytearray
 
+// BLS12-381 base field prime (Fp)
+const fp_prime: Int =
+  0x1a0111ea397fe69a4b1ba7b6434bacd764774b84f38512bf6730d2a0f6b0f6241eabfffeb153ffffb9feffffffffaaab
+
+// In a 48-byte compressed BLS12-381 G1 encoding, the top 3 bits of the first byte are flags:
+//   bit 7 (0x80) -- compression flag (point is compressed)
+//   bit 6 (0x40) -- infinity flag
+//   bit 5 (0x20) -- parity flag (y is the lexicographically larger root)
+
+// compression flag only -- 0x80 in the high byte (= 0x80 << 376)
+const compression_flag: Int =
+  19701003098197239606139520050071806902539869635232723333974146702122860885748605305707133127442457820403313995153408
+
+// compression flag + parity flag -- 0xa0 in the high byte (= 0xa0 << 376)
+const compression_and_parity_flag: Int =
+  24626253872746549507674400062589758628174837044040904167467683377653576107185756632133916409303072275504142493941760
+
 // Function returning a G1 element from two scalar coordinates
 // We assume the point is not at infinity
 pub fn g1_from_coords(x: Int, y: Int) -> G1Element {
   // 1. Build the flags
   // The compression flag (first bit) is set to 1
   // The parity flag (third bit) is set to 1 if y is the lexicographically largest
-  let other_y =
-    0x1a0111ea397fe69a4b1ba7b6434bacd764774b84f38512bf6730d2a0f6b0f6241eabfffeb153ffffb9feffffffffaaab - y
+  let other_y = fp_prime - y
   let flags =
     if y > other_y {
-      24626253872746549507674400062589758628174837044040904167467683377653576107185756632133916409303072275504142493941760
+      compression_and_parity_flag
     } else {
-      19701003098197239606139520050071806902539869635232723333974146702122860885748605305707133127442457820403313995153408
+      compression_flag
     }
 
   // 2. Add flags to x coordinate

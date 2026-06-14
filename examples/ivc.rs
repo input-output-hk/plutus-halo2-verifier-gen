@@ -169,7 +169,7 @@ fn main() -> Result<()> {
             prev_acc.clone(),
         );
 
-        if i != 0 {
+        if i > 1 {
             instance = AssignedVk::<S>::as_public_input(&vk);
             instance.extend(AssignedNative::<F>::as_public_input(&state));
             instance.extend(AssignedAccumulator::as_public_input(&acc));
@@ -202,7 +202,7 @@ fn main() -> Result<()> {
             }
         };
 
-        if i == 0 {
+        if i == 1 {
             info!("proof size {:?}", proof.len());
         }
 

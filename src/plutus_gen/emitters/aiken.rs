@@ -677,9 +677,9 @@ where
 
             let nb_vks = 1 + circuit.proof_instantiation_data.recursion_vks.as_ref().map_or(0, |vks| vks.len());
 
-            let check_self_vk = "    let b = b && (transcript_rep == i_1)\n".to_string();
+            let check_self_vk = "    expect transcript_rep == i_1\n".to_string();
             let check_inner_vks = recursion_vks.iter().enumerate().map(|(i, vki)| {
-                format!("    let b = b && (transcript_rep_{} = i_{}\n", vki.name, i+2)
+                format!("    expect transcript_rep_{} = i_{}\n", vki.name, i+2)
             }).join("");
             let check_vk = [check_self_vk, check_inner_vks].join("");
 
@@ -823,7 +823,7 @@ where
                 .iter()
                 .enumerate()
                 .map(|(i, &e)| {
-                    let input = if i == 0 { e + Scalar::ONE } else { e };
+                    let input = if i != 0 { e + Scalar::ONE } else { e };
                     format!("from_int(0x{})", hex::encode(input.to_bytes_be()))
                 })
                 .join(", ");
@@ -832,7 +832,7 @@ where
                 .iter()
                 .enumerate()
                 .map(|(i, &e)| {
-                    let input = if i == 0 { Scalar::ZERO } else { e };
+                    let input = if i != 0 { Scalar::ZERO } else { e };
                     format!("from_int(0x{})", hex::encode(input.to_bytes_be()))
                 })
                 .join(", ");

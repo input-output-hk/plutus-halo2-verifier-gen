@@ -31,6 +31,8 @@ use midnight_proofs::poly::kzg::params::ParamsKZG;
 /// # Arguments
 /// * `params` - Parameters for the KZG polynomial commitment scheme
 /// * `vk` - Verifying key for the circuit
+/// * `recursion_vks` - Option set to Some if we are doing a recusion,
+/// the vector lists any other vks used in the application inside the recursion.
 /// * `instance` - Public inputs to the circuit
 ///
 /// # Returns
@@ -94,6 +96,8 @@ where
 /// # Arguments
 /// * `params` - Parameters for the KZG polynomial commitment scheme
 /// * `vk` - Verifying key for the circuit
+/// * `recursion_vks` - Option set to Some if we are doing a recusion,
+/// the vector lists any other vks used in the application inside the recursion.
 /// * `instance` - Public inputs to the circuit
 ///
 /// # Returns
@@ -101,7 +105,7 @@ where
 pub fn generate_aiken_verifier<PCS>(
     params: &ParamsKZG<Bls12>,
     vk: &VerifyingKey<Scalar, PCS>,
-    recursion_vks: Option<Vec<(String, VerifyingKey<Scalar, PCS>)>>, // Set to Some if recursion, filled with inner vks only
+    recursion_vks: Option<Vec<(String, VerifyingKey<Scalar, PCS>)>>,
     instance: &[Scalar],
     committed_instances: Option<G1Projective>,
     test_proofs: Option<(Vec<u8>, Vec<u8>)>,

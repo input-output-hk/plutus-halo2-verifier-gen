@@ -19,7 +19,6 @@ use halo2_kzg.{compute_msm}
 use aiken/crypto/bls12_381/pairing.{miller_loop, final_exponentiation}
 
 pub fn verifier(proof: Data, {{{COMMITTED_INSTANCES_NAMES}}}{{{PUBLIC_INPUTS_NAMES}}}) -> Bool {
-    let b = True
     let scalarZero = from_int(0)
     let scalarOne = from_int(1)
     let scalarDelta = from_int(0x08634d0aa021aaf843cab354fabb0062f6502437c6a09c006c083479590189d7)
@@ -124,7 +123,7 @@ pub fn verifier(proof: Data, {{{COMMITTED_INSTANCES_NAMES}}}{{{PUBLIC_INPUTS_NAM
     let ml_l = miller_loop(el, g2_const)
     let ml_r = miller_loop(er, g2)
 
-    b && final_exponentiation(ml_l, ml_r)
+    final_exponentiation(ml_l, ml_r)
 }
 
 // this test generates random input data for verifier
