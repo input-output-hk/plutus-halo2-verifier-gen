@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Contributing — Plutus Halo2 Verifier</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #0b0f1a;
+      --bg2:       #111827;
+      --bg3:       #1a2236;
+      --border:    #1e2d4a;
+      --accent:    #3b82f6;
+      --accent2:   #60a5fa;
+      --teal:      #14b8a6;
+      --text:      #e2e8f0;
+      --muted:     #94a3b8;
+      --radius:    10px;
+      --green:     #4ade80;
+      --yellow:    #fbbf24;
+      --pink:      #f472b6;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.65;
+      font-size: 16px;
+    }
+
+    a { color: var(--accent2); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    /* ── NAV ──────────────────────────────── */
+    nav {
+      position: sticky; top: 0; z-index: 100;
+      background: rgba(11,15,26,0.92);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      padding: 0 2rem;
+      display: flex; align-items: center; justify-content: space-between;
+      height: 56px;
+    }
+    .nav-brand { font-weight: 600; font-size: 14px; color: var(--text); display: flex; align-items: center; gap: 8px; }
+    .nav-links { display: flex; gap: 1.5rem; list-style: none; }
+    .nav-links a { font-size: 13px; color: var(--muted); transition: color 0.15s; }
+    .nav-links a:hover { color: var(--text); text-decoration: none; }
+
+    .subnav {
+      background: var(--bg2); border-bottom: 1px solid var(--border);
+      padding: 0 2rem; display: flex; gap: 2rem;
+      height: 40px; align-items: center;
+      position: sticky; top: 56px; z-index: 99;
+    }
+    .subnav a { font-size: 13px; color: var(--muted); transition: color 0.15s; text-decoration: none; }
+    .subnav a:hover { color: var(--text); }
+    .subnav a.active { color: var(--text); font-weight: 600; border-bottom: 2px solid var(--accent); padding-bottom: 2px; }
+
+    /* ── HEADER ───────────────────────── */
+    .page-header {
+      padding: 3rem 2rem 2rem;
+      max-width: 1100px; margin: 0 auto;
+    }
+    .back-link { font-size: 12px; color: var(--muted); display: inline-flex; align-items: center; gap: 4px; margin-bottom: 1rem; }
+    .back-link:hover { color: var(--text); text-decoration: none; }
+    .page-header h1 { font-size: 2rem; font-weight: 700; letter-spacing: -0.02em; margin-bottom: 0.5rem; }
+    .page-header p { color: var(--muted); font-size: 0.95rem; }
+
+    /* ── CONTENT ──────────────────────── */
+    .content { max-width: 1100px; margin: 0 auto; padding: 0 2rem 4rem; }
+
+    /* ── SECTIONS ─────────────────────── */
+    .section { margin-bottom: 3.5rem; }
+    .section-title {
+      font-size: 1.2rem; font-weight: 700; letter-spacing: -0.01em;
+      margin-bottom: 0.4rem;
+      padding-bottom: 0.6rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .section-desc { color: var(--muted); font-size: 13.5px; margin: 0.75rem 0 1.5rem; }
+
+    .subsection { margin-bottom: 2rem; }
+    .subsection-title {
+      font-size: 0.7rem; font-weight: 700; letter-spacing: 0.08em;
+      text-transform: uppercase; color: var(--teal);
+      margin-bottom: 0.5rem; margin-top: 1.75rem;
+    }
+    .subsection-desc { color: var(--muted); font-size: 13px; margin-bottom: 1rem; }
+
+    /* ── STEP LIST ─────────────────────── */
+    .steps { display: flex; flex-direction: column; gap: 2.5rem; }
+    .step {
+      display: grid;
+      grid-template-columns: 40px 1fr;
+      gap: 0 1.25rem;
+    }
+    .step-num {
+      width: 40px; height: 40px; flex-shrink: 0;
+      border-radius: 50%;
+      background: var(--bg3); border: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: center;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 14px; font-weight: 600; color: var(--accent2);
+    }
+    .step-body { padding-top: 8px; }
+    .step-title { font-size: 1rem; font-weight: 700; margin-bottom: 0.4rem; }
+    .step-desc { color: var(--muted); font-size: 13.5px; margin-bottom: 1rem; }
+
+    /* ── CODE BLOCK ───────────────────── */
+    .code-block {
+      background: #0d1117;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.5rem;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12.5px;
+      line-height: 1.75;
+      overflow-x: auto;
+      white-space: pre;
+      color: #c9d1d9;
+      margin-bottom: 0.75rem;
+    }
+    .code-block .kw   { color: #ff7b72; }
+    .code-block .ty   { color: #ffa657; }
+    .code-block .str  { color: #a5d6ff; }
+    .code-block .cm   { color: #8b949e; font-style: italic; }
+    .code-block .fn   { color: #d2a8ff; }
+    .code-block .num  { color: #79c0ff; }
+    .code-block .mac  { color: #e3b341; }
+    .code-block .attr { color: #7ee787; }
+
+    /* ── FILE PATH ─────────────────────── */
+    .file-path {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      color: var(--teal);
+      background: rgba(20, 184, 166, 0.08);
+      border: 1px solid rgba(20, 184, 166, 0.2);
+      border-radius: 4px;
+      padding: 2px 8px;
+      display: inline-block;
+      margin-bottom: 0.5rem;
+    }
+
+    /* ── NOTE BOX ─────────────────────── */
+    .note-box {
+      background: rgba(59,130,246,0.06);
+      border: 1px solid rgba(59,130,246,0.2);
+      border-radius: var(--radius);
+      padding: 1rem 1.25rem; font-size: 13px; color: #93c5fd;
+      margin-top: 1.25rem;
+    }
+    .warn-box {
+      background: rgba(245,158,11,0.06);
+      border: 1px solid rgba(245,158,11,0.2);
+      border-radius: var(--radius);
+      padding: 1rem 1.25rem; font-size: 13px; color: #fcd34d;
+      margin-top: 1.25rem;
+    }
+
+    /* ── CHECKLIST ─────────────────────── */
+    .checklist {
+      list-style: none;
+      display: flex; flex-direction: column; gap: 0.5rem;
+      font-size: 13.5px; color: var(--muted);
+    }
+    .checklist li::before {
+      content: '☐ ';
+      color: var(--accent2);
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* ── TRAIT TABLE ──────────────────── */
+    .trait-table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 0.75rem; }
+    .trait-table th {
+      padding: 8px 12px; text-align: left;
+      font-size: 10px; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase;
+      color: var(--muted); border-bottom: 1px solid var(--border);
+      background: var(--bg3);
+    }
+    .trait-table td {
+      padding: 9px 12px; border-bottom: 1px solid var(--border);
+      vertical-align: top;
+    }
+    .trait-table td:first-child {
+      font-family: 'JetBrains Mono', monospace; font-size: 12px;
+      color: var(--accent2); white-space: nowrap; width: 220px;
+    }
+    .trait-table td:last-child { color: var(--muted); font-size: 12.5px; }
+    .trait-table tr:last-child td { border-bottom: none; }
+    .trait-table .opt { color: var(--teal); font-size: 10px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; }
+    .trait-table .req { color: var(--yellow); font-size: 10px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; }
+
+    /* ── FOOTER ───────────────────────── */
+    footer { border-top: 1px solid var(--border); text-align: center; padding: 2rem; font-size: 13px; color: var(--muted); }
+    footer a { color: var(--muted); }
+
+    @media (max-width: 600px) {
+      nav .nav-links { display: none; }
+      .step { grid-template-columns: 32px 1fr; }
+    }
+  </style>
+  <link rel="stylesheet" href="shared.css" />
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <a class="nav-brand" href="index.html"><img src="assets/halo2-verifier-icon-no-text.svg" height="40" alt="Halo2 Verifier" style="display:block;" /> Plutus Halo2 Verifier</a>
+  <ul class="nav-links">
+    <li><a href="index.html">Overview</a></li>
+    <li><a href="cost-estimator.html" style="color:var(--text)">Cost Estimator</a></li>
+    <li><a href="verifier.html">Plutus Verifier</a></li>
+    <li><a href="https://github.com/input-output-hk/plutus-halo2-verifier-gen">GitHub &#8599;</a></li>
+  </ul>
+</nav>
+<div class="subnav">
+  <a href="cost-estimator.html">CLI</a>
+  <a href="cost.html">Estimators</a>
+  <a href="chips.html">Chips</a>
+  <a href="circuits.html">Circuit</a>
+  <a href="algorithms.html">Algorithms</a>
+  <a href="contributing.html" class="active">Contributing</a>
+</div>
+
+<!-- HEADER -->
+<div class="page-header">
+  <a class="back-link" href="chips.html">&#8592; Chips</a>
+  <h1>Adding a New Chip</h1>
+  <p>
+    How to extend the cost estimator with a new chip: from writing the Rust trait
+    implementation to exposing it in the CLI, WASM API, and web interface.
+  </p>
+</div>
+
+<div class="content">
+
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <!-- SECTION — OVERVIEW                                              -->
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <div class="section">
+    <div class="section-title">Overview</div>
+    <div class="section-desc">
+      A <em>chip</em> is a static descriptor of a reusable circuit building block. It declares
+      the columns, gate expressions, lookup arguments, and sub-chip dependencies that the block
+      contributes to a circuit. The estimator aggregates these descriptors to compute proof size,
+      verification key size, and verifier cost &mdash; no proof generation required.
+      <br><br>
+      Each chip is a Rust struct that implements the <code>Chip</code> trait
+      (defined in <code>src/plutus_gen/stats/chips/mod.rs</code>). All methods have
+      default implementations returning empty vectors, so you only need to override
+      the ones relevant to your chip.
+    </div>
+
+    <!-- Trait reference table -->
+    <div class="subsection-title">Chip trait methods</div>
+    <table class="trait-table">
+      <thead>
+        <tr>
+          <th>Method</th>
+          <th>Required?</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>advice_columns()</td>
+          <td><span class="opt">optional</span></td>
+          <td>Witness columns. Each entry declares its rotation set (which rows are queried) and whether it participates in copy constraints.</td>
+        </tr>
+        <tr>
+          <td>fixed_columns()</td>
+          <td><span class="opt">optional</span></td>
+          <td>Shared fixed columns (MDS matrices, round constants). These are <em>merged by position</em> across chips: if two chips both declare a shared fixed column at index 0, only one physical column is allocated.</td>
+        </tr>
+        <tr>
+          <td>extra_columns()</td>
+          <td><span class="opt">optional</span></td>
+          <td>Exclusive fixed columns, selectors, and complex selectors that belong solely to this chip and are never shared.</td>
+        </tr>
+        <tr>
+          <td>gate_args()</td>
+          <td><span class="opt">optional</span></td>
+          <td>Gate expressions from <code>meta.create_gate()</code>. Each <code>Argument</code> is a vector of <code>ScalarExpression</code> values, one per expression in the gate group.</td>
+        </tr>
+        <tr>
+          <td>lookup_args()</td>
+          <td><span class="opt">optional</span></td>
+          <td>Lookup expressions from <code>meta.lookup()</code> or <code>meta.lookup_any()</code>.</td>
+        </tr>
+        <tr>
+          <td>trash_args()</td>
+          <td><span class="opt">optional</span></td>
+          <td>Trashcan expressions from <code>Constraints::with_additive_selector()</code> (partial-round style gates with a single additive selector).</td>
+        </tr>
+        <tr>
+          <td>chip_deps()</td>
+          <td><span class="opt">optional</span></td>
+          <td>Direct sub-chips this chip depends on. Transitive deps are resolved automatically; each chip is counted once regardless of how many composites declare it.</td>
+        </tr>
+        <tr>
+          <td>nr_pow2range()</td>
+          <td><span class="opt">optional</span></td>
+          <td>Number of pow2range lookup arguments needed by this chip. Defaults to 0.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <!-- SECTION — STEP-BY-STEP                                          -->
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <div class="section">
+    <div class="section-title">Step-by-Step</div>
+    <div class="section-desc">
+      Follow these eight steps in order. Steps 1&ndash;4 are Rust source changes;
+      steps 5&ndash;6 wire the chip into the public APIs; steps 7&ndash;8 update the
+      generated artifacts consumed by the web interface.
+    </div>
+
+    <div class="steps">
+
+      <!-- STEP 1 -->
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-body">
+          <div class="step-title">Create the chip file</div>
+          <div class="step-desc">
+            Add a new <code>.rs</code> file under <code>src/plutus_gen/stats/chips/primitives/</code>
+            (or a subdirectory such as <code>hash/</code> or <code>curve/</code>) and implement
+            the <code>Chip</code> trait. Only override the methods your chip uses; the rest default
+            to empty.
+          </div>
+
+          <div class="file-path">src/plutus_gen/stats/chips/primitives/hash/my_chip.rs</div>
+          <div class="code-block"><span class="kw">use</span> <span class="kw">super</span>::<span class="kw">super</span>::<span class="kw">super</span>::{<span class="ty">Argument</span>, <span class="ty">Chip</span>, <span class="ty">Column</span>, <span class="ty">RotationSet</span>, <span class="ty">ScalarExpression</span>, <span class="ty">SupportedChips</span>};
+
+<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct</span> <span class="ty">MyChip</span>;
+
+<span class="kw">impl</span> <span class="ty">Chip</span> <span class="kw">for</span> <span class="ty">MyChip</span> {
+    <span class="kw">fn</span> <span class="fn">advice_columns</span>() -&gt; <span class="ty">Vec</span>&lt;<span class="ty">Column</span>&gt; {
+        <span class="kw">vec</span>![
+            <span class="cm">// Columns queried at current and next row, copy-constrained</span>
+            <span class="ty">Column</span>::<span class="fn">advice</span>(<span class="ty">RotationSet</span>::<span class="fn">new</span>(<span class="kw">false</span>, <span class="kw">false</span>, <span class="kw">true</span>, <span class="kw">true</span>, <span class="kw">false</span>), <span class="kw">true</span>),
+            <span class="ty">Column</span>::<span class="fn">advice</span>(<span class="ty">RotationSet</span>::<span class="fn">curr</span>(), <span class="kw">true</span>),
+        ]
+    }
+
+    <span class="kw">fn</span> <span class="fn">extra_columns</span>() -&gt; <span class="ty">Vec</span>&lt;<span class="ty">Column</span>&gt; {
+        <span class="kw">vec</span>![
+            <span class="ty">Column</span>::<span class="fn">selector</span>(),          <span class="cm">// q_enable</span>
+        ]
+    }
+
+    <span class="kw">fn</span> <span class="fn">gate_args</span>() -&gt; <span class="ty">Vec</span>&lt;<span class="ty">Argument</span>&gt; {
+        <span class="kw">vec</span>![
+            <span class="cm">// q_enable * (w0_curr + w1_curr - w0_next)</span>
+            <span class="kw">vec</span>![<span class="ty">ScalarExpression</span>::<span class="fn">gate_expression</span>(<span class="num">2</span>, <span class="num">1</span>, <span class="num">2</span>, <span class="num">0</span>, <span class="num">1</span>, <span class="num">0</span>)],
+        ]
+    }
+
+    <span class="kw">fn</span> <span class="fn">chip_deps</span>() -&gt; <span class="ty">Vec</span>&lt;<span class="ty">SupportedChips</span>&gt; {
+        <span class="kw">vec</span>![<span class="ty">SupportedChips</span>::<span class="ty">Native</span>]
+    }
+}</div>
+
+          <div class="note-box">
+            <strong>ScalarExpression::gate_expression(degree, nb_neg, nb_add, nb_sub, nb_mul, nb_from_int)</strong><br>
+            Records the algebraic cost of one polynomial expression in the constraint. These
+            counts are used to estimate the number of field operations the verifier must
+            perform when evaluating the circuit's constraints.
+          </div>
+        </div>
+      </div>
+
+      <!-- STEP 2 -->
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-body">
+          <div class="step-title">Export from <code>primitives/mod.rs</code></div>
+          <div class="step-desc">
+            Re-export your struct so it is visible to the parent <code>chips</code> module.
+          </div>
+
+          <div class="file-path">src/plutus_gen/stats/chips/primitives/mod.rs</div>
+          <div class="code-block"><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">mod</span> hash;
+<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">use</span> hash::{<span class="ty">Poseidon</span>, <span class="ty">MyChip</span>};  <span class="cm">// add MyChip here</span></div>
+
+          <div class="note-box">
+            If your chip lives in a <em>new</em> subdirectory, declare the module with
+            <code>pub(crate) mod my_dir;</code> and add the corresponding
+            <code>mod.rs</code> inside it following the pattern in <code>hash/mod.rs</code>.
+          </div>
+        </div>
+      </div>
+
+      <!-- STEP 3 -->
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-body">
+          <div class="step-title">Add a variant to <code>SupportedChips</code></div>
+          <div class="step-desc">
+            Register the new chip in the enum. The <code>strum</code> attribute controls
+            the string identifier used in the CLI, WASM API, and <code>chip_profiles.json</code>.
+          </div>
+
+          <div class="file-path">src/plutus_gen/stats/chips/mod.rs</div>
+          <div class="code-block"><span class="attr">#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, strum::EnumIter, strum::Display)]</span>
+<span class="kw">pub enum</span> <span class="ty">SupportedChips</span> {
+    <span class="attr">#[strum(to_string = "native")]</span>
+    <span class="ty">Native</span>,
+    <span class="attr">#[strum(to_string = "poseidon")]</span>
+    <span class="ty">Poseidon</span>,
+    <span class="cm">// ... existing variants ...</span>
+
+    <span class="attr">#[strum(to_string = "my_chip")]</span>  <span class="cm">// ← add this</span>
+    <span class="ty">MyChip</span>,
+}</div>
+        </div>
+      </div>
+
+      <!-- STEP 4 -->
+      <div class="step">
+        <div class="step-num">4</div>
+        <div class="step-body">
+          <div class="step-title">Wire into the dispatch macro</div>
+          <div class="step-desc">
+            The <code>impl_supported_chips!</code> macro generates all the match arms that
+            delegate trait methods to the concrete struct. Add one line per chip.
+          </div>
+
+          <div class="file-path">src/plutus_gen/stats/chips/mod.rs</div>
+          <div class="code-block"><span class="mac">impl_supported_chips!</span> {
+    <span class="ty">Native</span>               =&gt; <span class="ty">Native</span>,
+    <span class="ty">Poseidon</span>             =&gt; <span class="ty">Poseidon</span>,
+    <span class="ty">HashToCurve</span>          =&gt; <span class="ty">HashToCurve</span>,
+    <span class="ty">EdwardsJubjub</span>        =&gt; <span class="ty">EdwardsJubjub</span>,
+    <span class="ty">WeierstrassBls12381</span>  =&gt; <span class="ty">WeierstrassBls12381</span>,
+    <span class="ty">WeierstrassSecp256k1</span> =&gt; <span class="ty">WeierstrassSecp256k1</span>,
+    <span class="ty">MyChip</span>               =&gt; <span class="ty">MyChip</span>,  <span class="cm">// ← add this</span>
+}</div>
+
+          <div class="note-box">
+            At this point <code>cargo build</code> should compile cleanly. Run it now to
+            catch any type errors in your trait implementation before proceeding.
+          </div>
+        </div>
+      </div>
+
+      <!-- STEP 5 -->
+      <div class="step">
+        <div class="step-num">5</div>
+        <div class="step-body">
+          <div class="step-title">Expose via the CLI</div>
+          <div class="step-desc">
+            Add a boolean flag to <code>EstimateCliArguments</code> and push the variant in
+            the <code>chips()</code> method. The flag name becomes the <code>--my-chip</code>
+            long option (Clap converts underscores to hyphens automatically).
+          </div>
+
+          <div class="file-path">src/plutus_gen/cli.rs</div>
+          <div class="code-block"><span class="cm">// In EstimateCliArguments:</span>
+<span class="attr">#[arg(long, help_heading = "Chips", help = "Include the MyChip chip.")]</span>
+<span class="kw">pub</span> my_chip: <span class="kw">bool</span>,
+
+<span class="cm">// In chips():</span>
+<span class="kw">if</span> <span class="kw">self</span>.my_chip {
+    chips.<span class="fn">push</span>(<span class="ty">SupportedChips</span>::<span class="ty">MyChip</span>);
+}</div>
+        </div>
+      </div>
+
+      <!-- STEP 6 -->
+      <div class="step">
+        <div class="step-num">6</div>
+        <div class="step-body">
+          <div class="step-title">Expose via the WASM API</div>
+          <div class="step-desc">
+            The web interface calls the WASM <code>estimate()</code> function with a JSON array
+            of chip names. Add your chip's string identifier to the <code>chip_from_str</code>
+            parser so the browser can select it.
+          </div>
+
+          <div class="file-path">src/wasm.rs</div>
+          <div class="code-block"><span class="kw">fn</span> <span class="fn">chip_from_str</span>(s: &amp;<span class="kw">str</span>) -&gt; <span class="ty">Option</span>&lt;<span class="ty">SupportedChips</span>&gt; {
+    <span class="kw">match</span> s {
+        <span class="str">"Native"</span>              =&gt; <span class="ty">Some</span>(<span class="ty">SupportedChips</span>::<span class="ty">Native</span>),
+        <span class="str">"Poseidon"</span>            =&gt; <span class="ty">Some</span>(<span class="ty">SupportedChips</span>::<span class="ty">Poseidon</span>),
+        <span class="str">"HashToCurve"</span>         =&gt; <span class="ty">Some</span>(<span class="ty">SupportedChips</span>::<span class="ty">HashToCurve</span>),
+        <span class="str">"EdwardsJubjub"</span>       =&gt; <span class="ty">Some</span>(<span class="ty">SupportedChips</span>::<span class="ty">EdwardsJubjub</span>),
+        <span class="str">"WeierstrassBls12381"</span> =&gt; <span class="ty">Some</span>(<span class="ty">SupportedChips</span>::<span class="ty">WeierstrassBls12381</span>),
+        <span class="str">"WeierstrassSecp256k1"</span>=&gt; <span class="ty">Some</span>(<span class="ty">SupportedChips</span>::<span class="ty">WeierstrassSecp256k1</span>),
+        <span class="str">"MyChip"</span>              =&gt; <span class="ty">Some</span>(<span class="ty">SupportedChips</span>::<span class="ty">MyChip</span>),  <span class="cm">// ← add this</span>
+        _                     =&gt; <span class="ty">None</span>,
+    }
+}</div>
+
+          <div class="note-box">
+            The string key you use here is what the JavaScript in <code>cost-estimator.html</code>
+            passes to <code>estimate()</code>. Keep it consistent with the variant name to avoid
+            confusion.
+          </div>
+        </div>
+      </div>
+
+      <!-- STEP 7 -->
+      <div class="step">
+        <div class="step-num">7</div>
+        <div class="step-body">
+          <div class="step-title">Regenerate <code>chip_profiles.json</code></div>
+          <div class="step-desc">
+            The chips reference page and the web estimator both read
+            <code>docs/chip_profiles.json</code>, which is generated from the live Rust
+            estimator. Run the dump binary to rebuild it after any chip change.
+          </div>
+
+          <div class="code-block">cargo run --bin dump_profiles</div>
+
+          <div class="section-desc" style="margin-bottom:0">
+            This writes <code>docs/chip_profiles.json</code> with an entry for every
+            <code>SupportedChips</code> variant (via <code>strum::IntoEnumIterator</code>),
+            including your new chip.
+          </div>
+        </div>
+      </div>
+
+      <!-- STEP 8 -->
+      <div class="step">
+        <div class="step-num">8</div>
+        <div class="step-body">
+          <div class="step-title">Rebuild the WASM module</div>
+          <div class="step-desc">
+            The interactive cost estimator at <code>docs/cost-estimator.html</code> runs
+            entirely in-browser via WebAssembly. Rebuild and copy the WASM output whenever
+            you change any code that affects estimation results.
+          </div>
+
+          <div class="code-block"><span class="cm"># Install wasm-pack if not already present</span>
+cargo install wasm-pack
+
+<span class="cm"># Build the WASM target</span>
+wasm-pack build --target web --out-dir docs/wasm</div>
+
+          <div class="warn-box">
+            Commit the regenerated <code>docs/wasm/</code> and <code>docs/chip_profiles.json</code>
+            together with your Rust changes so the web interface stays in sync with the code.
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /steps -->
+  </div>
+
+
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <!-- SECTION — CHECKLIST                                             -->
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <div class="section">
+    <div class="section-title">Checklist</div>
+    <div class="section-desc">
+      Use this list to verify you haven't missed anything before opening a pull request.
+    </div>
+    <ul class="checklist">
+      <li>New <code>.rs</code> file added under <code>src/plutus_gen/stats/chips/primitives/</code></li>
+      <li>Struct exported from <code>primitives/mod.rs</code></li>
+      <li>Variant added to <code>SupportedChips</code> enum with a <code>#[strum(to_string = "...")]</code> attribute</li>
+      <li>Line added to <code>impl_supported_chips!</code> macro invocation</li>
+      <li>Boolean flag added to <code>EstimateCliArguments</code> in <code>cli.rs</code></li>
+      <li>Variant pushed in <code>EstimateCliArguments::chips()</code></li>
+      <li>String match arm added to <code>chip_from_str</code> in <code>wasm.rs</code></li>
+      <li><code>cargo run --bin dump_profiles</code> run and <code>docs/chip_profiles.json</code> updated</li>
+      <li>WASM rebuilt and <code>docs/wasm/</code> updated</li>
+      <li><code>cargo fmt</code> run on all modified files</li>
+      <li><code>cargo test</code> passes</li>
+    </ul>
+  </div>
+
+
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <!-- SECTION — TIPS                                                  -->
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <div class="section">
+    <div class="section-title">Tips &amp; Patterns</div>
+
+    <div class="subsection-title">Shared vs exclusive fixed columns</div>
+    <div class="subsection-desc">
+      Declare columns as <em>shared</em> (<code>Column::shared_fixed</code>) when they carry
+      data that logically spans chips — for example MDS matrix constants that both a hash chip
+      and an ECC chip might reuse. The merger allocates only one physical column per shared
+      position. Use <em>exclusive</em> (<code>Column::exclusive_fixed</code>) or selectors for
+      anything that belongs solely to your chip; these are always appended and never merged.
+    </div>
+
+    <div class="subsection-title">Delegating to a generic chip</div>
+    <div class="subsection-desc">
+      The Weierstrass curve chips delegate to a generic <code>EccChip&lt;T&gt;</code> parameterised
+      by field and curve constants. If your chip is a specialisation of a general construction
+      (foreign-field arithmetic, range checks, etc.) consider following the same pattern:
+      implement a generic struct with trait parameters and have the concrete chip call into it.
+      See <code>src/plutus_gen/stats/chips/primitives/curve/ecc/</code> for a worked example.
+    </div>
+
+    <div class="subsection-title">Verifying your cost numbers</div>
+    <div class="subsection-desc">
+      Run the estimator against a real circuit that uses your chip to sanity-check the numbers:
+    </div>
+    <div class="code-block"><span class="cm"># Estimate from CLI flags</span>
+cargo run -- --my-chip --pi 1
+
+<span class="cm"># Compare against a real proof (requires a circuit example)</span>
+cargo run --example my_example</div>
+
+    <div class="note-box">
+      Proof size is deterministic for a given set of chips and circuit parameters.
+      If the estimated size does not match the actual proof, the most common cause is
+      a missing or over-counted advice column, or an incorrect rotation set declaration.
+    </div>
+  </div>
+
+</div><!-- /content -->
+
+<footer>
+  <p>
+    <a href="index.html">&#8592; Back to overview</a> &middot;
+    <a href="https://iohk.io"><img src="assets/iog-mark.png" alt="Input Output Global" style="height:20px;vertical-align:middle;margin-right:4px;" /></a> &middot;
+    <a href="https://github.com/input-output-hk/plutus-halo2-verifier-gen">GitHub</a>
+  </p>
+</footer>
+
+</body>
+</html>
