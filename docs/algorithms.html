@@ -102,7 +102,8 @@
 
     /* ── FORMULA GRID ─────────────────── */
     .formula-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; }
-    .formula-grid.cols-3 { grid-template-columns: 1fr 1fr 1fr; }
+    .formula-grid.cols-3 { display: flex; flex-wrap: wrap; justify-content: center; }
+    .formula-grid.cols-3 > * { flex: 0 1 calc((100% - 2 * 1.25rem) / 3); }
     .formula-card {
       background: var(--bg2); border: 1px solid var(--border);
       border-radius: var(--radius); padding: 1.25rem;
@@ -192,7 +193,9 @@
     }
 
     @media (max-width: 900px) {
-      .formula-grid, .formula-grid.cols-3 { grid-template-columns: 1fr; }
+      .formula-grid { grid-template-columns: 1fr; }
+      .formula-grid.cols-3 { flex-direction: column; }
+      .formula-grid.cols-3 > * { flex: none; width: 100%; }
     }
 
     /* ── FOOTER ───────────────────────── */
@@ -422,14 +425,13 @@
 
       <div class="phase-title">Phase 1 — Transcript &amp; Inputs</div>
       <div class="subsection-desc">
-        Before reading the proof, the verifier initialises three scalar constants
-        (0, 1, and the coset shift δ) and absorbs the VK hash and public inputs.
+        Before reading the proof, the verifier absorbs the VK hash and public inputs. While in theory a proof can have more than one committed instance, in practice a maximum of one is usually processed.
         The full transcript size is:
-        <code style="font-family:'JetBrains Mono',monospace;font-size:11px">32 + 48×ci + 32 + 32×pi + proof_size</code> bytes.
+        <code style="font-family:'JetBrains Mono',monospace;font-size:11px">32 + 48 &middot; ci + 32 + 32 &middot; pi + proof_size</code>  bytes.
         Each <code style="font-family:'JetBrains Mono',monospace;font-size:11px">squeeze()</code>
         call hashes everything absorbed so far to produce a 32-byte challenge.
         Public instance columns are not read from the proof — the verifier recomputes their
-        evaluation from the public inputs using a Lagrange basis evaluation at X.
+        evaluation from the public inputs using a Lagrange basis evaluation.
       </div>
 
       <div class="phase-title">Phase 2 — Argument Evaluation</div>
@@ -442,108 +444,60 @@
       <div class="formula-grid cols-3">
         <div class="formula-card">
           <h3>Gates</h3>
-          <pre>Each gate is a polynomial expression
-over advice and fixed evaluations.
+<pre>Each gate is a polynomial expression over advice and fixed evaluations.
 
-All gate expressions within one chip
-are batched into a single combined
-expression before evaluation
-(random linear combination).
+All gate expressions within one chip are processed separately, but could be batched into a single combined expression using random linear combinations, before being aggregated in the vanishing polynomial.
 
-Cost: entirely in scalar ops
-(neg, add, sub, mul, from_int).
-Chip-specific; scales with gate
-polynomial degree and column count.</pre>
-        </div>
-        <div class="formula-card">
-          <h3>Permutation</h3>
-          <pre><span class="fcm">// Three boundary/cross-product terms:</span>
-<span class="fcm">// l₀(X)·(1 − Z₀(X)) = 0</span>
-<span class="fcm">// l_last(X)·(Z_l(X)² − Z_l(X)) = 0</span>
-<span class="fcm">// l₀(X)·(Zᵢ(X) − Zᵢ₋₁(ωˡᵃˢᵗ·X)) = 0</span>
-<span class="fcm">// Per copy-constrained column:</span>
-<span class="fcm">// (p(X)+β·σᵢ(X)+γ) vs (p(X)+δⁱ·β·X+γ)</span>
-
-Per cc column: ~5 mul + ~3 add + 1 pow
-Per perm chunk: ~4 mul + ~2 sub
-
-Total scalar ops ≈ 9×nb_cc + 6×nb_perm_chunks
-where nb_perm_chunks = ⌈nb_cc/(degree−2)⌉</pre>
-        </div>
-        <div class="formula-card">
-          <h3>Lookups (PlookUp)</h3>
-          <pre><span class="fcm">// 5 fixed constraint equations per lookup:</span>
-<span class="fcm">// l1: (1 − Z)(A + β)(S + γ) − Z·… = 0</span>
-<span class="fcm">// l2: l_last · (Z² − Z) = 0</span>
-<span class="fcm">// l3: active · (left − right) = 0</span>
-<span class="fcm">// l4: (A_perm(X) − S_perm(X)) ·
-//       (A_perm(X) − A_perm(ω⁻¹X)) = 0</span>
-<span class="fcm">// l5: l₀ · (A_perm(X) − S_perm(X)) = 0</span>
-
-Per lookup: ~20 scalar ops (fixed)
-+ expression-dependent ops from
-  the chip's lookup expression.</pre>
+Cost: Gate-specific, scales with the number of scalar ops, constants and columns defined.</pre>
         </div>
         <div class="formula-card">
           <h3>Trashcans</h3>
-          <pre>A trashcan argument checks that a
-wire value lies within a valid range
-using a compressed polynomial check.
+          <pre>Trashcan arguments are midnight-zk specific arguments that ensure the argument selectors are used <emph>additively</emph>.
 
-Per expression in a trashcan arg:
-  consume expression
-  + 1 mul + 1 add
-
-Plus final combination:
-  1 sub + 1 mul + 1 sub
-
-Requires degree ≥ max(2, expr.degree).
-Multiple chips may share one trashcan
-column (deduplicated in the merge).</pre>
+Cost: Trashcan-specific, specific, scales with the number of scalar ops, constants and columns defined</pre>
         </div>
         <div class="formula-card">
-          <h3>Vanishing Combination</h3>
-          <pre><span class="fcm">// All constraint expressions are
-// combined via the Y-challenge:
-// h(X) = Σᵢ Yⁱ · constraintᵢ(X)
-// then h(X) / (Xⁿ − 1) must be
-// a degree-(degree−2) polynomial.</span>
+          <h3>Lookups (PlookUp)</h3>
+          <pre>For each lookup argument, we need to process both their table and input expressions that are then used to compute their lookup expressions -- five for each of them.            
 
-Terms combined:
-  nb_gates                      gate eqs
-  + 1 + 2×nb_perm_chunks       perm terms
-  + 5×nb_lkp                   lookup eqs
-  + nb_trash                   trash eqs
-
-Per term: 1 add + 1 mul (Y-fold)
-Final: 1 sub + 1 inv + 1 mul
-       + (degree−1) × (1 scale + 1 addG1)</pre>
+Cost:
+- Per argument: Lookup specific,
+usually around 4 mul and 4 add.
+- Per lookup: 11 mul + 4 add + 6 sub.</pre>
         </div>
         <div class="formula-card">
-          <h3>Blinding &amp; Active Row</h3>
-          <pre><span class="fcm">// The verifier evaluates the Lagrange
-// basis over the blinding rows to
-// identify which rows are "active"
-// (non-blinding) at X.</span>
+          <h3>Permutation</h3>
+          <pre>The evaluation of each copy-constrained columns is summed in a product to generate the permutation polynomial. The latter is divided in chunks, depending on the circuit size, before being aggregated in the vanishing polynomial together with combinationas of the permutation evaluations extracted from the transcript.
 
-nb_blind = 2 + nb_trash
-         + max(3, max_advice_queries)
+Cost:
+- Per cc column: 3 mul + 3 add + 1 pow,
+- Per evaluation: 1 mul + 1 add + 1 neg,
+- Per perm chunk: ~7 mul + 2 sub + 1 add,
+with #perm_chunk = ⌈nb_cc / (degree - 2)⌉
+        </div>        
 
-Steps:
-  rotate_omega × (nb_blind + 2)
-  lagrange_basis(nb_blind + 2)
-  Σ Lagrange evals  (nb_blind + 1 adds)
-  active_row = 1 − Σ  (1 add + 1 sub)</pre>
+        <div class="formula-card">
+          <h3>Vanishing</h3>
+          <pre>The vanishing argument simply is the aggregation of all previously defined gates via random linear combination, using a transcript's challenge as randomness.
+            
+Once aggregated, we substract one to the sum, inverse it and multiply it by the vanishing evaluation extracted from the circuit.
+
+Cost: (terms+1) mul + (terms-1) add + 1 inv + 1 sub,
+with terms = #gate + 5 &middot; nb_lkp + (1 + 2 &middot nb_perm_chunks) + nb_trash</pre>
         </div>
       </div>
 
-      <div class="phase-title">Phase 3 — H2MO Opening (PCS)</div>
+      <div class="phase-title">Phase 3 — PCS Opening (H2MO)</div>
       <div class="subsection-desc">
+Note that as the vanishing polynomial is split into chuncks to make sure not to increase the overall circuit degree, these needs to be recombined. As such, the chunked vanishing commitments extracted from the transcript are aggregated in a MSM of size (degree - 1).<br><br>
+        Now that the scalar evaluations have been recomputed, we need to ensure that they are consistent with the commitments. To do so, we perform opening proofs on these through our PCS scheme, and btach them together to reduce costs.
+
         The Halo2 Multi-Open scheme reduces all KZG polynomial openings across all rotation sets
         to a single pairing check. It introduces 4 challenges (X₁, X₂, X₃, X₄) and 2 proof
         elements (F and Pi). The verifier computes a batched polynomial F as a linear combination
         of all committed polynomials — grouped by rotation set — and checks that F opens correctly
         at X₃ using the Pi commitment.
+
       </div>
       <div class="formula-grid">
         <div class="formula-card">
