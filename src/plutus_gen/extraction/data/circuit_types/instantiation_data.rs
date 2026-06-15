@@ -16,6 +16,15 @@ use log::info;
 
 /// Type listing all instantiation specific data
 #[derive(Clone, Debug, Default)]
+pub(crate) struct RecursionVK {
+    pub(crate) name: String,
+    pub(crate) fixed_commitments: Vec<G1Affine>,
+    pub(crate) permutation_commitments: Vec<G1Affine>,
+    pub(crate) transcript_representation: Scalar,
+}
+
+/// Type listing all instantiation specific data
+#[derive(Clone, Debug, Default)]
 pub(crate) struct InstantiationSpecificData {
     pub(crate) fixed_commitments: Vec<G1Affine>,
     pub(crate) permutation_commitments: Vec<G1Affine>,
@@ -30,6 +39,7 @@ pub(crate) struct InstantiationSpecificData {
     pub(crate) public_inputs_count: usize,
     pub(crate) committed_instances_supported: bool,
     pub(crate) committed_instances_count: usize,
+    pub(crate) recursion_vks: Option<Vec<RecursionVK>>,
 }
 
 /// Function returning the minimal and maximal rotations.
@@ -58,6 +68,7 @@ impl InstantiationSpecificData {
         &mut self,
         params: &ParamsKZG<Bls12>,
         vk: &VerifyingKey<Scalar, PCS>,
+        recursion_vks: Option<Vec<(String, VerifyingKey<Scalar, PCS>)>>,
         instances: &[Scalar],
         committed_instances: Option<G1Projective>,
     ) where
@@ -104,5 +115,26 @@ impl InstantiationSpecificData {
 
         // Extracting number of public_inputs
         self.public_inputs_count = instances.len();
+
+        self.recursion_vks = recursion_vks.map(|recursion_vks| {
+            recursion_vks
+                .into_iter()
+                .map(|(name, vk)| RecursionVK {
+                    name,
+                    fixed_commitments: vk
+                        .fixed_commitments()
+                        .iter()
+                        .map(|p| p.to_affine())
+                        .collect(),
+                    permutation_commitments: vk
+                        .permutation()
+                        .commitments()
+                        .iter()
+                        .map(|p| p.to_affine())
+                        .collect(),
+                    transcript_representation: vk.transcript_repr(),
+                })
+                .collect()
+        });
     }
 }

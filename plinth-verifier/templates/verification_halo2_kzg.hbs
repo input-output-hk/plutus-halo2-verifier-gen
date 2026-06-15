@@ -18,7 +18,13 @@ import Plutus.Crypto.BlsTypes (
   MultiplicativeGroup (recip),
   Scalar,
   mkScalar,
+  unScalar,
   powMod,
+  mkFp,
+  bls12_381_base_prime,
+ )
+import Plutus.Crypto.Halo2.CompressUncompress (
+    g1_zero,
  )
 import qualified Plutus.Crypto.BlsUtils as BlsUtils
 import qualified Plutus.Crypto.Constants as Constants
@@ -33,16 +39,21 @@ import Plutus.Crypto.Halo2.Halo2MultiOpenMSM (
  )
 import Plutus.Crypto.Orphans ()
 import PlutusTx.Builtins (
-  BuiltinBLS12_381_G1_Element,
-  BuiltinBLS12_381_G2_Element,
-  BuiltinBLS12_381_MlResult,
-  bls12_381_G1_compressed_zero,
-  bls12_381_G2_compressed_generator,
-  bls12_381_finalVerify,
-  bls12_381_millerLoop,
+  bls12_381_G1_neg,
+  bls12_381_G1_compress,
   bls12_381_G1_uncompress,
+  BuiltinBLS12_381_G1_Element,
+  bls12_381_G1_compressed_zero,
+  bls12_381_G1_compressed_generator,
   bls12_381_G2_uncompress,
+  BuiltinBLS12_381_G2_Element,
+  bls12_381_G2_compressed_generator,
+  bls12_381_millerLoop,
+  bls12_381_finalVerify,
+  BuiltinBLS12_381_MlResult,
   BuiltinByteString,
+  byteStringToInteger,
+  blake2b_256
  )
 import PlutusTx.Prelude (
   AdditiveGroup (..),
@@ -56,8 +67,12 @@ import PlutusTx.Prelude (
   zero,
   negate,
   modulo,
-  ($)
+  ($),
+  (<>),
+  (&&),
+  (==)
  )
+import GHC.ByteOrder (ByteOrder (..))
 import PlutusTx.List (foldl,(!!),take,head,drop)
 import Plutus.Crypto.Halo2 (Proof, bls12_381_field_prime)
 
@@ -94,6 +109,8 @@ s_g2 = $(lift VKConstants.s_g2_val)
 {{{FIXED_COMMITMENT_LIFTS}}}
 
 {{{PERMUTATION_COMMITMENT_LIFTS}}}
+
+{{{RECURSION_COMMITMENT_LIFTS}}}
 
 rotations_for_instances :: [Scalar]
 rotations_for_instances = $(lift (BlsUtils.getRotatedOmegas VKConstants.omega_val VKConstants.omegaInv_val 0 {{{PUBLIC_INPUTS_COUNT}}}))
@@ -201,15 +218,17 @@ verify proof {{{COMMITTED_INSTANCES_AND_INSTANCE_VARS}}} = fst $ flip (M.run VKC
               commitment_data
               point_sets
 
+{{{RECURSION_ACCUMULATOR}}}
+
       !el = pi_term
       !er = eval alt_right
 
       ml_l :: BuiltinBLS12_381_MlResult
-      !ml_l = bls12_381_millerLoop el s_g2
+      !ml_l = bls12_381_millerLoop (el{{{RECURSION_EL}}}) s_g2
       ml_r :: BuiltinBLS12_381_MlResult
-      !ml_r = bls12_381_millerLoop er g2
+      !ml_r = bls12_381_millerLoop (er{{{RECURSION_ER}}}) g2
       final_verification :: Bool
-      !final_verification = bls12_381_finalVerify ml_l ml_r
+      !final_verification = (bls12_381_finalVerify ml_l ml_r) {{{REC_VKS_CHECK}}}
 
   M.return
     ( final_verification,

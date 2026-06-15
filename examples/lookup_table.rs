@@ -97,13 +97,14 @@ fn main() -> Result<()> {
     let invalid_proof = invalid_transcript.finalize();
 
     shared_utils::export_plinth(&instance, None, &proof)?;
-    generate_plinth_verifier(&kzg_params, &vk, &instance, None)
+    generate_plinth_verifier(&kzg_params, &vk, None, &instance, None)
         .context("Plinth verifier generation failed")?;
 
     shared_utils::export_aiken(&instance, None, &proof)?;
     generate_aiken_verifier(
         &kzg_params,
         &vk,
+        None,
         &instance,
         None,
         Some((proof.clone(), invalid_proof)),

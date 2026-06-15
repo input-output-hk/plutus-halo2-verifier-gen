@@ -1,6 +1,6 @@
 use aiken/builtin.{bls12_381_g1_neg}
 use aiken/crypto/bitwise.{State}
-use aiken/crypto/bls12_381/scalar.{Scalar, from_int}
+use aiken/crypto/bls12_381/scalar.{Scalar, from_int, to_int}
 use aiken/crypto/bls12_381/g1.{generator, decompress}
 use aiken/crypto/bls12_381/g2.{decompress as decompress_g2}
 
@@ -9,6 +9,9 @@ use aiken/crypto/bls12_381/g2.{decompress as decompress_g2}
 
 
 {{{FIXED_COMMITMENTS}}}
+
+
+{{{RECURSION_CONSTANTS}}}
 
 
 pub const g2_const: G2Element = decompress_g2( #{{{G2_DEFINITIONS}}} )
