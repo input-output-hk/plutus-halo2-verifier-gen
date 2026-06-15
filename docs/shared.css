@@ -11,6 +11,8 @@
 .prop-table td:last-child { text-align: justify; }
 
 /* ── THEME TOGGLE BUTTON ─────────────────────────────────────────── */
+.nav-links { margin-left: auto; }
+
 #theme-toggle {
   background: none;
   border: 1px solid var(--border);
