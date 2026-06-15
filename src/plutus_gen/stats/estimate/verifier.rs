@@ -5,7 +5,9 @@ use super::super::arguments::vanishing::compute_vanishing;
 use super::super::data::CircuitStatistics;
 use super::super::lookup::{LookupEstimate, PlookUp};
 use super::super::pcs::PcsEstimate;
-use crate::plutus_gen::stats::chips::ScalarExpression;
+use crate::plutus_gen::stats::chips::{
+    ScalarExpression, WeierstrassBls12381, curve::FieldEmulationParams,
+};
 use crate::plutus_gen::stats::estimate::build::Processed;
 use crate::plutus_gen::stats::estimate::{estimate_proof_size, estimate_vk_size};
 use log::info;
@@ -47,6 +49,7 @@ where
         kzg_halo2_point_sets,
         nb_point_sets,
         max_commitments_per_query,
+        recursion,
     } = processed;
 
     if nb_advice == 0 {
@@ -171,6 +174,53 @@ where
         &kzg_halo2_point_sets,
         nb_point_sets,
     );
+
+    // If we do recursion
+    if recursion {
+        // Compute variable accumulator left point from public inputs
+        (0..2).for_each(|_| {
+            // For both coordinates of the point, we reconstruct the coordinate
+            (0..WeierstrassBls12381::NB_LIMBS).for_each(|_| {
+                stats.add_scalar();
+                stats.mul_scalar();
+            });
+        });
+        stats.g1_from_coords();
+        stats.scale();
+
+        // Compute variable accumulator right point from public inputs
+        // Compute variable accumulator left point from public inputs
+        (0..2).for_each(|_| {
+            // For both coordinates of the point, we reconstruct the coordinate
+            (0..WeierstrassBls12381::NB_LIMBS).for_each(|_| {
+                stats.add_scalar();
+                stats.mul_scalar();
+            });
+        });
+        stats.g1_from_coords();
+        stats.scale();
+
+        // Compute fixed accumulator
+        stats.msm(vk_size);
+        (0..vk_size).for_each(|_| {
+            stats.decompress_point();
+        });
+
+        // Combine fixed and variable accumulators (only on the right)
+        stats.add_point();
+
+        // Compute batching coefficient to batch accumulator check with proof check
+        (0..4).for_each(|_| stats.compress_point());
+        stats.hash_bytes(4 * 48);
+        // bytes to int
+        stats.from_int_scalar();
+
+        // Batch left and right accumulators with proof before Miller Loop
+        (0..2).for_each(|_| {
+            stats.scale();
+            stats.add_point();
+        });
+    }
 
     stats
 }

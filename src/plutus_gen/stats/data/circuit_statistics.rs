@@ -406,4 +406,15 @@ impl CircuitStatistics {
     pub(crate) fn from_int_scalar(&mut self) {
         self.from_int_scalar += 1;
     }
+
+    pub(crate) fn g1_from_coords(&mut self) {
+        // self.sub_int()
+        // self.add_int()
+        // self.bytearray_from_int()
+        self.decompress_point();
+    }
+
+    pub(crate) fn hash_bytes(&mut self, len: usize) {
+        self.hash.push(len);
+    }
 }

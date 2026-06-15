@@ -10,6 +10,7 @@ fn main() {
         estimate_proof_size_cmd(
             args.nb_public_inputs,
             usize::from(args.committed_instances),
+            args.recursion,
             args.config(),
             &args.chips(),
         );

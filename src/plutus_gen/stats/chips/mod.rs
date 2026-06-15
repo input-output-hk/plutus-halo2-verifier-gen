@@ -37,7 +37,8 @@ pub enum SupportedChips {
     // Base64,
     // Blake2b,
     // KeccakSha3,
-    // VerifierGadget,
+    #[strum(disabled)]
+    VerifierGadget,
     #[strum(disabled)]
     Lookup(LookupTable),
 }
@@ -129,6 +130,7 @@ macro_rules! impl_supported_chips {
                     $(Self::$variant => <$chip>::advice_columns(),)+
                     Self::Lookup(_) => vec![],
                     Self::P2RDecomposition(_) => P2RDecomposition::advice_columns(),
+                    Self::VerifierGadget => vec![]
                 }
             }
 
@@ -137,6 +139,7 @@ macro_rules! impl_supported_chips {
                     $(Self::$variant => <$chip>::fixed_columns(),)+
                     Self::Lookup(_) => vec![],
                     Self::P2RDecomposition(_) => P2RDecomposition::fixed_columns(),
+                    Self::VerifierGadget => vec![]
                 }
             }
 
@@ -148,6 +151,7 @@ macro_rules! impl_supported_chips {
                         vec![col; l.nb_columns]
                     },
                     Self::P2RDecomposition(_) => P2RDecomposition::extra_columns(),
+                    Self::VerifierGadget => vec![]
                 }
             }
 
@@ -155,7 +159,8 @@ macro_rules! impl_supported_chips {
                 match self {
                     $(Self::$variant => <$chip>::gate_args().iter().chain(<$chip>::lookup_args().iter().chain(<$chip>::trash_args().iter())).map(|group_exp| group_exp.iter().map(|exp| exp.degree).max().unwrap_or(1)).max().unwrap_or(1),)+
                     Self::Lookup(l) => max(4, 2 + l.input_degree + l.table_degree),
-                    Self::P2RDecomposition(_) => P2RDecomposition::gate_args().iter().chain(P2RDecomposition::lookup_args().iter().chain(P2RDecomposition::trash_args().iter())).map(|group_exp| group_exp.iter().map(|exp| exp.degree).max().unwrap_or(1)).max().unwrap_or(1)
+                    Self::P2RDecomposition(_) => P2RDecomposition::gate_args().iter().chain(P2RDecomposition::lookup_args().iter().chain(P2RDecomposition::trash_args().iter())).map(|group_exp| group_exp.iter().map(|exp| exp.degree).max().unwrap_or(1)).max().unwrap_or(1),
+                    Self::VerifierGadget => 0
                 }
             }
 
@@ -164,6 +169,7 @@ macro_rules! impl_supported_chips {
                     $(Self::$variant => <$chip>::gate_args(),)+
                     Self::Lookup(_) => vec![],
                     Self::P2RDecomposition(_) => P2RDecomposition::gate_args(),
+                    Self::VerifierGadget => vec![]
                 }
             }
 
@@ -171,7 +177,8 @@ macro_rules! impl_supported_chips {
                 match self {
                     $(Self::$variant => <$chip>::lookup_args().len(),)+
                     Self::Lookup(l) => l.nb_arguments,
-                    Self::P2RDecomposition(n) => n * P2RDecomposition::lookup_args().len()
+                    Self::P2RDecomposition(n) => n * P2RDecomposition::lookup_args().len(),
+                    Self::VerifierGadget => 0
                 }
             }
 
@@ -186,6 +193,7 @@ macro_rules! impl_supported_chips {
                         let args = P2RDecomposition::lookup_args();
                         (0..*n).flat_map(|_| args.clone()).collect()
                     }
+                    Self::VerifierGadget => vec![]
                 }
             }
 
@@ -193,7 +201,8 @@ macro_rules! impl_supported_chips {
                 match self {
                     $(Self::$variant => <$chip>::trash_args().len(),)+
                     Self::Lookup(_) => 0,
-                    Self::P2RDecomposition(_) => P2RDecomposition::trash_args().len()
+                    Self::P2RDecomposition(_) => P2RDecomposition::trash_args().len(),
+                    Self::VerifierGadget => 0
                 }
             }
 
@@ -202,6 +211,7 @@ macro_rules! impl_supported_chips {
                     $(Self::$variant => <$chip>::trash_args(),)+
                     Self::Lookup(_) => vec![],
                     Self::P2RDecomposition(_) => P2RDecomposition::trash_args(),
+                    Self::VerifierGadget => vec![]
                 }
             }
 
@@ -209,7 +219,8 @@ macro_rules! impl_supported_chips {
                 match self {
                     Self::Lookup(t) => vec![t.clone()],
                     $(Self::$variant => <$chip>::lookup_tables(),)+
-                    Self::P2RDecomposition(_) => P2RDecomposition::lookup_tables()
+                    Self::P2RDecomposition(_) => P2RDecomposition::lookup_tables(),
+                    Self::VerifierGadget => vec![]
                 }
             }
 
@@ -217,7 +228,8 @@ macro_rules! impl_supported_chips {
                 match self {
                     $(Self::$variant => <$chip>::chip_deps(),)+
                     Self::Lookup(_) => vec![],
-                    Self::P2RDecomposition(_) => vec![]
+                    Self::P2RDecomposition(_) => vec![],
+                    Self::VerifierGadget => VerifierGadget::chip_deps()
                 }
             }
 
@@ -226,6 +238,7 @@ macro_rules! impl_supported_chips {
                     $(Self::$variant => <$chip>::nr_pow2range(),)+
                     Self::Lookup(_) => 0,
                     Self::P2RDecomposition(n) => *n,
+                    Self::VerifierGadget => VerifierGadget::nr_pow2range()
                 }
             }
         }
@@ -247,7 +260,6 @@ impl_supported_chips! {
     // Base64               => Base64,
     // Blake2b              => Blake2b,
     // KeccakSha3           => KeccakSha3,
-    // VerifierGadget       => VerifierGadget,
 }
 
 /// Flattens `chips` and all their transitive `CHIP_DEPS` into a deduplicated set.

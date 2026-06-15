@@ -56,20 +56,34 @@ pub fn chip_profile(chip: SupportedChips) -> ChipProfile {
 pub fn all_estimates(
     nb_public_inputs: usize,
     nb_committed_instances: usize,
+    recursion: bool,
     config: CircuitConfig,
     chips: &[SupportedChips],
 ) -> AllEstimates {
-    stats::estimate::all_estimates::<H2MO>(nb_public_inputs, nb_committed_instances, config, chips)
+    stats::estimate::all_estimates::<H2MO>(
+        nb_public_inputs,
+        nb_committed_instances,
+        recursion,
+        config,
+        chips,
+    )
 }
 
 #[cfg(not(target_arch = "wasm32"))]
 pub fn estimate_cost(
     nb_public_inputs: usize,
     nb_committed_instances: usize,
+    recursion: bool,
     config: CircuitConfig,
     chips: &[SupportedChips],
 ) {
-    let stats = verifier_stats::<H2MO>(nb_public_inputs, nb_committed_instances, config, chips);
+    let stats = verifier_stats::<H2MO>(
+        nb_public_inputs,
+        nb_committed_instances,
+        recursion,
+        config,
+        chips,
+    );
     println!("{}", stats);
 }
 
@@ -77,10 +91,17 @@ pub fn estimate_cost(
 pub fn estimate_proof_size_cmd(
     nb_public_inputs: usize,
     nb_committed_instances: usize,
+    recursion: bool,
     config: CircuitConfig,
     chips: &[SupportedChips],
 ) {
-    let size = proof_size::<H2MO>(nb_public_inputs, nb_committed_instances, config, chips);
+    let size = proof_size::<H2MO>(
+        nb_public_inputs,
+        nb_committed_instances,
+        recursion,
+        config,
+        chips,
+    );
     println!("Proof size: {} bytes", size);
 }
 
@@ -88,10 +109,17 @@ pub fn estimate_proof_size_cmd(
 pub fn estimate_vk_size_cmd(
     nb_public_inputs: usize,
     nb_committed_instances: usize,
+    recursion: bool,
     config: CircuitConfig,
     chips: &[SupportedChips],
 ) {
-    let size = vk_size::<H2MO>(nb_public_inputs, nb_committed_instances, config, chips);
+    let size = vk_size::<H2MO>(
+        nb_public_inputs,
+        nb_committed_instances,
+        recursion,
+        config,
+        chips,
+    );
     println!("VK size: {} bytes", size);
 }
 
@@ -124,11 +152,24 @@ where
     use anyhow::Context as _;
     let pis = instance.len();
     let nb_committed_instances = usize::from(committed_instance.is_some());
-    let circuit_representation =
-        extract_circuit(params, vk, recursion_vks, instance, committed_instance)
-            .context("Failed to extract the circuit representation")?;
+    let circuit_representation = extract_circuit(
+        params,
+        vk,
+        recursion_vks.clone(),
+        instance,
+        committed_instance,
+    )
+    .context("Failed to extract the circuit representation")?;
     let exact = compute_verifier_code(vk, &circuit_representation);
-    let estimated = verifier_stats::<H2MO>(pis, nb_committed_instances, config, chips);
+    let estimated = verifier_stats::<H2MO>(
+        pis,
+        nb_committed_instances,
+        recursion_vks.is_some(),
+        config,
+        chips,
+    );
+    println!("\n\n estimated numbers:\n{:#?}", estimated);
+    println!("\n\n exact numbers:\n{:#?}", exact);
     println!(
         "\n\nDifference between exact and estimated numbers:\n{:#?}",
         stats::CircuitStatistics::difference(&exact, &estimated)

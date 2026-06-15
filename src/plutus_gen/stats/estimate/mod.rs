@@ -80,10 +80,17 @@ pub struct AllEstimates {
 pub fn all_estimates<PCS: PcsEstimate>(
     nb_public_inputs: usize,
     nb_committed_instances: usize,
+    recursion: bool,
     extra: CircuitConfig,
     used_chips: &[SupportedChips],
 ) -> AllEstimates {
-    let processed = process::<PCS>(nb_public_inputs, nb_committed_instances, extra, used_chips);
+    let processed = process::<PCS>(
+        nb_public_inputs,
+        nb_committed_instances,
+        recursion,
+        extra,
+        used_chips,
+    );
 
     let nb_advice = processed.nb_advice;
     if nb_advice == 0 {
@@ -194,13 +201,20 @@ pub fn all_estimates<PCS: PcsEstimate>(
 pub fn proof_size<PCS>(
     nb_public_inputs: usize,
     nb_committed_instances: usize,
+    recursion: bool,
     extra: CircuitConfig,
     used_chips: &[SupportedChips],
 ) -> usize
 where
     PCS: PcsEstimate,
 {
-    let processed = process::<PCS>(nb_public_inputs, nb_committed_instances, extra, used_chips);
+    let processed = process::<PCS>(
+        nb_public_inputs,
+        nb_committed_instances,
+        recursion,
+        extra,
+        used_chips,
+    );
     estimate_proof_size::<PCS>(
         nb_committed_instances,
         processed.nb_advice,
@@ -216,13 +230,20 @@ where
 pub fn vk_size<PCS>(
     nb_public_inputs: usize,
     nb_committed_instances: usize,
+    recursion: bool,
     extra: CircuitConfig,
     used_chips: &[SupportedChips],
 ) -> usize
 where
     PCS: PcsEstimate,
 {
-    let processed = process::<PCS>(nb_public_inputs, nb_committed_instances, extra, used_chips);
+    let processed = process::<PCS>(
+        nb_public_inputs,
+        nb_committed_instances,
+        recursion,
+        extra,
+        used_chips,
+    );
 
     estimate_vk_size::<PCS>(processed.nb_copy_constrained, processed.nb_fixed)
 }
@@ -230,13 +251,20 @@ where
 pub fn verifier_stats<PCS>(
     nb_public_inputs: usize,
     nb_committed_instances: usize,
+    recursion: bool,
     extra: CircuitConfig,
     used_chips: &[SupportedChips],
 ) -> CircuitStatistics
 where
     PCS: PcsEstimate,
 {
-    let processed = process::<PCS>(nb_public_inputs, nb_committed_instances, extra, used_chips);
+    let processed = process::<PCS>(
+        nb_public_inputs,
+        nb_committed_instances,
+        recursion,
+        extra,
+        used_chips,
+    );
 
     estimate_verifier_code::<PCS>(processed)
 }

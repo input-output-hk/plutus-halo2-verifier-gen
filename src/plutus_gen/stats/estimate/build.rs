@@ -25,6 +25,7 @@ pub struct Processed {
     pub(crate) kzg_halo2_point_sets: Vec<usize>,
     pub(crate) nb_point_sets: usize,
     pub(crate) max_commitments_per_query: usize,
+    pub(crate) recursion: bool,
 }
 
 pub(crate) fn compute_degree(
@@ -52,6 +53,7 @@ pub(crate) fn compute_degree(
 pub(crate) fn process<PCS>(
     nb_public_inputs: usize,
     nb_committed_instances: usize,
+    recursion: bool,
     extra: CircuitConfig,
     used_chips: &[SupportedChips],
 ) -> Processed
@@ -75,17 +77,26 @@ where
             .any(|c| matches!(c, SupportedChips::P2RDecomposition(_))),
         "P2RDecomposition must not be in used_chips — it is resolved from nr_pow2range_cols"
     );
+    debug_assert!(
+        !used_chips
+            .iter()
+            .any(|c| matches!(c, SupportedChips::VerifierGadget)),
+        "VerifierGadget must not be in used_chips — it is resolved from recursion boolean"
+    );
+
+    // We make sure to have a single P2RDecomposition chip by adding it manually
+    let mut all_chips = used_chips.to_vec();
+    if recursion {
+        all_chips.push(SupportedChips::VerifierGadget);
+    }
 
     let p2r_n = extra.nr_pow2range_cols.unwrap_or_else(|| {
-        flatten_chips(&used_chips)
+        flatten_chips(&all_chips)
             .iter()
             .map(|c| c.nr_pow2range_cols())
             .max()
             .unwrap_or(0)
     });
-
-    // We make sure to have a single P2RDecomposition chip by adding it manually
-    let mut all_chips = used_chips.to_vec();
     if p2r_n > 0 {
         all_chips.push(SupportedChips::P2RDecomposition(p2r_n));
     }
@@ -314,5 +325,6 @@ where
         kzg_halo2_point_sets,
         nb_point_sets,
         max_commitments_per_query,
+        recursion,
     }
 }

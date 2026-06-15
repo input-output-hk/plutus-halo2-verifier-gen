@@ -22,6 +22,14 @@ pub struct EstimateCliArguments {
     )]
     pub committed_instances: bool,
 
+    #[arg(
+        long,
+        visible_alias = "rec",
+        help_heading = "Recursion",
+        help = "Whether the circuit supports recursion, such as IVC. [default: false]"
+    )]
+    pub recursion: bool,
+
     // Chips
     #[arg(
         long,

@@ -244,10 +244,7 @@ fn main() -> Result<()> {
         acc = accumulated;
     }
 
-    let chips = &[
-        SupportedChips::WeierstrassBls12381,
-        SupportedChips::Poseidon,
-    ];
+    let chips = &[];
     cost_evaluation(
         &kzg_params,
         &vk,
@@ -255,9 +252,7 @@ fn main() -> Result<()> {
         &instance,
         Some(C::identity()),
         chips,
-        CircuitConfig {
-            ..Default::default()
-        },
+        CircuitConfig::default(),
     )?;
 
     let mut invalid_proof = prev_proof.clone();
