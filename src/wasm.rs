@@ -16,6 +16,7 @@ pub fn estimate(
     chips_json: &str,
     nb_public_inputs: usize,
     nb_committed_instances: usize,
+    recursion: bool,
     nb_selectors: usize,
     nb_advice: usize,
     nb_fixed: usize,
@@ -37,8 +38,13 @@ pub fn estimate(
         degree,
         None,
     );
-    let result =
-        plutus_gen::all_estimates(nb_public_inputs, nb_committed_instances, config, &chips);
+    let result = plutus_gen::all_estimates(
+        nb_public_inputs,
+        nb_committed_instances,
+        recursion,
+        config,
+        &chips,
+    );
     serde_json::to_string(&result).unwrap_or_else(|_| "{}".to_string())
 }
 

@@ -342,7 +342,9 @@ where
 
         // Compute fixed accumulator
         let vk_len = vk.fixed_commitments().len() + vk.permutation().commitments().len();
-        stats.msm(vk_len);
+        // The MSM also comprises the negated generator, and 2 group elements
+        // for the public inputs and committed instances.
+        stats.msm(vk_len + 3);
         (0..vk_len).for_each(|_| {
             stats.decompress_point();
         });

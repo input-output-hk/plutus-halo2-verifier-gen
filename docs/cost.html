@@ -357,6 +357,16 @@
           <span style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--muted);">enabled</span>
         </label>
       </div>
+
+      <div class="ctrl-row">
+        <div class="ctrl-label">
+          Recursion (IVC)
+        </div>
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;">
+          <input type="checkbox" id="s-recursion" onchange="update()" style="width:14px;height:14px;accent-color:var(--accent);cursor:pointer;" />
+          <span style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--muted);">enabled</span>
+        </label>
+      </div>
     </details>
 
     <details class="ctrl-group" open id="chips-group">
@@ -683,6 +693,7 @@ function callWasm(chips, p) {
   const json = wasmEstimate(
     JSON.stringify(chips),
     p.pi, p.ci,
+    p.recursion,
     p.sel, p.adv, p.fix,
     p.eva, p.lkp, p.deg,
   );
@@ -704,6 +715,7 @@ function getParams() {
   const p = {};
   sliders.forEach(s => { p[s.key] = parseInt(document.getElementById(s.id).value); });
   p.ci = document.getElementById('s-ci').checked ? 1 : 0;
+  p.recursion = document.getElementById('s-recursion').checked;
   return p;
 }
 
@@ -729,6 +741,7 @@ function resetAll() {
     document.getElementById(s.val).textContent = s.def;
   });
   document.getElementById('s-ci').checked = false;
+  document.getElementById('s-recursion').checked = false;
   Object.keys(CHIP_ID_TO_RUST).forEach(id => {
     document.getElementById(id).checked = false;
   });

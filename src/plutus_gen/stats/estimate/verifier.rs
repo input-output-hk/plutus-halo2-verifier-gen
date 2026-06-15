@@ -200,8 +200,8 @@ where
         stats.g1_from_coords();
         stats.scale();
 
-        // Compute fixed accumulator
-        stats.msm(vk_size);
+        // Compute fixed accumulator from vk, -g1 and PIs
+        stats.msm(vk_size + 3);
         (0..vk_size).for_each(|_| {
             stats.decompress_point();
         });

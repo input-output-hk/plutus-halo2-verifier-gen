@@ -285,7 +285,7 @@
           <h3>VK Size Formula</h3>
           <pre><span class="fkw">vk_size</span> =
   <span class="fnum">10</span>                    <span class="fcm">// header bytes</span>
-  + <span class="fnum">48</span> × vk_commits
+  + <span class="fnum">48</span> &middot; vk_commits
 
 <span class="fcm">// Extra fixed cols added via --nb-fixed
 // and --nb-selectors are not cc, so they
@@ -311,7 +311,7 @@
           <h3>Proof Commitments</h3>
           <pre><span class="fkw">nb_commitments</span> =
   nb_advice               <span class="fcm">// one per advice col</span>
-  + 2 × nb_lkp            <span class="fcm">// A_perm + S_perm per lookup</span>
+  + 2 &middot; nb_lkp            <span class="fcm">// A_perm + S_perm per lookup</span>
   + ⌈nb_cc / (degree−2)⌉  <span class="fcm">// permutation product polys Z</span>
   + nb_lkp                <span class="fcm">// lookup product poly Z</span>
   + nb_trash              <span class="fcm">// one per trashcan</span>
@@ -319,10 +319,10 @@
   + (degree−1)            <span class="fcm">// vanishing h-splits</span>
   + 2                     <span class="fcm">// H2MO: F and Pi</span>
 
-<span class="fcm">// Simplified: degree + nb_advice + 3×nb_lkp
+<span class="fcm">// Simplified: degree + nb_advice + 3&middot;nb_lkp
 //   + ⌈nb_cc/(degree−2)⌉ + nb_trash + 2</span>
 
-<span class="fkw">commit_bytes</span> = nb_commitments × <span class="fnum">48</span></pre>
+<span class="fkw">commit_bytes</span> = nb_commitments &middot; <span class="fnum">48</span></pre>
         </div>
         <div class="formula-card">
           <h3>Proof Scalars</h3>
@@ -331,15 +331,15 @@
   + (ci > 0 ? 1 : 0)          <span class="fcm">// committed-instance eval</span>
   + 1                         <span class="fcm">// vanishing random eval</span>
   + nb_cc                     <span class="fcm">// perm common evals</span>
-  + 3×⌈nb_cc/(degree−2)⌉ − 1  <span class="fcm">// perm cross-term evals</span>
-  + 5 × nb_lkp                <span class="fcm">// per lookup:
+  + 3&middot;⌈nb_cc/(degree - 2)⌉ - 1  <span class="fcm">// perm cross-term evals</span>
+  + 5 &middot; nb_lkp                <span class="fcm">// per lookup:
                               //   Z(X), Z(ωX)
                               //   A_perm(X), A_perm(ω⁻¹X)
                               //   S_perm(X)</span>
   + nb_trash                  <span class="fcm">// one per trashcan</span>
   + max(nb_point_sets, 3)     <span class="fcm">// H2MO Q evals</span>
 
-<span class="fkw">scalar_bytes</span> = nb_scalars × <span class="fnum">32</span></pre>
+<span class="fkw">scalar_bytes</span> = nb_scalars &middot; <span class="fnum">32</span></pre>
         </div>
       </div>
     </div>
@@ -548,6 +548,153 @@ Final commitment check:
       <code style="font-family:'JetBrains Mono',monospace;font-size:11px">--poseidon</code>, etc.).
     </div>
   </div><!-- /section algorithms -->
+
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <!-- SECTION — RECURSION / IVC                                       -->
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <div class="section">
+    <div class="section-title">Recursion (IVC)</div>
+    <div class="section-desc">
+      When a circuit implements Incrementally Verifiable Computation (IVC), each proof step
+      folds a <em>pending accumulator</em> from the previous step into the current one.
+      The Plutus verifier carries out four extra phases on top of the standard Halo2 check:
+      it reconstructs the variable accumulator from public inputs, computes the fixed accumulator
+      from VK commitments, combines both sides, and batches the resulting pairing check with the
+      ongoing proof verification — at no extra Miller loop cost.
+    </div>
+
+    <!-- PUBLIC INPUT LAYOUT -->
+    <div class="subsection">
+      <div class="subsection-title">Public Input Layout</div>
+      <div class="subsection-desc">
+        Recursive circuits embed the accumulator and the VK hash directly in the public inputs.
+        The accumulator is composed of 2 G1 elements for checking the equation:
+        \[ e(\mathsf{acc}_\mathsf{left},\, g_2) \overset{?}{=} e(\mathsf{acc}_\mathsf{right},\, \mathsf{srs}.g_2) \]
+        
+        It is split in a variable part, that is handled in circuit, and their powers, and a fixed one, that is handled outside the circuit. Each part is as a BLS12-381 G1 point represented in two coordinates, each coordinate further split into
+        7 field-element limbs.
+The verification has to recompute both parts and combine them before doing a permutation check.
+      </div>
+      <div class="formula-grid" style="justify-content: center; grid-template-columns: auto;">
+        <div class="formula-card">
+          <h3>Accumulator Structure</h3>
+          <pre>
+PIs added by IVC (per step):
+  VK hash                   <span class="fcm">// 1 field element</span>
+  acc_var_left  = (xL, yL)  <span class="fcm">// 2 &middot; 7 limbs = 14 scalars</span>
+  acc_var_left_power        <span class="fcm">// 1 scalar</span>
+  acc_var_right = (xR, yR)  <span class="fcm">// 2 &middot; 7 limbs = 14 scalars</span>
+  acc_var_right_power       <span class="fcm">// 1 scalar</span>
+  acc_fixed                 <span class="fcm">// vk_size + 3 scalars</span>
+
+  Total extra PIs: 34 + vk_len field elements</pre>
+        </div>
+    </div>
+
+    <!-- STEP 1: VARIABLE ACCUMULATOR -->
+    <div class="subsection">
+      <div class="subsection-title">Step 1 — Reconstruct Variable Accumulator</div>
+      <div class="subsection-desc">
+        The previous step's accumulator arrives as raw field-element limbs in the public inputs.
+        The verifier reconstructs both G1 points (L and R) by re-assembling the coordinates
+        from their limb decompositions, then scales each point.
+      </div>
+      <div class="formula-grid">
+        <div class="formula-card">
+          <h3>Limb Reconstruction (per coordinate)</h3>
+          <pre><span class="fcm">// Each coordinate is encoded in NB_LIMBS = 7 field-element limbs. The verifier performs a Horner-style recombination on integers:</span>
+
+<span class="fkw">for</span> coord <span class="fkw">in</span> [x, y]:
+  <span class="fkw">for</span> limb <span class="fkw">in</span> 0..NB_LIMBS:
+    add()    <span class="fcm">// accumulate limb</span>
+    mul()    <span class="fcm">// shift by limb base</span>
+  mod(p)     <span class="fcm">// convert integer to scalar</span>
+
+Total cost:
+28 multiplications, 28 additions, 4 modular reductions.</pre>
+        </div>
+        <div class="formula-card">
+          <h3>Point Construction (per point)</h3>
+          <pre><span class="fcm">// Once both coordinates are assembled, we compute the point via compressed representation from them. Step by step, this is: </span>
+- Encode the `x` coordinate as 48 bytes
+- Set the 5th bit to 1 if `y` is positive
+- Set the 6th bit to 1 if the point is zero
+- Set the 7th bit to 1 to show the point is compressed
+
+<span class="fcm">// Once the point is reconstructed, we multiply it by the corresponding scalar extracted from the public input.</span>
+
+Total cost:
+  1 integer addition, 1 compression, 1 decompression, 1 point multiplication.</pre>
+        </div>
+
+    <!-- STEP 2: FIXED ACCUMULATOR -->
+    <div class="subsection">
+      <div class="subsection-title">Step 2 — Compute Fixed Accumulator</div>
+      <div class="subsection-desc">
+        The fixed part of the accumulator is a commitment to the VK itself, the inputs and the generator: a multi-scalar
+        multiplication over all VK commitments, using scalars drawn from the public inputs.
+      </div>
+      <div class="formula-grid">
+        <div class="formula-card">
+          <h3>MSM over commitments</h3>
+          <pre><span class="fcm">// Because the VK commitments are stored in compressed form, each must be decompressed.</span>
+vk_len decompress
+
+<pre><span class="fcm">// One MSM covers all commitments.</span>
+let acc_fixed = msm(vk_commits, -g2,
+           pis, cis)
+
+Total Cost:
+1 MSM of size (vk_len + 3),  vk_len decompress</pre>
+        </div>
+        <div class="formula-card">
+          <h3>Combining Accumulators</h3>
+          <pre><span class="fcm">// The right sides of the fixed and variable accumulators are added together to form the combined right accumulator. No batching coefficient are needed as they are just splits of the same structure.</span>
+
+acc_right = acc_right_var + acc_fixed
+
+Total Cost:
+1 point addition</pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- STEP 3: BATCHING -->
+    <div class="subsection">
+      <div class="subsection-title">Step 3 — Batch Accumulator Check with Proof</div>
+      <div class="subsection-desc">
+        Rather than running a second pairing check for the accumulator, the verifier folds it into the existing pairing check using a random linear combination.<br>
+        A fresh random scalar \(\lambda\) is derived by hashing all relevant elements and used to fold the accumulator and proof commitments before running the pairing's Miller loops and final exponentiation.
+      </div>
+      <div class="formula-grid">
+        <div class="formula-card">
+          <h3>Derive Batching Scalar λ</h3>
+          <pre><span class="fcm">// Compress the 2 accumulator points and 2 proof points as a hash input:</span>
+inputs = compress_point() &middot; 4
+
+<span class="fcm">// Generate a byte digest:</span>
+digest = hash_bytes(inputs)
+
+<span class="fcm">// Convert it to scalar:</span>
+λ = digest.from_int_scalar()</pre>
+        </div>
+        <div class="formula-card">
+          <h3>Fold into Pairing Check</h3>
+          <pre><span class="fcm">// Scale and fold each side into the proof's existing left and right G1 pairs:</span>
+l = pi_left + λ &middot; acc_left
+r = pi_right + λ &middot; acc_right
+
+<span class="fcm">// Run the Miller loops on each side:</span>
+ml = miller_loop(l, srs.g2)
+mr = miller_loop(r, g2)
+
+<span class="fcm">// Perform the final exponentiation of the pairing check:</span>
+final_exp(ml, mr)</pre>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /section recursion -->
 
 </div><!-- /content -->
 
