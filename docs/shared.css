@@ -9,3 +9,54 @@
 .subsection-desc { max-width: 900px; text-align: justify; }
 .note-box        { text-align: justify; }
 .prop-table td:last-child { text-align: justify; }
+
+/* ── THEME TOGGLE BUTTON ─────────────────────────────────────────── */
+#theme-toggle {
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 6px;
+  padding: 5px 10px;
+  cursor: pointer;
+  font-size: 15px;
+  line-height: 1;
+  transition: border-color 0.15s, color 0.15s;
+  flex-shrink: 0;
+  margin-left: 1rem;
+}
+#theme-toggle:hover { border-color: var(--accent); color: var(--accent); }
+
+/* ── LIGHT MODE VARIABLES ────────────────────────────────────────── */
+html.light-mode {
+  --bg:      #f8f8f8;
+  --bg2:     #ffffff;
+  --bg3:     #f0f0f0;
+  --border:  #d8d8d8;
+  --accent:  #d10000;
+  --accent2: #b00000;
+  --teal:    #cc3333;
+  --text:    #111111;
+  --muted:   #5a5a5a;
+  --code-bg: #f0f0f0;
+  --warn:    #b45309;
+}
+
+/* ── LIGHT MODE STRUCTURAL OVERRIDES ────────────────────────────── */
+html.light-mode body { background: var(--bg); color: var(--text); }
+
+html.light-mode nav {
+  background: rgba(248,248,248,0.95) !important;
+  border-bottom-color: var(--border);
+}
+html.light-mode .subnav { background: var(--bg2); border-bottom-color: var(--border); }
+
+html.light-mode .formula-card pre,
+html.light-mode pre,
+html.light-mode .code-block { color: #2a2a2a; }
+
+html.light-mode .fkw,
+html.light-mode .kw  { color: #cc0000; }
+html.light-mode .fnum,
+html.light-mode .num { color: #994400; }
+html.light-mode .fcm,
+html.light-mode .cm  { color: #666666; }

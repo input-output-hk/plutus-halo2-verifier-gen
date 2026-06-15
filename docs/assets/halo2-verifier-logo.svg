@@ -4,20 +4,20 @@
 
   <g transform="translate(200, 135)">
     <!-- Outer halo ring dashed -->
-    <circle cx="0" cy="0" r="72" fill="none" stroke="#60a5fa" stroke-width="3" stroke-dasharray="8 4" opacity="0.4"/>
+    <circle cx="0" cy="0" r="72" fill="none" stroke="#ff4444" stroke-width="3" stroke-dasharray="8 4" opacity="0.4"/>
     <!-- Inner solid ring -->
-    <circle cx="0" cy="0" r="54" fill="none" stroke="#60a5fa" stroke-width="1.5" opacity="0.7"/>
+    <circle cx="0" cy="0" r="54" fill="none" stroke="#ff4444" stroke-width="1.5" opacity="0.7"/>
     <!-- Center hexagon -->
-    <polygon points="0,-36 31,-18 31,18 0,36 -31,18 -31,-18" fill="#dbeafe" stroke="#60a5fa" stroke-width="1.5"/>
+    <polygon points="0,-36 31,-18 31,18 0,36 -31,18 -31,-18" fill="#dbeafe" stroke="#ff4444" stroke-width="1.5"/>
     <!-- Checkmark -->
     <polyline points="-14,2 -4,14 16,-12" fill="none" stroke="#2563eb" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
     <!-- Cardinal dot accents on outer ring -->
-    <circle cx="72" cy="0" r="4" fill="#60a5fa"/>
-    <circle cx="-72" cy="0" r="4" fill="#60a5fa" opacity="0.5"/>
-    <circle cx="36" cy="-62" r="3" fill="#93c5fd"/>
-    <circle cx="-36" cy="62" r="3" fill="#93c5fd"/>
+    <circle cx="72" cy="0" r="4" fill="#ff4444"/>
+    <circle cx="-72" cy="0" r="4" fill="#ff4444" opacity="0.5"/>
+    <circle cx="36" cy="-62" r="3" fill="#ff8888"/>
+    <circle cx="-36" cy="62" r="3" fill="#ff8888"/>
   </g>
 
   <text x="200" y="240" text-anchor="middle" font-family="sans-serif" font-weight="500" font-size="20" letter-spacing="0.04em" fill="#1d4ed8">Halo2 Verifier</text>
-  <text x="200" y="262" text-anchor="middle" font-family="sans-serif" font-size="12" letter-spacing="0.12em" fill="#60a5fa">PLUTUS · CARDANO</text>
+  <text x="200" y="262" text-anchor="middle" font-family="sans-serif" font-size="12" letter-spacing="0.12em" fill="#ff4444">PLUTUS · CARDANO</text>
 </svg>

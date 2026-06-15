@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+  <script>if(localStorage.getItem("theme")==="light")document.documentElement.classList.add("light-mode");</script>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Estimators — Plutus Halo2 Verifier</title>
@@ -12,19 +13,19 @@
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
-      --bg:        #0b0f1a;
-      --bg2:       #111827;
-      --bg3:       #1a2236;
-      --border:    #1e2d4a;
-      --accent:    #3b82f6;
-      --accent2:   #60a5fa;
-      --teal:      #14b8a6;
-      --text:      #e2e8f0;
-      --muted:     #94a3b8;
+      --bg:        #0d0d0d;
+      --bg2:       #1a1a1a;
+      --bg3:       #252525;
+      --border:    #2e2e2e;
+      --accent:    #f20000;
+      --accent2:   #ff4444;
+      --teal:      #ff6666;
+      --text:      #f5f5f5;
+      --muted:     #9ca3af;
       --radius:    10px;
 
       /* breakdown colors */
-      --c-advice:  #3b82f6;
+      --c-advice:  #f20000;
       --c-perm:    #8b5cf6;
       --c-vanish:  #06b6d4;
       --c-lookup:  #f59e0b;
@@ -49,7 +50,7 @@
     /* ── NAV ──────────────────────────── */
     nav {
       position: sticky; top: 0; z-index: 100;
-      background: rgba(11,15,26,0.92);
+      background: rgba(13,13,13,0.92);
       backdrop-filter: blur(12px);
       border-bottom: 1px solid var(--border);
       padding: 0 2rem;
@@ -299,6 +300,31 @@
       .size-cards { grid-template-columns: 1fr; }
       nav .nav-links { display: none; }
     }
+
+    /* ── LIGHT MODE ─────────────────────── */
+    html.light-mode {
+      --bg:      #f8f8f8;
+      --bg2:     #ffffff;
+      --bg3:     #f0f0f0;
+      --border:  #d8d8d8;
+      --accent:  #d10000;
+      --accent2: #b00000;
+      --teal:    #cc3333;
+      --text:    #111111;
+      --muted:   #5a5a5a;
+      --code-bg: #f0f0f0;
+      --warn:    #b45309;
+    }
+    html.light-mode nav { background: rgba(248,248,248,0.95) !important; border-bottom-color: var(--border); }
+    html.light-mode .subnav { background: var(--bg2); border-bottom-color: var(--border); }
+    html.light-mode .formula-card pre,
+    html.light-mode pre,
+    html.light-mode .code-block { color: #2a2a2a; }
+    html.light-mode .fkw, html.light-mode .kw   { color: #cc0000; }
+    html.light-mode .fnum, html.light-mode .num  { color: #994400; }
+    html.light-mode .fcm, html.light-mode .cm    { color: #666666; }
+    html.light-mode .logo-dark  { display: none; }
+    html.light-mode .logo-light { display: inline !important; }
   </style>
   <link rel="stylesheet" href="shared.css" />
 </head>
@@ -313,6 +339,7 @@
     <li><a href="verifier.html">Plutus Verifier</a></li>
     <li><a href="https://github.com/input-output-hk/plutus-halo2-verifier-gen">GitHub ↗</a></li>
   </ul>
+  <button id="theme-toggle" aria-label="Toggle theme">&#9790;</button>
 </nav>
 <div class="subnav">
   <a href="cost-estimator.html">CLI</a>
@@ -656,7 +683,7 @@
 <footer>
   <p>
     <a href="index.html">← Back to overview</a> ·
-    <a href="https://iohk.io"><img src="assets/iog-mark.png" alt="Input Output Global" style="height:20px;vertical-align:middle;margin-right:4px;" /></a> ·
+    <a href="https://iohk.io"><img src="assets/iog-mark.png" alt="Input Output Global" style="height:20px;vertical-align:middle;margin-right:4px;" class="logo-dark" /><img src="assets/iog-mark-light.png" alt="Input Output Global" style="height:20px;vertical-align:middle;margin-right:4px;display:none;" class="logo-light" /></a> ·
     <a href="https://github.com/input-output-hk/plutus-halo2-verifier-gen">GitHub</a>
   </p>
 </footer>
@@ -973,6 +1000,23 @@ try {
 }
 updateEvaSliderBounds();
 update();
+</script>
+<script>
+(function(){
+  function upd(b){
+    var l=document.documentElement.classList.contains('light-mode');
+    b.innerHTML=l?'&#9728;':'&#9790;';
+    b.title=l?'Switch to dark mode':'Switch to light mode';
+  }
+  document.addEventListener('DOMContentLoaded',function(){
+    var b=document.getElementById('theme-toggle');
+    if(b){upd(b);b.addEventListener('click',function(){
+      document.documentElement.classList.toggle('light-mode');
+      localStorage.setItem('theme',document.documentElement.classList.contains('light-mode')?'light':'dark');
+      upd(b);
+    });}
+  });
+})();
 </script>
 </body>
 </html>
