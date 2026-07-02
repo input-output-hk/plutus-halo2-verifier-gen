@@ -21,6 +21,7 @@ use super::data::CircuitStatistics;
 /// Used to branch on PCS-specific logic (e.g. proof structure, commitment counts) in places
 /// where the PCS type is not yet available as a generic parameter.
 #[derive(PartialEq, Eq)]
+#[allow(dead_code)]
 pub enum PCSType {
     /// Halo2's multi-open scheme: batches all polynomial evaluations across multiple
     /// rotation-point sets into a single KZG opening proof.
@@ -33,6 +34,7 @@ pub enum PCSType {
 /// operation count, without needing a fully extracted circuit representation.
 pub trait PcsEstimate {
     /// Returns the [`PCSType`] tag for this implementation.
+    #[allow(dead_code)]
     fn pcs_type() -> PCSType;
 
     /// Accounts for the transcript elements consumed during the opening proof.

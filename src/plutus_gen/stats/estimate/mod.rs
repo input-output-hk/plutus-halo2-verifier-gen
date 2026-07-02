@@ -1,5 +1,5 @@
 use super::data::CircuitConfig;
-use super::pcs::PcsEstimate;
+use super::pcs::{H2MO, PcsEstimate};
 use crate::plutus_gen::stats::chips::SupportedChips;
 use crate::plutus_gen::stats::data::CircuitStatistics;
 
@@ -77,14 +77,14 @@ pub struct AllEstimates {
 }
 
 /// Computes proof size, VK size, and verifier operation counts in a single `process()` call.
-pub fn all_estimates<PCS: PcsEstimate>(
+pub fn all_estimates(
     nb_public_inputs: usize,
     nb_committed_instances: usize,
     recursion: bool,
     extra: CircuitConfig,
     used_chips: &[SupportedChips],
 ) -> AllEstimates {
-    let processed = process::<PCS>(
+    let processed = process::<H2MO>(
         nb_public_inputs,
         nb_committed_instances,
         recursion,
@@ -125,7 +125,7 @@ pub fn all_estimates<PCS: PcsEstimate>(
     let bc_trash = nb_trash;
     let bc_vanish = degree; // 1 random + (degree-1) splits = degree
     let bc_lookup = 3 * nb_lkp;
-    let bc_pcs = PCS::nb_commitments();
+    let bc_pcs = H2MO::nb_commitments();
 
     let bs_evals = nb_evals + usize::from(nb_ci > 0);
     let bs_perm = if nb_cc > 0 {
@@ -136,16 +136,16 @@ pub fn all_estimates<PCS: PcsEstimate>(
     let bs_trash = nb_trash;
     let bs_vanish = 1; // vanishing random eval
     let bs_lookup = 5 * nb_lkp;
-    let bs_pcs = PCS::nb_evaluations(nb_point_sets);
+    let bs_pcs = H2MO::nb_evaluations(nb_point_sets);
 
     let nb_comms = bc_advice + bc_perm + bc_trash + bc_vanish + bc_lookup + bc_pcs;
     let nb_scalars = bs_evals + bs_perm + bs_trash + bs_vanish + bs_lookup + bs_pcs;
     let proof_size = nb_comms * 48 + nb_scalars * 32;
-    let vk_size = estimate_vk_size::<PCS>(nb_cc, nb_fixed);
+    let vk_size = estimate_vk_size::<H2MO>(nb_cc, nb_fixed);
     let input_size = nb_pi * 32 + nb_ci * 48;
 
     // ── Verifier stats (consumes `processed`) ─────────────────────────────────
-    let stats = estimate_verifier_code::<PCS>(processed);
+    let stats = estimate_verifier_code::<H2MO>(processed);
 
     AllEstimates {
         proof_size,
@@ -198,24 +198,21 @@ pub fn all_estimates<PCS: PcsEstimate>(
     }
 }
 
-pub fn proof_size<PCS>(
+pub fn proof_size(
     nb_public_inputs: usize,
     nb_committed_instances: usize,
     recursion: bool,
     extra: CircuitConfig,
     used_chips: &[SupportedChips],
-) -> usize
-where
-    PCS: PcsEstimate,
-{
-    let processed = process::<PCS>(
+) -> usize {
+    let processed = process::<H2MO>(
         nb_public_inputs,
         nb_committed_instances,
         recursion,
         extra,
         used_chips,
     );
-    estimate_proof_size::<PCS>(
+    estimate_proof_size::<H2MO>(
         nb_committed_instances,
         processed.nb_advice,
         processed.lookup_args.len(),
@@ -227,17 +224,14 @@ where
     )
 }
 
-pub fn vk_size<PCS>(
+pub fn vk_size(
     nb_public_inputs: usize,
     nb_committed_instances: usize,
     recursion: bool,
     extra: CircuitConfig,
     used_chips: &[SupportedChips],
-) -> usize
-where
-    PCS: PcsEstimate,
-{
-    let processed = process::<PCS>(
+) -> usize {
+    let processed = process::<H2MO>(
         nb_public_inputs,
         nb_committed_instances,
         recursion,
@@ -245,20 +239,17 @@ where
         used_chips,
     );
 
-    estimate_vk_size::<PCS>(processed.nb_copy_constrained, processed.nb_fixed)
+    estimate_vk_size::<H2MO>(processed.nb_copy_constrained, processed.nb_fixed)
 }
 
-pub fn verifier_stats<PCS>(
+pub fn verifier_stats(
     nb_public_inputs: usize,
     nb_committed_instances: usize,
     recursion: bool,
     extra: CircuitConfig,
     used_chips: &[SupportedChips],
-) -> CircuitStatistics
-where
-    PCS: PcsEstimate,
-{
-    let processed = process::<PCS>(
+) -> CircuitStatistics {
+    let processed = process::<H2MO>(
         nb_public_inputs,
         nb_committed_instances,
         recursion,
@@ -266,5 +257,5 @@ where
         used_chips,
     );
 
-    estimate_verifier_code::<PCS>(processed)
+    estimate_verifier_code::<H2MO>(processed)
 }

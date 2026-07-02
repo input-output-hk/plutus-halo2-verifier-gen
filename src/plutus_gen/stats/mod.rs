@@ -21,6 +21,6 @@ pub use compute::compute_verifier_code;
 pub use data::CircuitConfig;
 pub(crate) use data::CircuitStatistics;
 
-pub use estimate::{AllEstimates, proof_size, verifier_stats, vk_size};
+pub use estimate::{AllEstimates, all_estimates, proof_size, verifier_stats, vk_size};
 
 pub use profile::{ChipProfile, chip_profile};
