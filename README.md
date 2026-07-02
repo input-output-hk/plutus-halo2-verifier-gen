@@ -236,14 +236,17 @@ Three CLI binaries are available:
 All three binaries share the same flags:
 
 ```
-Proof inputs (required):
-  --nb-public-inputs / --pi        Number of public inputs
-  --nb-committed-instances / --ci  Number of committed instances
+Proof inputs :
+  --nb-public-inputs / --pi        Number of public inputs (required)
+  --nb-committed-instances / --ci  Whether we need committed instances
+  --recursion / --rec              Whether we are doing recursion
 
 Chips (combine as needed):
   --native          Native arithmetic chip (arithmetic + parallel_add gates)
   --poseidon        Poseidon hash chip
   --jubjub          Jubjub Edwards curve chip
+  --bls12_381       BLS12-381 curve chip
+  --secp256k1       Secp256K1 curve chip
   --hash-to-curve   Poseidon hash-to-Jubjub-curve chip
 
 Circuit config (all default to 0):
