@@ -25,6 +25,11 @@ cargo fmt
 ## Project structure
 
 ```
+src/bin                       # Cost estimator CLI commands and chip profile writers
+src/circuits                  # Halo2 circuits, used in examples
+src/plutus_gen/adjusted_types # Halo2 adjusted types
+src/plutus_gen/extraction     # Halo2 vk extraction utilities
+src/plutus_gen/emitters       # Aiken/Plinth Halo2 verifier generator
 src/plutus_gen/stats/chips/   # Chip definitions (cost estimator)
   mod.rs                      # SupportedChips enum, Chip trait, dispatch macro
   primitives/                 # Concrete chip implementations
@@ -32,11 +37,27 @@ src/plutus_gen/stats/chips/   # Chip definitions (cost estimator)
     hash/                     # Hash chips (Poseidon, …)
     curve/                    # ECC chips (JubJub, BLS12-381, secp256k1, …)
 src/plutus_gen/cli.rs         # CLI argument parsing
+src/plutus_gen/proof_seria.   # Proof serialization
+src/kzg_params                # CRS / powers of tau utils
 src/wasm.rs                   # WASM bindings for the web interface
 docs/                         # Static website (cost estimator, chip reference)
   chip_profiles.json          # Generated — do not edit by hand
   wasm/                       # Generated WASM artifacts — rebuild with wasm-pack
 ```
+
+## Adding a Halo2 subprofotocol
+
+### Adding a PCS
+
+Polynomial Commitment Schemes structure needs to implement the `ExtractPCS` trait defined in `src/plutus_gen/extraction/pcs/mod.rs` for the smart contract code generation, as well as the `PcsEstimate` `trait defined in src/plutus_gen/stats/pcs/mod.rs` for the cost estimator.
+
+For the latter, the website, CLI and wasm would also need to be modified to support new commitment schemes.
+
+### Adding a Lookup scheme
+
+Lookup are currently coded directly in the main extraction file `src/plutus_gen/extraction/mod.rs` and as such, to support new lookups, an modular architecture similar to PCS needs to be implemented first (define a generic lookup trait in a new folder, move the Plookup code and update it to instantiate such trait and call the input lookup scheme in `.../extraction/mod.rs`).
+
+For the cost estimator, the new scheme needs to be coded in `src/plutus_gen/stats/lookup` and implement the `LookupEstimate` in `.../lookup/mod.rs` file. Similarly to before, the website, CLI and wasm needs to be modified to support new lookup schemes.
 
 ## Adding a new chip
 
