@@ -1,7 +1,9 @@
 # Plutus Halo2 Verifier
 
-A Rust tool that generates Plutus verifiers for Halo2 circuits in both **Plinth** and **Aiken** smart contract
-languages, enabling verification of proofs on the Cardano blockchain.
+This repository provides two Rust tools for working with Halo2 proofs on the Cardano blockchain:
+
+- **Verifier Generator** — extracts a Halo2 circuit's structure and generates optimized on-chain verifier code in **Plinth** (Haskell) or **Aiken**
+- **Cost Estimator** — predicts verifier execution costs (script size, CPU, memory) from circuit parameters, without running a full circuit
 
 > ### ⚠️ Important Disclaimer & Acceptance of Risk
 >
@@ -9,13 +11,6 @@ languages, enabling verification of proofs on the Cardano blockchain.
 > proofs in Plutus smart contracts. This code is provided "as is" for research and educational purposes only. It has not
 > been thoroughly tested and audited and is not intended for production use. By using this code, you acknowledge and
 > accept all associated risks, and our company disclaims any liability for damages or losses.
-
-## Overview
-
-This project bridges Rust-based Halo2 implementations with Plutus smart contracts on Cardano. It
-extracts verification keys and circuit structures from Halo2 circuits and generates corresponding verifier code
-in either **Plinth** (Haskell-based) or **Aiken** (Rust-like functional smart contract language) that can validate
-proofs on-chain.
 
 ## Architecture
 
@@ -29,12 +24,13 @@ proofs on-chain.
     - `extraction/`: Extracts circuit data from Halo2 structures
     - `code_emitters_plinth.rs`: Generates Plinth code from Handlebars templates optimized for specific circuits
     - `code_emitters_aiken.rs`: Generates Aiken code from Handlebars templates optimized for specific circuits
+    - `stats/`: Estimates verifier costs from circuit parameters, without a full circuit run
 
-3. **Plinth Verifier** (`plinth-verifier/`)
+3. **Plinth Verifier** (`plinth-verifier/`) — used by the Verifier Generator only
     - Common Plinth code for Halo2 verification
     - Handlebars template files for circuit-tailored code generation
 
-4. **Aiken Verifier** (`aiken-verifier/`)
+4. **Aiken Verifier** (`aiken-verifier/`) — used by the Verifier Generator only
     - Common Aiken code for Halo2 verification (BLS12-381 operations, MSM, KZG commitments)
     - Handlebars template files for circuit-tailored code generation
     - Submitter for on-chain testing
@@ -49,15 +45,15 @@ proofs on-chain.
 
 ## Build prerequisites
 
-The prototype consists of three main parts:
+The Verifier Generator has three components; the Cost Estimator only requires the Rust component.
 
 1. **Rust component**: Generates Halo2 proofs and produces verifier code for either Plinth or Aiken
     - Built using standard `cargo` tooling from the root of the repository
 
-2. **Plinth component** (`plinth-verifier/`): Haskell-based smart contract verifier
+2. **Plinth component** (`plinth-verifier/`): Haskell-based smart contract verifier — Verifier Generator only
     - Built using `cabal` in `nix` environment
 
-3. **Aiken component** (`aiken-verifier/aiken_halo2/`): Aiken smart contract verifier
+3. **Aiken component** (`aiken-verifier/aiken_halo2/`): Aiken smart contract verifier — Verifier Generator only
     - Built using `aiken` toolchain
 
 #### How to install and use nix (necessary only for Plinth part)
@@ -113,9 +109,12 @@ aiken check
 aiken build
 ```
 
-## Running Examples
+## Verifier Generator
 
-### Rust part (generating verifiers)
+The Verifier Generator takes a Halo2 circuit, extracts its verification key and constraint structure, and emits
+ready-to-deploy verifier code for either Plinth or Aiken.
+
+### Examples
 
 The repository includes several example circuits:
 
@@ -171,7 +170,7 @@ locations:
 ./aiken-verifier/aiken_halo2/lib/vk.ak
 ```
 
-### Plinth part (running generated Plinth verifier)
+### Running the generated Plinth verifier
 
 After the Rust part is executed you can test the Plinth verifier as follows:
 
@@ -182,7 +181,7 @@ cabal build -j all
 cabal test all
 ```
 
-### Aiken part (running generated Aiken verifier)
+### Running the generated Aiken verifier
 
 After the Rust part is executed you can test the Aiken verifier as follows:
 
@@ -192,7 +191,7 @@ aiken check
 aiken build
 ```
 
-## Benchmarks
+### Benchmarks
 
 Below are the execution costs of both Plinth and Aiken scripts running the Halo2 verifier for various circuits:
 
@@ -211,10 +210,73 @@ Below are the execution costs of both Plinth and Aiken scripts running the Halo2
 slightly depending on the specific proof being verified. This variation stems from the randomness used during proof
 generation, which can be influenced by the initial seed or the platform on which the prover runs.
 
-### Further improvements
+#### Further improvements
 
 The upcoming CIP-109 (built-in modular inversion) and CIP-133 (built-in multi-scalar multiplication) are expected to
 significantly reduce the on-chain costs of the verifiers.
+
+## Cost Estimator
+
+The Cost Estimator predicts verifier execution costs from circuit parameters, without requiring a full circuit
+run. This is useful for quickly gauging whether a circuit is likely to fit within Cardano's execution limits.
+It only requires the Rust component — no Plinth or Aiken toolchain needed.
+
+Three CLI binaries are available:
+
+| Binary | Output |
+|---|---|
+| `estimate` | Full breakdown: scalar/point ops, pairings, MSM sizes, proof and VK byte sizes |
+| `proof_size` | Proof size in bytes |
+| `vk_size` | Verification key size in bytes |
+
+> **Note:** Estimates are lower bounds, assuming minimal column rotations (prev, current, next).
+
+### CLI flags
+
+All three binaries share the same flags:
+
+```
+Proof inputs :
+  --nb-public-inputs / --pi        Number of public inputs (required)
+  --nb-committed-instances / --ci  Whether we need committed instances
+  --recursion / --rec              Whether we are doing recursion
+
+Chips (combine as needed):
+  --native          Native arithmetic chip (arithmetic + parallel_add gates)
+  --poseidon        Poseidon hash chip
+  --jubjub          Jubjub Edwards curve chip
+  --bls12_381       BLS12-381 curve chip
+  --secp256k1       Secp256K1 curve chip
+  --hash-to-curve   Poseidon hash-to-Jubjub-curve chip
+
+Circuit config (all default to 0):
+  --nb-advice       Number of advice columns
+  --nb-fixed        Number of extra fixed columns
+  --nb-selectors    Number of extra selectors
+  --nb-evaluations  Number of column evaluations
+  --nb-lookups      Number of lookup arguments
+  --degree          Circuit degree
+  --nr-pow2         Number of pow2-range decomposition columns
+```
+
+The chips' flags are the main and most precise way for evaluating circuits.
+
+We also provide additional circuit configuration to help user analyse the circuit verification's cost when handling additional advice and fixed columns/wires, or selectors, or when needing a higher degree.
+The number of evaluations on these additional columns and extra lookups also permit more customization but the estimate becomes looser because of the limited amount of information provided, more information would be required but this would make the CLI less usable.
+The `nr-pow2` stands for the number of parralel lookups for scalar decomposition we allow to perform in circuit. This increases the number of arguments, hence the proof size and verification cost, but not the verification key's size. If the value is not set, the program chooses the maximum value defined by the used chips.
+
+### Examples
+
+```bash
+# Full cost estimate: 3 public inputs, native chip
+cargo run --bin estimate -- --nb-public-inputs 3 --nb-committed-instances 0 --native
+
+# Proof size for a circuit with Poseidon hashing and Jubjub signatures
+cargo run --bin proof_size -- --nb-public-inputs 5 --nb-committed-instances 1 --poseidon --jubjub
+
+# Full estimate for a circuit with hash-to-curve and lookup arguments
+cargo run --bin estimate -- --nb-public-inputs 2 --nb-committed-instances 0 --hash-to-curve --nb-lookups 2 --degree 8
+```
 
 ## License
 

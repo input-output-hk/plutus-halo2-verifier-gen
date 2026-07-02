@@ -1,0 +1,775 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <script>if(localStorage.getItem("theme")==="light")document.documentElement.classList.add("light-mode");</script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Circuits — Plutus Halo2 Verifier</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css" />
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+    onload="renderMathInElement(document.body,{delimiters:[{left:'\\[',right:'\\]',display:true},{left:'\\(',right:'\\)',display:false}]})"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #0d0d0d;
+      --bg2:       #1a1a1a;
+      --bg3:       #252525;
+      --border:    #2e2e2e;
+      --accent:    #f20000;
+      --accent2:   #ff4444;
+      --teal:      #ff6666;
+      --text:      #f5f5f5;
+      --muted:     #9ca3af;
+      --radius:    10px;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      font-size: 16px;
+    }
+
+    a { color: var(--accent2); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    /* ── NAV ──────────────────────────── */
+    nav {
+      position: sticky; top: 0; z-index: 100;
+      background: rgba(13,13,13,0.92);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      padding: 0 2rem;
+      display: flex; align-items: center; justify-content: flex-start;
+      height: 56px;
+    }
+    .nav-brand { font-weight: 600; font-size: 14px; color: var(--text); display: flex; align-items: center; gap: 8px; }
+    .nav-links { display: flex; gap: 1.5rem; list-style: none; }
+    .nav-links a { font-size: 13px; color: var(--muted); transition: color 0.15s; }
+    .nav-links a:hover { color: var(--text); text-decoration: none; }
+    .subnav {
+      background: var(--bg2); border-bottom: 1px solid var(--border);
+      padding: 0 2rem; display: flex; gap: 2rem;
+      height: 40px; align-items: center;
+      position: sticky; top: 56px; z-index: 99;
+    }
+    .subnav a { font-size: 13px; color: var(--muted); transition: color 0.15s; text-decoration: none; }
+    .subnav a:hover { color: var(--text); }
+    .subnav a.active { color: var(--text); font-weight: 600; border-bottom: 2px solid var(--accent); padding-bottom: 2px; }
+
+    /* ── HEADER ───────────────────────── */
+    .page-header {
+      padding: 3rem 2rem 2rem;
+      max-width: 1100px; margin: 0 auto;
+    }
+    .back-link { font-size: 12px; color: var(--muted); display: inline-flex; align-items: center; gap: 4px; margin-bottom: 1rem; }
+    .back-link:hover { color: var(--text); text-decoration: none; }
+    .page-header h1 { font-size: 2rem; font-weight: 700; letter-spacing: -0.02em; margin-bottom: 0.5rem; }
+    .page-header p { color: var(--muted); font-size: 0.95rem; }
+
+    /* ── CONTENT ──────────────────────── */
+    .content { max-width: 1100px; margin: 0 auto; padding: 0 2rem 4rem; }
+
+    /* ── SECTIONS ─────────────────────── */
+    .section { margin-bottom: 3.5rem; }
+    .section-title {
+      font-size: 1.2rem; font-weight: 700; letter-spacing: -0.01em;
+      margin-bottom: 0.4rem;
+      padding-bottom: 0.6rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .section-desc { color: var(--muted); font-size: 13.5px; margin: 0.75rem 0 1.5rem; }
+
+    .subsection { margin-bottom: 2rem; }
+    .subsection-title {
+      font-size: 0.7rem; font-weight: 700; letter-spacing: 0.08em;
+      text-transform: uppercase; color: var(--teal);
+      margin-bottom: 0.5rem; margin-top: 1.75rem;
+    }
+    .subsection-desc { color: var(--muted); font-size: 13px; margin-bottom: 1rem; }
+
+    /* ── FORMULA GRID ─────────────────── */
+    .formula-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; }
+    .formula-grid.cols-3 { grid-template-columns: 1fr 1fr 1fr; }
+    .formula-grid.cols-4 { grid-template-columns: 1fr 1fr 1fr 1fr; }
+    .formula-card {
+      background: var(--bg2); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 1.25rem;
+    }
+    .formula-card h3 {
+      font-size: 11px; font-weight: 700; letter-spacing: 0.07em;
+      text-transform: uppercase; color: var(--muted); margin-bottom: 1rem;
+    }
+    .formula-card pre {
+      font-family: 'JetBrains Mono', monospace; font-size: 11.5px;
+      color: #c9d1d9; line-height: 1.8; white-space: pre-wrap;
+    }
+    .fkw  { color: #ff7b72; }
+    .fnum { color: #ff9966; }
+    .fcm  { color: #8b949e; font-style: italic; }
+
+    /* ── PROP TABLE ───────────────────── */
+    .prop-table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 0.75rem; }
+    .prop-table th {
+      padding: 8px 12px; text-align: left;
+      font-size: 10px; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase;
+      color: var(--muted); border-bottom: 1px solid var(--border);
+      background: var(--bg3);
+    }
+    .prop-table td {
+      padding: 9px 12px; border-bottom: 1px solid var(--border);
+      vertical-align: top;
+    }
+    .prop-table td:first-child {
+      font-family: 'JetBrains Mono', monospace; font-size: 12px;
+      color: var(--accent2); white-space: nowrap; width: 160px;
+    }
+    .prop-table td:last-child { color: var(--muted); font-size: 12.5px; }
+    .prop-table tr:last-child td { border-bottom: none; }
+
+    /* ── CIRCUIT TABLE ───────────────── */
+    .circuit-table { border-collapse: collapse; font-family: 'JetBrains Mono', monospace; font-size: 12px; margin-top: 1rem; }
+    .circuit-table th {
+      padding: 6px 14px; text-align: center;
+      font-size: 10px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+      color: var(--muted); border: 1px solid var(--border); background: var(--bg3);
+    }
+    .circuit-table th.ct-group { color: var(--text); background: var(--bg2); border-bottom: 2px solid var(--border); }
+    .circuit-table th.ct-var { font-size: 14px; font-weight: 400; letter-spacing: 0; text-transform: none; color: var(--text); }
+    .circuit-table th.ct-row-hdr { width: 52px; }
+    .circuit-table td {
+      padding: 7px 14px; border: 1px solid var(--border);
+      text-align: center; color: var(--muted); vertical-align: middle;
+    }
+    .circuit-table td.ct-row-lbl { color: var(--muted); font-size: 11px; background: var(--bg3); }
+    .circuit-table td.ct-val   { color: var(--accent2); }
+    .circuit-table td.ct-fixed { color: var(--yellow, #fbbf24); }
+    .circuit-table td.ct-zero  { color: var(--border); }
+    .circuit-table .ct-sep td, .circuit-table .ct-sep th { border-left: 2px solid var(--border); }
+    .circuit-table tbody tr:hover td { background: rgba(255,255,255,0.02); }
+
+    /* ── EQUATION BLOCK ─────────────── */
+    .eq-block {
+      display: inline-block;
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 0.75rem 1.25rem;
+    }
+    .eq-block .katex-display { text-align: left; margin: 0.25rem 0; }
+    .eq-block .circuit-table { margin-top: 0; }
+
+    /* ── NOTE BOX ─────────────────────── */
+    .note-box {
+      background: rgba(59,130,246,0.06);
+      border: 1px solid rgba(59,130,246,0.2);
+      border-radius: var(--radius);
+      padding: 1rem 1.25rem; font-size: 13px; color: #ff8888;
+      margin-top: 1.25rem;
+    }
+
+    @media (max-width: 900px) {
+      .formula-grid, .formula-grid.cols-3, .formula-grid.cols-4 { grid-template-columns: 1fr; }
+    }
+
+    /* ── FOOTER ───────────────────────── */
+    footer { border-top: 1px solid var(--border); text-align: center; padding: 2rem; font-size: 13px; color: var(--muted); }
+    footer a { color: var(--muted); }
+
+    @media (max-width: 600px) { nav .nav-links { display: none; } }
+
+    /* ── LIGHT MODE ─────────────────────── */
+    html.light-mode {
+      --bg:      #f8f8f8;
+      --bg2:     #ffffff;
+      --bg3:     #f0f0f0;
+      --border:  #d8d8d8;
+      --accent:  #d10000;
+      --accent2: #b00000;
+      --teal:    #cc3333;
+      --text:    #111111;
+      --muted:   #5a5a5a;
+      --code-bg: #f0f0f0;
+      --warn:    #b45309;
+    }
+    html.light-mode nav { background: rgba(248,248,248,0.95) !important; border-bottom-color: var(--border); }
+    html.light-mode .subnav { background: var(--bg2); border-bottom-color: var(--border); }
+    html.light-mode .formula-card pre,
+    html.light-mode pre,
+    html.light-mode .code-block { color: #2a2a2a; }
+    html.light-mode .fkw, html.light-mode .kw   { color: #cc0000; }
+    html.light-mode .fnum, html.light-mode .num  { color: #994400; }
+    html.light-mode .fcm, html.light-mode .cm    { color: #666666; }
+    html.light-mode .logo-dark  { display: none; }
+    html.light-mode .logo-light { display: inline !important; }
+  </style>
+  <link rel="stylesheet" href="shared.css" />
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <a class="nav-brand" href="index.html"><img src="assets/halo2-verifier-icon-no-text.svg" height="40" alt="Halo2 Verifier" style="display:block;" /> Plutus Halo2 Verifier</a>
+  <ul class="nav-links">
+    <li><a href="index.html">Overview</a></li>
+    <li><a href="cost-estimator.html" style="color:var(--text)">Cost Estimator</a></li>
+    <li><a href="verifier.html">Plutus Verifier</a></li>
+    <li><a href="https://github.com/input-output-hk/plutus-halo2-verifier-gen">GitHub ↗</a></li>
+  </ul>
+  <button id="theme-toggle" aria-label="Toggle theme">&#9790;</button>
+</nav>
+<div class="subnav">
+  <a href="cost-estimator.html">CLI</a>
+  <a href="cost.html">Estimators</a>
+  <a href="chips.html">Chips</a>
+  <a href="circuits.html" class="active">Circuit</a>
+  <a href="algorithms.html">Algorithms</a>
+  <a href="contributing.html">Contributing</a>
+</div>
+
+<!-- HEADER -->
+<div class="page-header">
+  <a class="back-link" href="chips.html">← Chips</a>
+  <h1>Circuits</h1>
+  <p>
+    How a Halo2 circuit is structured: columns, arguments, chips, and lookup tables —
+    and how each piece contributes to proof size and verifier cost.
+  </p>
+</div>
+
+<div class="content">
+
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <!-- SECTION 1 — A PROOF AS A TABLE                                 -->
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <div class="section">
+    <div class="section-title">A Proof as a Table</div>
+    <div class="section-desc">
+      A Halo2 circuit is best understood as a long table. Each row represents a step in the
+      computation — the current in-memory state and the set of active instructions. A SNARK is
+      an efficient probabilistic check that at every row, the enabled instructions are correctly
+      applied to the current variables.
+    </div>
+
+    <div class="subsection-desc">
+      Let's look at a simple example. We have 3 <em>advice</em> columns (the prover's variables)
+      and 8 <em>fixed</em> columns (the circuit's instructions and parameters):
+    </div>
+
+    <div style="margin: 1rem 0 1rem; text-align: center;">
+      <div class="eq-block">
+        <table class="circuit-table">
+          <thead>
+            <tr>
+              <th class="ct-row-hdr" rowspan="2">Row</th>
+              <th colspan="3" class="ct-group">Advice</th>
+              <th colspan="8" class="ct-group ct-sep">Fixed</th>
+            </tr>
+            <tr>
+              <th class="ct-var">\(w_l\)</th><th class="ct-var">\(w_r\)</th><th class="ct-var">\(w_o\)</th>
+              <th class="ct-var ct-sep">\(q_r\)</th><th class="ct-var">\(q_l\)</th><th class="ct-var">\(q_o\)</th><th class="ct-var">\(q_c\)</th><th class="ct-var">\(q_m\)</th>
+              <th class="ct-var">\(q_\text{sha2}\)</th><th class="ct-var">\(q_\text{lookup}\)</th><th class="ct-var">\(t_\text{lookup}\)</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="ct-row-lbl">(...)</td>
+              <td></td><td></td><td></td>
+              <td class="ct-sep"></td><td></td><td></td><td></td><td></td>
+              <td></td><td></td><td></td>
+            </tr>
+            <tr>
+              <td class="ct-row-lbl">\(i-1\)</td>
+              <td class="ct-val">\(x_1\)</td><td class="ct-val">\(x_2\)</td><td class="ct-val">\(x_3\)</td>
+              <td class="ct-fixed ct-sep">\(1\)</td><td class="ct-fixed">\(1\)</td><td class="ct-fixed">\(-1\)</td><td class="ct-zero">\(\cdot\)</td><td class="ct-zero">\(\cdot\)</td>
+              <td class="ct-zero">\(\cdot\)</td><td class="ct-zero">\(\cdot\)</td><td class="ct-zero">\(\cdot\)</td>
+            </tr>
+            <tr>
+              <td class="ct-row-lbl">\(i\)</td>
+              <td class="ct-val">\(x_3\)</td><td class="ct-val">\(x_4\)</td><td class="ct-val">\(x_5\)</td>
+              <td class="ct-zero ct-sep">\(\cdot\)</td><td class="ct-zero">\(\cdot\)</td><td class="ct-fixed">\(2\)</td><td class="ct-fixed">\(7\)</td><td class="ct-fixed">\(5\)</td>
+              <td class="ct-zero">\(\cdot\)</td><td class="ct-zero">\(\cdot\)</td><td class="ct-zero">\(\cdot\)</td>
+            </tr>
+            <tr>
+              <td class="ct-row-lbl">\(i+1\)</td>
+              <td class="ct-val">\(x_1\)</td><td class="ct-val">\(x_3\)</td><td class="ct-val">\(x_6\)</td>
+              <td class="ct-zero ct-sep">\(\cdot\)</td><td class="ct-zero">\(\cdot\)</td><td class="ct-zero">\(\cdot\)</td><td class="ct-zero">\(\cdot\)</td><td class="ct-zero">\(\cdot\)</td>
+              <td class="ct-fixed">\(1\)</td><td class="ct-fixed">\(1\)</td><td class="ct-zero">\(\cdot\)</td>
+            </tr>
+            <tr>
+              <td class="ct-row-lbl">(...)</td>
+              <td></td><td></td><td></td>
+              <td class="ct-sep"></td><td></td><td></td><td></td><td></td>
+              <td></td><td></td><td></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <p class="subsection-desc" style="margin-top: 1.5rem;">
+      The wires \(w_l\), \(w_r\), \(w_o\) are the prover's left, right and output registers at each row.
+      The 5 selector columns \(q_l, q_r, q_o, q_c, q_m\) enable arithmetic constraints;
+      \(q_\text{sha2}\) enables a hash constraint; \(q_\text{lookup}\) triggers a membership check
+      against the table \(t_\text{lookup}\). The following equations must hold at every row:
+    </p>
+
+    <div style="margin: 0.75rem 0; text-align: left;">
+      <div class="eq-block">
+        <ul style="list-style: disc; padding-left: 1.5rem; line-height: 2.8; margin: 0;">
+          <li>\(\displaystyle q_l \cdot w_l + q_r \cdot w_r + q_o \cdot w_o + q_m \cdot w_l \cdot w_r + q_c = 0\)</li>
+          <li>\(\displaystyle q_\text{sha2} \cdot \bigl(\text{sha2}(w_l,\, w_r) - w_o\bigr) = 0\)</li>
+          <li>\(\displaystyle q_\text{lookup} \cdot w_l \in t_\text{lookup}\)</li>
+        </ul>
+      </div>
+    </div>
+
+    <p class="subsection-desc" style="margin-top: 1rem;">
+      A selector set to 0 disables its constraint entirely. For instance, only at row \(i+1\)
+      are \(q_\text{sha2}\) and \(q_\text{lookup}\) active, enforcing
+      \(\text{sha2}(x_1, x_3) = x_6\) with \(x_1\) looked up in the table.
+    </p>
+  </div>
+
+
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <!-- SECTION 2 — COLUMNS                                            -->
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <div class="section">
+    <div class="section-title">Columns</div>
+    <div class="section-desc">
+      Columns are of two kinds. <strong>Fixed columns</strong> are baked into the circuit at design time
+      and are identical for every proof of the same circuit — they form the verification key.
+      <strong>Advice columns</strong> are the prover's workspace, committed to fresh at the start
+      of each proof.
+    </div>
+
+    <!-- Fixed columns -->
+    <div class="subsection">
+      <div class="subsection-title">Fixed Columns</div>
+      <div class="subsection-desc">
+        Fixed columns encode the program. Their values are known to the verifier and are committed
+        once in the verification key. There are three roles a fixed column can play:
+      </div>
+      <div class="formula-grid cols-3">
+        <div class="formula-card">
+          <h3>Selectors</h3>
+          <pre>A selector holds 0 or 1 at each row.
+Setting it to 1 activates the
+associated gate constraint at that
+row; 0 disables it entirely.
+
+A circuit may have many selectors,
+each switching a different rule on
+or off per step.</pre>
+        </div>
+        <div class="formula-card">
+          <h3>Lookup Tables</h3>
+          <pre>A table column holds a fixed set of
+allowed values defined at circuit
+creation time.
+
+Lookup arguments check that a wire
+value appears somewhere in the
+table — a range check, a set
+membership test, or a function table.</pre>
+        </div>
+        <div class="formula-card">
+          <h3>Fixed Parameters</h3>
+          <pre>Any constant embedded in the
+circuit: curve coefficients, hash
+round constants, domain parameters.
+
+Unlike selectors, these are not
+binary — they hold arbitrary field
+elements fixed by the designer
+for every proof.</pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- Advice columns -->
+    <div class="subsection">
+      <div class="subsection-title">Advice Columns</div>
+      <div class="subsection-desc">
+        Advice columns are the prover's workspace. Their values are unknown at circuit-design time
+        and change with every proof. Each advice column produces one G1 commitment in the proof.
+      </div>
+      <div class="formula-grid" style="max-width: 660px; margin-left: auto; margin-right: auto;">
+        <div class="formula-card">
+          <h3>Wires</h3>
+          <pre>The primary variables of the circuit:
+inputs, intermediate values, and
+outputs the prover supplies.
+
+Each cell is checked by the active
+gate constraints at its row and may
+be copy-constrained to appear
+consistently in other rows.</pre>
+        </div>
+        <div class="formula-card">
+          <h3>Temporary Registers</h3>
+          <pre>Extra advice columns used to break
+complex expressions into simpler
+constraints, e.g., storing an
+intermediate product before it is
+used in a later gate.
+
+Often unconstrained by copy — they
+do not participate in the permutation
+argument, saving VK commitments.</pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- Column properties -->
+    <div class="subsection">
+      <div class="subsection-title">Column Properties</div>
+      <div class="subsection-desc">
+        Columns carry a key property that directly affects proof size and verifier cost. Arguments introduce a second one — <em>rotation sets</em> — covered in the next section.
+      </div>
+
+      <table class="prop-table" style="margin-top: 1.5rem;">
+        <thead>
+          <tr>
+            <th>Property</th>
+            <th>Description</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>copy-constrained</td>
+            <td>
+              Copy-constraining a column means its cells may be equated with cells in other
+              columns or rows — this is how the same variable (e.g., \(x_1\) at rows \(i-1\)
+              and \(i+1\)) is enforced to hold the same value across the table.
+              Each copy-constrained column participates in the <em>permutation argument</em>
+              and contributes one permutation polynomial, adding one G1 commitment to the VK.
+              Advice columns are usually copy-constrained; unconstrained ones act as
+              temporary registers.
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <!-- SECTION 3 — ARGUMENTS                                          -->
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <div class="section" id="sec-arguments">
+    <div class="section-title">Arguments</div>
+    <div class="section-desc">
+      Arguments are the assertions the proof must satisfy. Each argument type targets a different
+      property of the circuit — polynomial constraints, copy consistency, range membership — and
+      may need to read cells from more than the current row. Together, they determine the number
+      of commitments, evaluations, and scalar operations in the proof.
+    </div>
+
+    <!-- Rotation sets -->
+    <div class="subsection">
+      <div class="subsection-title">Rotation Sets</div>
+      <div class="subsection-desc">
+        When evaluating a constraint at row \(i\), an argument may also query cells at \(i-1\),
+        \(i+1\), or the last row. The set of relative row offsets a column is queried at is its
+        <em>rotation set</em>.<br><br>
+
+        The KZG polynomial commitment scheme opens all columns simultaneously, but columns with
+        different rotation sets require separate multi-opening proofs (each producing one
+        additional Q commitment and one π commitment in the proof). Minimising the number of
+        distinct rotation sets across all columns directly reduces proof size and the number of
+        MSM calls during verification.
+      </div>
+      <div class="formula-grid" style="max-width: 660px; margin-left: auto; margin-right: auto;">
+        <div class="formula-card">
+          <h3>Point Sets (derived)</h3>
+          <pre><span class="fcm">// Distinct rotation groups across all
+// column queries — one KZG multi-open
+// proof per group.</span>
+
+<span class="fkw">nb_point_sets</span> ≈
+  1                        <span class="fcm">// {curr} — always present</span>
+  + (cc > 0 || lkp > 0
+       ? 1 : 0)            <span class="fcm">// {curr, next}</span>
+  + (perm_chunks > 1
+       ? 1 : 0)            <span class="fcm">// {curr, next, last}</span>
+  + (lkp > 0 ? 1 : 0)     <span class="fcm">// {prev, curr}</span></pre>
+        </div>
+        <div class="formula-card">
+          <h3>Cost Impact</h3>
+          <pre>Each distinct point set adds:
+  <span class="fnum">1</span> Q commitment  (proof)
+  <span class="fnum">1</span> π commitment  (proof)
+
+And one extra MSM group during
+verification — so keeping columns
+on the same rotation set (or a
+subset of another set) is the
+primary lever for reducing both
+proof size and verifier cost.</pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- Argument types -->
+    <div class="subsection">
+      <div class="subsection-title">Types</div>
+      <div class="subsection-desc">
+        Four argument types appear in a Halo2 KZG proof. Each is present when the circuit
+        requires it; their contributions to commitments and evaluations are additive.
+      </div>
+      <div class="formula-grid cols-4" style="margin-top: 0.5rem;">
+        <div class="formula-card">
+          <h3>Gates</h3>
+          <pre>Polynomial constraints over
+advice and fixed columns.
+
+Gates add <span class="fnum">no</span> commitments or
+evaluations to the proof —
+their cost is scalar operations
+only (field arithmetic during
+argument recomputation).</pre>
+        </div>
+        <div class="formula-card">
+          <h3>Permutation</h3>
+          <pre>Enforces copy constraints:
+cells equated across rows
+and columns hold the same value.
+
+Adds per chunk of cc columns:
+  <span class="fnum">⌈cc/(deg−2)⌉</span> commits
+  <span class="fnum">cc + 3×⌈cc/(deg−2)⌉ − 1</span> evals
+
+Requires degree ≥ 3.</pre>
+        </div>
+        <div class="formula-card">
+          <h3>Lookups</h3>
+          <pre>Checks that wire values appear
+in a fixed table.
+
+Per lookup argument:
+  <span class="fnum">3</span> commits (Z, A_perm, S_perm)
+  <span class="fnum">5</span> scalar evaluations
+
+Requires degree ≥ 5.</pre>
+        </div>
+        <div class="formula-card">
+          <h3>Trashcans</h3>
+          <pre>Range arguments that bound
+intermediate values in
+foreign-field arithmetic.
+
+Per trashcan:
+  <span class="fnum">1</span> commitment
+  <span class="fnum">1</span> scalar evaluation
+
+Requires degree ≥ 4. Multiple
+chips may share one trashcan
+column (deduplicated).</pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- Aggregation -->
+    <div class="subsection">
+      <div class="subsection-title">Aggregation</div>
+      <div class="subsection-desc">
+        Each argument type may carry several equations, or <em>constraints</em>. For instance, a
+        gate argument covers every gate polynomial in the circuit; a lookup argument has its own
+        set of auxiliary constraints. Within a single argument, all its equations are first
+        batched into one combined check using a random challenge — so adding more constraints to
+        an argument increases scalar operation cost but does not add extra commitments or
+        evaluations.<br><br>
+
+        Once each argument is internally batched, their contributions to proof size are
+        accumulated across all argument types: gate scalar ops are summed, lookup and trashcan
+        counts grow additively, and permutation chunks scale with the total number of
+        copy-constrained columns. The degree of the circuit is the maximum required by any
+        active argument type or chip gate.
+      </div>
+      <div class="formula-grid">
+        <div class="formula-card">
+          <h3>Degree (derived)</h3>
+          <pre><span class="fkw">degree</span> = max(
+  degree_hint,
+  cc > 0         ? <span class="fnum">3</span> : 0,   <span class="fcm">// permutation</span>
+  nb_lookups > 0 ? <span class="fnum">5</span> : 0,   <span class="fcm">// PlookUp</span>
+  nb_trash > 0   ? <span class="fnum">4</span> : 0,   <span class="fcm">// trashcan</span>
+  max chip degree              <span class="fcm">// gate polynomials</span>
+)</pre>
+        </div>
+        <div class="formula-card">
+          <h3>Total Proof Commitments</h3>
+          <pre><span class="fkw">nb_commitments</span> =
+  nb_advice                  <span class="fcm">// one per advice col</span>
+  + ⌈cc / (degree − 2)⌉     <span class="fcm">// permutation</span>
+  + nb_trash                 <span class="fcm">// trashcans</span>
+  + 1 + (degree − 1)         <span class="fcm">// vanishing</span>
+  + 3 × nb_lookups           <span class="fcm">// PlookUp</span>
+  + 2                        <span class="fcm">// H2MO PCS: F and π</span></pre>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <!-- SECTION 4 — CHIPS                                              -->
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <div class="section">
+    <div class="section-title">Chips</div>
+    <div class="section-desc">
+      A chip is a low-level, reusable module that packages a set of gate, lookup, and trashcan
+      arguments over a fixed subset of columns. Chips are the unit of composition: a circuit is
+      built by combining chips, whose columns and arguments are then merged before any size
+      computation takes place.
+    </div>
+
+    <div class="subsection">
+      <div class="subsection-title">Cost Insight</div>
+      <div class="subsection-desc">
+        The two main levers for reducing proof size and verifier cost are the number of
+        arguments and the number of distinct rotation sets. Chips that are defined over the
+        same columns — or a subset of another chip's columns — and that query those columns at
+        the same relative rows (same or subset rotation set) are especially cheap to combine:
+        their arguments share the same KZG point sets, and their columns do not add new
+        multi-opening proofs. Chips with disjoint column footprints or new rotation sets each
+        force at least one extra point set in the proof.
+      </div>
+    </div>
+
+    <!-- Column aggregation -->
+    <div class="subsection">
+      <div class="subsection-title">Column Aggregation</div>
+      <div class="subsection-desc">
+        When multiple chips are used together, their columns are merged before any size
+        computation. The merging rules differ between advice and fixed columns:
+      </div>
+      <div class="formula-grid">
+        <div class="formula-card">
+          <h3>Advice Columns — max-count merge</h3>
+          <pre>Chips declare <span class="fkw">groups</span> of advice columns.
+Within a group, the chip with the most
+columns wins; the rest are absorbed.
+
+<span class="fcm">Example: JubJub (9 cols) absorbs
+Arith (5 cols). Combined count stays
+9, not 5 + 9 = 14.</span>
+
+Extra advice columns (--nb-advice)
+are appended after the merged set.</pre>
+        </div>
+        <div class="formula-card">
+          <h3>Fixed Columns — exclusive or shared</h3>
+          <pre>Fixed columns are either <span class="fkw">shared</span> or
+<span class="fkw">exclusive</span>.
+
+Shared columns are deduplicated: if
+two chips declare the same shared
+column, it appears once in the circuit.
+
+Exclusive columns are always summed:
+each chip instance adds its own copy.
+
+Lookup table columns are handled
+separately — see Lookup Tables.</pre>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <!-- SECTION 5 — LOOKUP TABLES                                      -->
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <div class="section">
+    <div class="section-title">Lookup Tables</div>
+    <div class="section-desc">
+      Lookup tables are fixed columns whose values define a set of allowed inputs. They are
+      referenced by lookup arguments — a chip's lookup gate asserts that one of its wires
+      belongs to a particular table. Unlike ordinary fixed columns, lookup table columns have
+      some notable properties in Halo2.
+    </div>
+
+    <div class="formula-grid cols-3">
+      <div class="formula-card">
+        <h3>Shared Across Chips</h3>
+        <pre>A single table can be referenced by
+lookup arguments from different chips.
+
+When chips are combined, tables are
+unioned: if two chips declare the
+same table, it appears only once
+in the final circuit.
+
+This deduplication is independent of
+the advice and fixed column merging.</pre>
+      </div>
+      <div class="formula-card">
+        <h3>One Commit per Column</h3>
+        <pre>Unlike gate fixed columns — which
+could in principle share commitments
+— each lookup table column receives
+its own G1 commitment in the VK.
+
+The total lookup table footprint is:
+
+<span class="fkw">nb_table_cols</span> = union of all
+  table columns across active chips
+
+Each adds <span class="fnum">48</span> bytes to the VK.</pre>
+      </div>
+      <div class="formula-card">
+        <h3>No Concatenation</h3>
+        <pre>Tables of the same width could
+theoretically be concatenated into
+one taller table, reducing the
+column count to 1.
+
+Halo2 does <span class="fkw">not</span> perform this
+optimisation: each table column is
+committed independently, even if
+two tables have identical structure.</pre>
+      </div>
+    </div>
+  </div>
+
+
+</div><!-- /content -->
+
+<footer>
+  <p>
+    <a href="chips.html">← Back to Chips</a> ·
+    <a href="https://iohk.io"><img src="assets/iog-mark.png" alt="Input Output Global" style="height:20px;vertical-align:middle;margin-right:4px;" class="logo-dark" /><img src="assets/iog-mark-light.png" alt="Input Output Global" style="height:20px;vertical-align:middle;margin-right:4px;display:none;" class="logo-light" /></a> ·
+    <a href="https://github.com/input-output-hk/plutus-halo2-verifier-gen">GitHub</a>
+  </p>
+</footer>
+
+<script>
+(function(){
+  function upd(b){
+    var l=document.documentElement.classList.contains('light-mode');
+    b.innerHTML=l?'&#9728;':'&#9790;';
+    b.title=l?'Switch to dark mode':'Switch to light mode';
+  }
+  document.addEventListener('DOMContentLoaded',function(){
+    var b=document.getElementById('theme-toggle');
+    if(b){upd(b);b.addEventListener('click',function(){
+      document.documentElement.classList.toggle('light-mode');
+      localStorage.setItem('theme',document.documentElement.classList.contains('light-mode')?'light':'dark');
+      upd(b);
+    });}
+  });
+})();
+</script>
+</body>
+</html>

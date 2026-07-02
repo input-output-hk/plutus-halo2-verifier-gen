@@ -1,0 +1,26 @@
+<svg width="400" height="300" viewBox="0 0 400 300" xmlns="http://www.w3.org/2000/svg">
+  <title>Halo2 Verifier logo — dark variant</title>
+  <desc>A dashed outer halo ring encircling a hexagon with a checkmark, in light blue tones for dark backgrounds</desc>
+
+  <g transform="translate(200, 135)">
+
+    <!-- rotating halo: dashed ring + orbit dots -->
+    <g>
+      <animateTransform attributeName="transform" type="rotate" from="0" to="360" dur="12s" repeatCount="indefinite"/>
+      <circle cx="0" cy="0" r="72" fill="none" stroke="#ff4444" stroke-width="3" stroke-dasharray="8 4" opacity="0.5"/>
+      <circle cx="72" cy="0" r="4" fill="#ff4444"/>
+      <circle cx="-72" cy="0" r="4" fill="#ff4444" opacity="0.6"/>
+      <circle cx="36" cy="-62" r="3" fill="#ff8888"/>
+      <circle cx="-36" cy="62" r="3" fill="#ff8888"/>
+    </g>
+
+    <!-- static: inner ring, hexagon, checkmark -->
+    <circle cx="0" cy="0" r="54" fill="none" stroke="#ff4444" stroke-width="1.5" opacity="0.9"/>
+    <polygon points="0,-36 31,-18 31,18 0,36 -31,18 -31,-18" fill="#2a0a0a" stroke="#ff4444" stroke-width="1.5"/>
+    <polyline points="-14,2 -4,14 16,-12" fill="none" stroke="#ff8888" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+
+  </g>
+
+  <text x="200" y="240" text-anchor="middle" font-family="sans-serif" font-weight="500" font-size="20" letter-spacing="0.04em" fill="#f5f5f5">Halo2 Verifier</text>
+  <text x="200" y="262" text-anchor="middle" font-family="sans-serif" font-size="12" letter-spacing="0.12em" fill="#ff4444">PLUTUS · CARDANO</text>
+</svg>

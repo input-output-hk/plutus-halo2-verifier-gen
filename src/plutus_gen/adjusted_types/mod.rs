@@ -78,12 +78,8 @@ impl Hashable<CardanoFriendlyBlake2b> for Scalar {
 
         buffer.read_exact(bytes.as_mut())?;
 
-        Option::from(Self::from_repr(bytes)).ok_or_else(|| {
-            io::Error::new(
-                io::ErrorKind::Other,
-                "Invalid BLS12-381 scalar encoding in proof",
-            )
-        })
+        Option::from(Self::from_repr(bytes))
+            .ok_or_else(|| io::Error::other("Invalid BLS12-381 scalar encoding in proof"))
     }
 }
 
@@ -113,11 +109,7 @@ impl Hashable<CardanoFriendlyBlake2b> for G1Projective {
 
         buffer.read_exact(bytes.as_mut())?;
 
-        Option::from(Self::from_bytes(&bytes)).ok_or_else(|| {
-            io::Error::new(
-                io::ErrorKind::Other,
-                "Invalid BLS12-381 point encoding in proof",
-            )
-        })
+        Option::from(Self::from_bytes(&bytes))
+            .ok_or_else(|| io::Error::other("Invalid BLS12-381 point encoding in proof"))
     }
 }

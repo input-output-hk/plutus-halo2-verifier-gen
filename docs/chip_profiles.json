@@ -1,0 +1,536 @@
+{
+  "bls12381": {
+    "deps": [
+      "native"
+    ],
+    "degree": 5,
+    "advice_cols": 15,
+    "fixed_cols": 21,
+    "copy_constraints": 16,
+    "nb_lookup_tables": 0,
+    "gates": 9,
+    "lookups": 1,
+    "trash": 0,
+    "evals": 36,
+    "gate_ops": {
+      "neg": 80,
+      "add": 1431,
+      "sub": 0,
+      "mul": 2349,
+      "from_int": 1349
+    },
+    "lookup_ops": {
+      "neg": 16,
+      "add": 31,
+      "sub": 0,
+      "mul": 31,
+      "from_int": 16
+    },
+    "trash_ops": {
+      "neg": 0,
+      "add": 0,
+      "sub": 0,
+      "mul": 0,
+      "from_int": 0
+    },
+    "commitment_map": [
+      [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      [
+        2,
+        2
+      ],
+      [
+        3,
+        3,
+        3,
+        3,
+        3
+      ],
+      [
+        2,
+        2,
+        2,
+        2
+      ],
+      [
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3
+      ]
+    ],
+    "proof_size": 4048,
+    "vk_size": 1786
+  },
+  "htc": {
+    "deps": [
+      "native",
+      "poseidon",
+      "jubjub"
+    ],
+    "degree": 5,
+    "advice_cols": 9,
+    "fixed_cols": 18,
+    "copy_constraints": 8,
+    "nb_lookup_tables": 0,
+    "gates": 7,
+    "lookups": 0,
+    "trash": 1,
+    "evals": 27,
+    "gate_ops": {
+      "neg": 23,
+      "add": 64,
+      "sub": 0,
+      "mul": 105,
+      "from_int": 19
+    },
+    "lookup_ops": {
+      "neg": 0,
+      "add": 0,
+      "sub": 0,
+      "mul": 0,
+      "from_int": 0
+    },
+    "trash_ops": {
+      "neg": 8,
+      "add": 64,
+      "sub": 0,
+      "mul": 188,
+      "from_int": 49
+    },
+    "commitment_map": [
+      [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      [
+        2,
+        2,
+        2,
+        2
+      ],
+      [
+        3,
+        3
+      ]
+    ],
+    "proof_size": 2496,
+    "vk_size": 1258
+  },
+  "jubjub": {
+    "deps": [
+      "native"
+    ],
+    "degree": 5,
+    "advice_cols": 9,
+    "fixed_cols": 16,
+    "copy_constraints": 8,
+    "nb_lookup_tables": 0,
+    "gates": 6,
+    "lookups": 0,
+    "trash": 0,
+    "evals": 25,
+    "gate_ops": {
+      "neg": 17,
+      "add": 44,
+      "sub": 0,
+      "mul": 61,
+      "from_int": 10
+    },
+    "lookup_ops": {
+      "neg": 0,
+      "add": 0,
+      "sub": 0,
+      "mul": 0,
+      "from_int": 0
+    },
+    "trash_ops": {
+      "neg": 0,
+      "add": 0,
+      "sub": 0,
+      "mul": 0,
+      "from_int": 0
+    },
+    "commitment_map": [
+      [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      [
+        2,
+        2,
+        2,
+        2
+      ],
+      [
+        3,
+        3
+      ]
+    ],
+    "proof_size": 2352,
+    "vk_size": 1162
+  },
+  "native": {
+    "deps": [],
+    "degree": 4,
+    "advice_cols": 5,
+    "fixed_cols": 13,
+    "copy_constraints": 6,
+    "nb_lookup_tables": 0,
+    "gates": 3,
+    "lookups": 0,
+    "trash": 0,
+    "evals": 18,
+    "gate_ops": {
+      "neg": 5,
+      "add": 19,
+      "sub": 0,
+      "mul": 17,
+      "from_int": 0
+    },
+    "lookup_ops": {
+      "neg": 0,
+      "add": 0,
+      "sub": 0,
+      "mul": 0,
+      "from_int": 0
+    },
+    "trash_ops": {
+      "neg": 0,
+      "add": 0,
+      "sub": 0,
+      "mul": 0,
+      "from_int": 0
+    },
+    "commitment_map": [
+      [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      [
+        2,
+        2,
+        2,
+        2
+      ],
+      [
+        3,
+        3
+      ]
+    ],
+    "proof_size": 1824,
+    "vk_size": 922
+  },
+  "poseidon": {
+    "deps": [
+      "native"
+    ],
+    "degree": 5,
+    "advice_cols": 8,
+    "fixed_cols": 15,
+    "copy_constraints": 6,
+    "nb_lookup_tables": 0,
+    "gates": 4,
+    "lookups": 0,
+    "trash": 1,
+    "evals": 23,
+    "gate_ops": {
+      "neg": 11,
+      "add": 39,
+      "sub": 0,
+      "mul": 61,
+      "from_int": 9
+    },
+    "lookup_ops": {
+      "neg": 0,
+      "add": 0,
+      "sub": 0,
+      "mul": 0,
+      "from_int": 0
+    },
+    "trash_ops": {
+      "neg": 8,
+      "add": 64,
+      "sub": 0,
+      "mul": 188,
+      "from_int": 49
+    },
+    "commitment_map": [
+      [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      [
+        2,
+        2,
+        2,
+        2
+      ],
+      [
+        3
+      ]
+    ],
+    "proof_size": 2112,
+    "vk_size": 1018
+  },
+  "secp256k1": {
+    "deps": [
+      "native"
+    ],
+    "degree": 5,
+    "advice_cols": 9,
+    "fixed_cols": 23,
+    "copy_constraints": 10,
+    "nb_lookup_tables": 0,
+    "gates": 11,
+    "lookups": 1,
+    "trash": 0,
+    "evals": 32,
+    "gate_ops": {
+      "neg": 67,
+      "add": 476,
+      "sub": 0,
+      "mul": 641,
+      "from_int": 403
+    },
+    "lookup_ops": {
+      "neg": 10,
+      "add": 19,
+      "sub": 0,
+      "mul": 19,
+      "from_int": 10
+    },
+    "trash_ops": {
+      "neg": 0,
+      "add": 0,
+      "sub": 0,
+      "mul": 0,
+      "from_int": 0
+    },
+    "commitment_map": [
+      [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      [
+        2,
+        2
+      ],
+      [
+        3,
+        3,
+        3
+      ],
+      [
+        2,
+        2
+      ],
+      [
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3
+      ]
+    ],
+    "proof_size": 3152,
+    "vk_size": 1594
+  }
+}

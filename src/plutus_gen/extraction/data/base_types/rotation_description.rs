@@ -1,6 +1,7 @@
 //! RotationDescription type and associated functions
 
 use serde::{Deserialize, Serialize};
+use std::fmt;
 
 // TODO handle cases with custom gates that have more rotations then those 4?
 
@@ -19,27 +20,28 @@ pub enum RotationDescription {
     #[default]
     Current,
     Next,
+    Custom(i32),
+}
+
+impl fmt::Display for RotationDescription {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            RotationDescription::Last => write!(f, "x_last"),
+            RotationDescription::Previous => write!(f, "x_prev"),
+            RotationDescription::Current => write!(f, "x_current"),
+            RotationDescription::Next => write!(f, "x_next"),
+            RotationDescription::Custom(n) => write!(f, "x_rot_{}", n),
+        }
+    }
 }
 
 impl RotationDescription {
-    pub(crate) fn to_string(&self) -> String {
-        match self {
-            RotationDescription::Last => "x_last".to_string(),
-            RotationDescription::Previous => "x_prev".to_string(),
-            RotationDescription::Current => "x_current".to_string(),
-            RotationDescription::Next => "x_next".to_string(),
-        }
-    }
-
     pub(crate) fn from_i32(input: i32) -> RotationDescription {
         match input {
             -1 => RotationDescription::Previous,
             0 => RotationDescription::Current,
             1 => RotationDescription::Next,
-            _ => panic!(
-                "unknown number {} for rotation, only -1 0 and 1 are supported",
-                input
-            ),
+            n => RotationDescription::Custom(n),
         }
     }
 }

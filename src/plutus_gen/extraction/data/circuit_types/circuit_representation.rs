@@ -75,13 +75,13 @@ impl<PCS: ExtractPCS> CircuitRepresentation<PCS> {
     }
 
     /// Extract the permutation evaluation step to the circuit representation.
-    pub(crate) fn extract_permutation_eval(&mut self, subscript: char) -> () {
+    pub(crate) fn extract_permutation_eval(&mut self, subscript: char) {
         self.proof_extraction_steps
             .push(ProofExtractionSteps::PermutationEval(subscript))
     }
 
     /// Extract most proof steps to the circuit representation.
-    pub(crate) fn extract_step(&mut self, step: ProofExtractionSteps) -> () {
+    pub(crate) fn extract_step(&mut self, step: ProofExtractionSteps) {
         match step {
             ProofExtractionSteps::InstanceEval => self
                 .proof_extraction_steps

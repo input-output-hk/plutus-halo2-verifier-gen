@@ -79,7 +79,7 @@ where
 
 pub(crate) fn evaluate_permutations_terms<PCS>(
     circuit_repr: &mut CircuitRepresentation<PCS>,
-    sets: &Vec<char>,
+    sets: &[char],
 ) where
     PCS: ExtractPCS,
 {
@@ -146,7 +146,7 @@ pub(crate) fn permutation_terms_both<PCS>(
     circuit_repr: &mut CircuitRepresentation<PCS>,
     vk: &VerifyingKey<Scalar, PCS>,
     chunk_len: usize,
-    sets: &Vec<char>,
+    sets: &[char],
     nb_permutation_common: usize,
 ) where
     PCS: PolynomialCommitmentScheme<Scalar, Commitment = G1Projective> + ExtractPCS,

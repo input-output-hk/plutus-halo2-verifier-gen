@@ -15,13 +15,17 @@ use handlebars::{Handlebars, RenderError};
 use itertools::Itertools;
 use std::{collections::HashMap, fs::File, iter::once, path::Path};
 
+/// A valid proof, an invalid proof, the public inputs, and the optional committed instance
+/// commitment, used to generate a self-test in the emitted Aiken verifier.
+pub(crate) type AikenTestData = (Vec<u8>, Vec<u8>, Vec<Scalar>, Option<G1Projective>);
+
 pub fn emit_verifier_code<PCS>(
     template_file: &Path, // aiken mustashe template
     aiken_file: &Path,    // generated aiken file, output
     profiler_template: Option<&Path>,
     validator_template: Option<&Path>,
     circuit: &CircuitRepresentation<PCS>,
-    test_data: Option<(Vec<u8>, Vec<u8>, Vec<Scalar>, Option<G1Projective>)>,
+    test_data: Option<AikenTestData>,
 ) -> Result<String, RenderError>
 where
     PCS: ExtractPCS,
@@ -37,8 +41,8 @@ where
 
     // Handling committed instances
     let (ci_names, absorb_cis) = if committed_instances_supported && nb_committed_instances > 0 {
-        let ci_names = format!("ci_1: ByteArray") + if nb_public_inputs > 0 { ", " } else { "" };
-        let absorb_cis = format!("    let transcript = common_g1(ci_1, transcript)\n");
+        let ci_names = "ci_1: ByteArray".to_string() + if nb_public_inputs > 0 { ", " } else { "" };
+        let absorb_cis = "    let transcript = common_g1(ci_1, transcript)\n".to_string();
         (ci_names, absorb_cis)
     } else {
         (String::new(), String::new())
@@ -61,12 +65,9 @@ where
         );
 
         // Absorbing number and values of public inputs in transcript
-        let nb_public_inputs = format!(
-            "    let inputs_count = from_int({})\n",
-            nb_public_inputs.to_string()
-        );
+        let nb_public_inputs = format!("    let inputs_count = from_int({})\n", nb_public_inputs);
         let number_in_transcript =
-            format!("    let transcript = common_scalar(inputs_count, transcript)\n");
+            "    let transcript = common_scalar(inputs_count, transcript)\n".to_string();
 
         let public_inputs = public_inputs_names
             .iter()
@@ -121,7 +122,10 @@ where
                 .join(""),
             ProofExtractionSteps::XCoordinate => {
                 let squeezing_x = "    let (x, transcript) = squeeze_challenge(transcript)\n".to_string();
-                let scaling_x = format!("    let xn_minus_one = scale(x, {}-1)\n",circuit.proof_instantiation_data.n_coefficient.to_string()).to_string();
+                let scaling_x = format!(
+                    "    let xn_minus_one = scale(x, {}-1)\n",
+                    circuit.proof_instantiation_data.n_coefficient
+                );
                 let scaling_x_again = "    let xn = mul(xn_minus_one, x)\n".to_string();
                 let mut to_write_down = String::with_capacity(squeezing_x.len() +  scaling_x.len() + scaling_x_again.len());
                 to_write_down.push_str(&squeezing_x);
@@ -195,7 +199,7 @@ where
             ProofExtractionSteps::CommittedInstanceEval => section.enumerate().map(|(number, _ci)| {
                 match (committed_instances_supported,nb_committed_instances) {
                     (false, _) => panic!("This case should never happen, as we should not have any CommittedInstanceEval"),
-                    (true, 0) => {assert!(number == 0); format!("\n    let instance_eval_1 = from_int(0)\n")},
+                    (true, 0) => {assert!(number == 0); "\n    let instance_eval_1 = from_int(0)\n".to_string()},
                     (true, _) => format!("    let (instance_eval_{}, transcript) = read_scalar(transcript)\n", number + 1)
                 }
             }).join(""),
@@ -205,7 +209,7 @@ where
                     format!("    let instance_eval_{} = from_int(0)\n", number + offset + 1)
                 } else {
                 let rotations = format!("\n    let rotations_for_instances = rotate_omegas(omega, omega_inv, 0, {})\n", nb_public_inputs);
-                let lagrange = format!("    let lagrange_polynomial_instances = lagrange_polynomial_basis( x, xn, barycentric_weight, rotations_for_instances)\n");
+                let lagrange = "    let lagrange_polynomial_instances = lagrange_polynomial_basis( x, xn, barycentric_weight, rotations_for_instances)\n".to_string();
                 let instance = format!("    let instance_eval_{} = inner_product(lagrange_polynomial_instances, [{}])\n\n", number + offset + 1, public_inputs_lagrange);
                 let mut all_strings_instance = String::with_capacity(
                     rotations.len() + lagrange.len() + instance.len(),
@@ -570,7 +574,7 @@ where
         data.insert("H_COMMITMENTS".to_string(), h_commitments);
     }
 
-    let (unique_grouped_points, commitment_data) = PCS::precompute_intermediate_sets(&circuit);
+    let (unique_grouped_points, commitment_data) = PCS::precompute_intermediate_sets(circuit);
 
     // Adding PCS related data and commitments.
     if PCS::pcs_type() == PCSType::Halo2MultiOpen {
@@ -595,7 +599,7 @@ where
             (point_sets_indexes.len() + 1).to_string(),
         );
 
-        let q_evaluations = PCS::pcs_data_plinth(&circuit);
+        let q_evaluations = PCS::pcs_data_plinth(circuit);
         data.insert("HALO2_Q_EVALS_FROM_PROOF".to_string(), q_evaluations);
 
         // Pre-sort commitment data by point set index to save on this inside the contract
@@ -692,13 +696,13 @@ where
             let acc_left : String = {
                 let serialized_x = format!("    let acc_left_x_int = (1 + {}) % {base_field_modulo}\n", (0..7).fold("0".to_string(), |acc, i| {
                         format!("(({} * {batching_coeff}) + to_int(i_{}))", acc, nb_public_inputs - fixed_bases_len - 3*7 - 2 - i)
-                    }).to_string());
+                    }));
 
                 let serialized_y = format!("    let acc_left_y_int = (1 + {}) % {base_field_modulo}\n", (0..7).fold("0".to_string(), |acc, i| {
                         format!("(({} * {batching_coeff}) + to_int(i_{}))", acc, nb_public_inputs - fixed_bases_len - 2*7 - 2 - i)
-                    }).to_string());
+                    }));
 
-                let result = format!("    let acc_left_unscaled = g1_from_coords(acc_left_x_int, acc_left_y_int)\n").to_string();
+                let result = "    let acc_left_unscaled = g1_from_coords(acc_left_x_int, acc_left_y_int)\n".to_string();
                 let result2 = format!("    let acc_left = scaleG1(acc_left_unscaled, i_{})\n", nb_public_inputs - fixed_bases_len - 2*7 - 1).to_string();
 
                [serialized_x, serialized_y, result, result2].iter().join("")
@@ -708,13 +712,13 @@ where
             let acc_right : String = {
                 let serialized_x = format!("\n    let acc_right_x_int = (1 + {}) % {base_field_modulo}\n", (0..7).fold("0".to_string(), |acc, i| {
                         format!("(({} * {batching_coeff}) + to_int(i_{}))", acc, nb_public_inputs - fixed_bases_len - 7 - 1 - i)
-                    }).to_string());
+                    }));
 
                 let serialized_y = format!("    let acc_right_y_int = (1 + {}) % {base_field_modulo}\n", (0..7).fold("0".to_string(), |acc, i| {
                         format!("(({} * {batching_coeff}) + to_int(i_{}))", acc, nb_public_inputs - fixed_bases_len - 1 - i)
-                    }).to_string());
+                    }));
 
-                let result = format!("    let acc_right_unscaled = g1_from_coords(acc_right_x_int, acc_right_y_int)\n").to_string();
+                let result = "    let acc_right_unscaled = g1_from_coords(acc_right_x_int, acc_right_y_int)\n".to_string();
                 let result2 = format!("    let acc_right = scaleG1(acc_right_unscaled, i_{})\n", nb_public_inputs - fixed_bases_len).to_string();
 
                [serialized_x, serialized_y, result, result2].iter().join("")
@@ -725,16 +729,16 @@ where
                 format!("addG1({}, scaleG1(decompress({}), i_{}))", acc, name.clone(), nb_public_inputs - fixed_bases_len + 1 + i )
             })) } else { "".to_string() };
 
-            let acc_right_final : String = if fixed_bases_len > 0 {format!("    let acc_right_final = addG1(acc_right, acc_fixed)\n")} else {
-                format!("    let acc_right_final = acc_right\n")
+            let acc_right_final : String = if fixed_bases_len > 0 {"    let acc_right_final = addG1(acc_right, acc_fixed)\n".to_string()} else {
+                "    let acc_right_final = acc_right\n".to_string()
             };
 
-            let challenge_bytes = format!("\n    let challenge_bytes = blake2b_256(bytearray.concat(bytearray.concat(bytearray.concat(compress(el), compress(er)), compress(acc_left)), compress(acc_right_final)))\n");
+            let challenge_bytes = "\n    let challenge_bytes = blake2b_256(bytearray.concat(bytearray.concat(bytearray.concat(compress(el), compress(er)), compress(acc_left)), compress(acc_right_final)))\n".to_string();
 
-            let challenge = format!("    let challenge = from_int(bytearray.to_int_little_endian(challenge_bytes) % field_prime)\n");
+            let challenge = "    let challenge = from_int(bytearray.to_int_little_endian(challenge_bytes) % field_prime)\n".to_string();
 
-            let updated_el = format!("\n    let el = addG1(el, scaleG1(acc_left, challenge))\n");
-            let updated_er = format!("    let er = addG1(er, scaleG1(acc_right_final, challenge))\n");
+            let updated_el = "\n    let el = addG1(el, scaleG1(acc_left, challenge))\n".to_string();
+            let updated_er = "    let er = addG1(er, scaleG1(acc_right_final, challenge))\n".to_string();
 
             [check_vk,acc_left, acc_right, acc_fixed, acc_right_final, challenge_bytes, challenge, updated_el, updated_er].iter().join("")
         });
@@ -928,7 +932,7 @@ where
                 }
                 let mut to_write_down = String::with_capacity(cins.len() + suffix.len());
                 to_write_down.push_str(&cins);
-                to_write_down.push_str(&suffix);
+                to_write_down.push_str(suffix);
                 to_write_down
             });
 

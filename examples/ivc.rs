@@ -26,7 +26,8 @@ use midnight_proofs::{
 };
 
 use plutus_halo2_verifier_gen::plutus_gen::{
-    CardanoFriendlyBlake2b, generate_aiken_verifier, generate_plinth_verifier,
+    CardanoFriendlyBlake2b, CircuitConfig, SupportedChips, cost_evaluation,
+    generate_aiken_verifier, generate_plinth_verifier,
 };
 use plutus_halo2_verifier_gen::{
     circuits::ivc_circuit::{IvcCircuit, configure_ivc_circuit, from_ivc, new_ivc},
@@ -242,6 +243,17 @@ fn main() -> Result<()> {
         state += F::ONE;
         acc = accumulated;
     }
+
+    let chips = &[];
+    cost_evaluation(
+        &kzg_params,
+        &vk,
+        Some(Vec::new()),
+        &instance,
+        Some(C::identity()),
+        chips,
+        CircuitConfig::default(),
+    )?;
 
     let mut invalid_proof = prev_proof.clone();
     // index points to bytes of first scalar that is part of the proof
