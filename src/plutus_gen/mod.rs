@@ -3,8 +3,6 @@
 #[cfg(not(target_arch = "wasm32"))]
 pub(crate) mod adjusted_types;
 #[cfg(not(target_arch = "wasm32"))]
-pub mod cli;
-#[cfg(not(target_arch = "wasm32"))]
 pub(crate) mod emitters;
 #[cfg(not(target_arch = "wasm32"))]
 pub(crate) mod extraction;
@@ -15,8 +13,6 @@ pub(crate) mod stats;
 #[cfg(not(target_arch = "wasm32"))]
 pub use adjusted_types::CardanoFriendlyBlake2b;
 use anyhow::{Context, Result};
-#[cfg(not(target_arch = "wasm32"))]
-pub use cli::EstimateCliArguments;
 #[cfg(not(target_arch = "wasm32"))]
 pub use emitters::{
     aiken::{emit_verifier_code as emit_verifier_aiken, emit_vk_code as emit_vk_aiken},
@@ -38,6 +34,8 @@ use midnight_proofs::{
 pub use proof_serialization::{
     export_committed_inputs, export_proof, export_public_inputs, serialize_proof,
 };
+#[cfg(not(target_arch = "wasm32"))]
+pub use stats::EstimateCliArguments;
 #[cfg(not(target_arch = "wasm32"))]
 pub use stats::compute_verifier_code;
 use stats::pcs::H2MO;
