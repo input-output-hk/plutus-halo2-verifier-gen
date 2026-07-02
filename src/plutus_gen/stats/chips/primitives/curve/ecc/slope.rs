@@ -18,8 +18,8 @@ impl SlopeChip {
         let bs = Params::base_powers();
         let bs2 = Params::double_base_powers();
 
-        let limbs_max = vec![&base - BigInt::one(); nb_limbs as usize];
-        let limbs_max2 = vec![(&base - BigInt::one()).pow(2); (nb_limbs * nb_limbs) as usize];
+        let limbs_max = vec![&base - BigInt::one(); nb_limbs];
+        let limbs_max2 = vec![(&base - BigInt::one()).pow(2); nb_limbs * nb_limbs];
         let max_sum_px = sum_bigints(&bs, &limbs_max);
         let max_sum_py = max_sum_px.clone();
         let max_sum_qx = max_sum_px.clone();
@@ -56,8 +56,7 @@ impl SlopeChip {
 
 impl<P: EccEmulationParams> EccOpChip<P> for SlopeChip {
     fn advice() -> Vec<Column> {
-        let nb_columns =
-            P::NB_LIMBS as usize + std::cmp::max(P::NB_LIMBS as usize, 2 + P::moduli().len()) + 1;
+        let nb_columns = P::NB_LIMBS + std::cmp::max(P::NB_LIMBS, 2 + P::moduli().len()) + 1;
         let mut columns: Vec<Column> = (0..nb_columns).map(|_| Column::empty_advice()).collect();
 
         let x_cols = 0..P::NB_LIMBS;
@@ -140,8 +139,8 @@ impl<P: EccEmulationParams> EccOpChip<P> for SlopeChip {
             .zip(vs_bounds)
             .for_each(|(mj, bounds_j)| {
                 let (lj_min, _vj_max) = bounds_j;
-                let k_min_m_urem_mj = urem(&(&k_min * &m), &mj);
-                let m_urem_mj = urem(&m, &mj);
+                let k_min_m_urem_mj = urem(&(&k_min * &m), mj);
+                let m_urem_mj = urem(&m, mj);
 
                 let bij_powers_mj: Vec<BigInt> = dp.iter().map(|b| b.rem(mj)).collect();
                 let bi_powers_mj: Vec<BigInt> = bp.iter().map(|b| b.rem(mj)).collect();

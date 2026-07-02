@@ -47,8 +47,8 @@ pub struct ChipProfile {
 }
 
 pub fn chip_profile<PCS: PcsEstimate>(chip: SupportedChips) -> ChipProfile {
-    let chips = flatten_chips(&[chip.clone()]);
-    let tables = flatten_tables(&[chip.clone()]);
+    let chips = flatten_chips(std::slice::from_ref(&chip));
+    let tables = flatten_tables(std::slice::from_ref(&chip));
 
     let mut deps = chips.clone();
     deps.remove(&chip);
@@ -86,16 +86,17 @@ pub fn chip_profile<PCS: PcsEstimate>(chip: SupportedChips) -> ChipProfile {
         .enumerate()
         .for_each(|(i, _)| {
             permutation_queries.push(if i == 0 {
-                perm_rotations[0].clone()
+                perm_rotations[0]
             } else {
-                perm_rotations[1].clone()
+                perm_rotations[1]
             });
         });
 
     // Creating vanishing queries
-    let mut vanishing_queries = Vec::new();
-    vanishing_queries.push(RotationSet::curr()); // vanishing_g
-    vanishing_queries.push(RotationSet::curr()); // vanishing_rand
+    let vanishing_queries = vec![
+        RotationSet::curr(), // vanishing_g
+        RotationSet::curr(), // vanishing_rand
+    ];
 
     // Creating lookup queries
     let mut lookup_queries = Vec::new();

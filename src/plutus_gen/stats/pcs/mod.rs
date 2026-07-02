@@ -43,9 +43,9 @@ pub trait PcsEstimate {
     /// Accounts for the scalar multiplications needed to compute the opening.
     fn compute_opening(
         stats: &mut CircuitStatistics,
-        halo2_commitment_data: &Vec<Vec<usize>>,
+        halo2_commitment_data: &[Vec<usize>],
         max_commitments_per_set: usize,
-        kzg_halo2_point_sets: &Vec<usize>,
+        kzg_halo2_point_sets: &[usize],
         nb_point_sets: usize,
     );
 

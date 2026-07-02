@@ -211,7 +211,7 @@ fn compute_q_evals(stats: &mut CircuitStatistics, halo2_commitment_data: &Vec<Ve
     }
 }
 
-fn compute_f_eval(stats: &mut CircuitStatistics, kzg_halo2_point_sets: &Vec<usize>) {
+fn compute_f_eval(stats: &mut CircuitStatistics, kzg_halo2_point_sets: &[usize]) {
     // Before CIP:
     {
         // step 1: compute r_evals and demonimator for all point sets

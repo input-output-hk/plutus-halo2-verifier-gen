@@ -18,9 +18,9 @@ mod kzg_impl {
         }
         fn compute_opening(
             stats: &mut CircuitStatistics,
-            halo2_commitment_data: &Vec<Vec<usize>>,
+            halo2_commitment_data: &[Vec<usize>],
             max_commitments_per_set: usize,
-            kzg_halo2_point_sets: &Vec<usize>,
+            kzg_halo2_point_sets: &[usize],
             nb_point_sets: usize,
         ) {
             H2MO::compute_opening(
@@ -76,9 +76,9 @@ impl PcsEstimate for H2MO {
 
     fn compute_opening(
         stats: &mut CircuitStatistics,
-        halo2_commitment_data: &Vec<Vec<usize>>,
+        halo2_commitment_data: &[Vec<usize>],
         max_commitments_per_set: usize,
-        kzg_halo2_point_sets: &Vec<usize>,
+        kzg_halo2_point_sets: &[usize],
         nb_point_sets: usize,
     ) {
         // Compute commitment_data
@@ -92,10 +92,10 @@ impl PcsEstimate for H2MO {
         (0..nb_point_sets + 1).for_each(|_| stats.mul_scalar()); // powers of x4
 
         // Compute Q evaluations and final commitment
-        compute_q_evals(stats, &halo2_commitment_data);
+        compute_q_evals(stats, halo2_commitment_data);
 
         // Compute f evaluation
-        compute_f_eval(stats, &kzg_halo2_point_sets);
+        compute_f_eval(stats, kzg_halo2_point_sets);
 
         // Compute v evaluation
         compute_v_eval(stats, nb_point_sets);
@@ -119,11 +119,11 @@ impl PcsEstimate for H2MO {
     fn nb_evaluations(nb_point_sets: usize) -> usize {
         // Nb of point sets, at least {(current), (current, next), (current, next, last)}
         // q_eval_on_x3_{}
-        usize::max(nb_point_sets, 3) as usize
+        usize::max(nb_point_sets, 3)
     }
 }
 
-fn compute_q_evals(stats: &mut CircuitStatistics, halo2_commitment_data: &Vec<Vec<usize>>) {
+fn compute_q_evals(stats: &mut CircuitStatistics, halo2_commitment_data: &[Vec<usize>]) {
     let mut is_first = true;
     for commitment_set in halo2_commitment_data {
         stats.msm(commitment_set.len());
@@ -148,7 +148,7 @@ fn compute_q_evals(stats: &mut CircuitStatistics, halo2_commitment_data: &Vec<Ve
     }
 }
 
-fn compute_f_eval(stats: &mut CircuitStatistics, kzg_halo2_point_sets: &Vec<usize>) {
+fn compute_f_eval(stats: &mut CircuitStatistics, kzg_halo2_point_sets: &[usize]) {
     // TODO: update current code when CIP 109 is merged
     // step 1: compute r_evals and demonimator for all point sets
     kzg_halo2_point_sets.iter().for_each(|nb_rot| {

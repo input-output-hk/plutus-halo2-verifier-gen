@@ -22,6 +22,7 @@ pub(crate) fn absorb_vk_and_inputs(
 
 /// Extract non-PCS commitments and evaluations from the transcript.
 /// Also generates the instance evaluations from relevant elemnets.
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn process_pes(
     stats: &mut CircuitStatistics,
     nb_advice: usize,

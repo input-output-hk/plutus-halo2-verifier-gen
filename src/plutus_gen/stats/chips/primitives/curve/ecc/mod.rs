@@ -32,8 +32,7 @@ impl<P: EccEmulationParams> EccChipTrait<P> for EccChip {}
 
 pub(crate) trait EccChipTrait<P: EccEmulationParams>: FieldChipTrait<P> {
     fn advice() -> Vec<Column> {
-        let ecc_len =
-            P::NB_LIMBS as usize + std::cmp::max(P::NB_LIMBS as usize, 2 + P::moduli().len()) + 1;
+        let ecc_len = P::NB_LIMBS + std::cmp::max(P::NB_LIMBS, 2 + P::moduli().len()) + 1;
         let lambda2_advices = <Lambda2Chip as EccOpChip<P>>::advice();
         let oncurve_advices = <OnCurveChip as EccOpChip<P>>::advice();
         let slope_advices = <SlopeChip as EccOpChip<P>>::advice();

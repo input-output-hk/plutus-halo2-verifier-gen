@@ -16,10 +16,11 @@ use crate::plutus_gen::stats::{
 /// - `nb_trashcans` is the number of trashcan arguments.
 /// - `circuit_degree` is the circuit degree.
 /// - `nb_copy_constrained` is the number of columns that are copy-constrained and thus,
-///  participate in the permutation check.
+///   participate in the permutation check.
 /// - `nb_evaluations` is the total number of evaluations.
 /// - `nb_point_sets` is the number of distinct rotation-point groups in the multi-open PCS
-/// argument; pass the result of `estimate_nb_point_sets` or supply a known value.
+///   argument; pass the result of `estimate_nb_point_sets` or supply a known value.
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn estimate_proof_size<PCS: PcsEstimate>(
     nb_committed_instances: usize,
     nb_advice: usize,

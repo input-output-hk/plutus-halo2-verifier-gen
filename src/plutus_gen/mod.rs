@@ -58,7 +58,7 @@ pub fn chip_profile(chip: SupportedChips) -> ChipProfile {
 /// * `params` - Parameters for the KZG polynomial commitment scheme
 /// * `vk` - Verifying key for the circuit
 /// * `recursion_vks` - Option set to Some if we are doing a recusion,
-/// the vector lists any other vks used in the application inside the recursion.
+///   the vector lists any other vks used in the application inside the recursion.
 /// * `instance` - Public inputs to the circuit
 ///
 /// # Returns
@@ -163,7 +163,7 @@ where
 /// * `params` - Parameters for the KZG polynomial commitment scheme
 /// * `vk` - Verifying key for the circuit
 /// * `recursion_vks` - Option set to Some if we are doing a recusion,
-/// the vector lists any other vks used in the application inside the recursion.
+///   the vector lists any other vks used in the application inside the recursion.
 /// * `instance` - Public inputs to the circuit
 ///
 /// # Returns

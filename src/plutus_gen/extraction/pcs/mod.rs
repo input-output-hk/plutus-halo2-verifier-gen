@@ -45,15 +45,13 @@ pub trait ExtractPCS {
         let ordered_unique_commitments: Vec<Commitments> =
             ordered_unique_commitments.cloned().unique().collect();
 
-        let commitment_map: HashMap<Commitments, Vec<&Query>> = queries
-            .iter()
-            .flatten()
-            .into_group_map_by(|e| e.commitment.clone());
+        let commitment_map: HashMap<Commitments, Vec<&Query>> =
+            queries.iter().flatten().into_group_map_by(|e| e.commitment);
 
         let point_sets_map: HashMap<Commitments, Vec<RotationDescription>> = commitment_map
             .iter()
             .map(|(k, v)| {
-                (k.clone(), {
+                (*k, {
                     let mut to_sort = v
                         .iter()
                         .map(|e| &e.point)
@@ -93,10 +91,8 @@ pub trait ExtractPCS {
             let query = commitment_map
                 .get(commitment)
                 .unwrap_or_else(|| panic!("queries for commitment {:?} not found", commitment));
-            let mut paired: Vec<(RotationDescription, Evaluations)> = query
-                .iter()
-                .map(|q| (q.point.clone(), q.evaluation.clone()))
-                .collect();
+            let mut paired: Vec<(RotationDescription, Evaluations)> =
+                query.iter().map(|q| (q.point, q.evaluation)).collect();
             paired.sort_by(|a: &(RotationDescription, Evaluations), b| a.0.cmp(&b.0));
             let (points, evaluations): (Vec<RotationDescription>, Vec<Evaluations>) =
                 paired.into_iter().unzip();
@@ -106,7 +102,7 @@ pub trait ExtractPCS {
                 .unwrap_or_else(|| panic!("point set for commitment {:?} not found", commitment));
 
             commitment_data.push(CommitmentData {
-                commitment: (*commitment).clone(),
+                commitment: *commitment,
                 point_set_index: *point_set_idx,
                 evaluations,
                 points,

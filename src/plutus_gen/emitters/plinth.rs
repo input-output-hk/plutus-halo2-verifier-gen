@@ -12,7 +12,7 @@ use handlebars::{Handlebars, RenderError};
 use itertools::Itertools;
 use std::{collections::HashMap, fs::File, path::Path};
 
-fn capitalize_first(s: &String) -> String {
+fn capitalize_first(s: &str) -> String {
     let mut chars = s.chars();
     match chars.next() {
         None => String::new(),
@@ -129,7 +129,7 @@ where
                 let squeezing_x = "  !x <- M.squeezeChallenge\n".to_string();
                 let scaling_x = format!(
                     "  let !xn_minus_one = powMod x ({}-1)\n",
-                    circuit.proof_instantiation_data.n_coefficient.to_string()
+                    circuit.proof_instantiation_data.n_coefficient
                 )
                 .to_string();
                 let scaling_x_again = "  let !xn = xn_minus_one * x\n".to_string();
@@ -207,7 +207,7 @@ where
             ProofExtractionSteps::CommittedInstanceEval => section.enumerate().map(|(number, _ci)| {
                 match (committed_instances_supported,nb_committed_instances) {
                     (false, _) => panic!("This case should never happen, as we should not have any CommittedInstanceEval"),
-                    (true, 0) => {assert!(number == 0); format!("\n  let !instanceEval1 = scalarZero\n")},
+                    (true, 0) => {assert!(number == 0); "\n  let !instanceEval1 = scalarZero\n".to_string()},
                     (true, _) => format!("  !instanceEval{} <-  M.readScalar\n", number + 1)
                 }
             }).join(""),
@@ -217,7 +217,7 @@ where
                     format!("  let !instanceEval{} = scalarZero\n", number + offset + 1)
                 } else {
                 let public_inputs_lagrange = (1..=nb_public_inputs).map(|n| format!("i{}", n)).join(", ");
-                let lagrange = format!("  let !lagrange_polynomial_instances = lagrangePolynomialBasis x xn barycentricWeight rotations_for_instances\n");
+                let lagrange = "  let !lagrange_polynomial_instances = lagrangePolynomialBasis x xn barycentricWeight rotations_for_instances\n".to_string();
                 let instance = format!("  let !instanceEval{} = innerProduct lagrange_polynomial_instances  [{}]\n\n", number + offset + 1, public_inputs_lagrange);
                 let mut all_strings_instance = String::with_capacity(
                     lagrange.len() + instance.len(),
@@ -635,7 +635,7 @@ where
             (point_sets_indexes.len() + 1).to_string(),
         );
 
-        let q_evaluations = PCS::pcs_data_plinth(&circuit);
+        let q_evaluations = PCS::pcs_data_plinth(circuit);
         data.insert("Q_EVALS_FROM_PROOF".to_string(), q_evaluations);
     }
 
@@ -662,7 +662,7 @@ where
     data.insert("RECURSION_COMMITMENT_LIFTS".to_string(), recursion_lift);
 
     let (recursion_map, recursion_el, recursion_er, recursion_vks) = circuit.proof_instantiation_data.recursion_vks.clone().map_or((String::new(),String::new(),String::new(),String::new()), |recursion_vks| {
-            let check_self_vk = format!("      !b = i1 == VKConstants.transcriptRepr");
+            let check_self_vk = "      !b = i1 == VKConstants.transcriptRepr".to_string();
             let check_inner_vks = recursion_vks.iter().enumerate().map(|(i, vki)| {
                 format!(" && (i{} == VKConstants.transcriptRepr{})", 2+i, capitalize_first(&vki.name))
             } ).join("");
@@ -718,11 +718,11 @@ where
             let acc_left : String = {
                 let serialized_x = format!("      !acc_left_x = mkFp ((1 + {}) `modulo` bls12_381_base_prime)\n", (0..7).fold("0".to_string(), |acc, i| {
                         format!("({} * {batching_coeff} + (unScalar i{}))", acc, nb_public_inputs - fixed_bases_len - 3*7 - 2 - i)
-                    }).to_string());
+                    }));
 
                 let serialized_y = format!("      !acc_left_y = mkFp ((1 + {}) `modulo` bls12_381_base_prime)\n", (0..7).fold("0".to_string(), |acc, i| {
                         format!("({} * {batching_coeff} + (unScalar i{}))", acc, nb_public_inputs - fixed_bases_len - 2*7 - 2 - i)
-                    }).to_string());
+                    }));
 
                 let uncompressed  = "      !uncompressed_acc_left = BlsUtils.fromCoordsG1Point(acc_left_x, acc_left_y) \n".to_string();
 
@@ -734,11 +734,11 @@ where
             let acc_right : String = {
                 let serialized_x = format!("      !acc_right_x_int = mkFp ((1 + {}) `modulo` bls12_381_base_prime)\n", (0..7).fold("0".to_string(), |acc, i| {
                         format!("({} * {batching_coeff} + (unScalar i{}))", acc, nb_public_inputs - fixed_bases_len - 7 - 1 - i)
-                    }).to_string());
+                    }));
 
                 let serialized_y = format!("      !acc_right_y_int = mkFp ((1 + {}) `modulo` bls12_381_base_prime)\n", (0..7).fold("0".to_string(), |acc, i| {
                         format!("({} * {batching_coeff} + (unScalar i{}))", acc, nb_public_inputs - fixed_bases_len - 1 - i)
-                    }).to_string());
+                    }));
 
                 let uncompressed = "      !uncompressed_acc_right = BlsUtils.fromCoordsG1Point(acc_right_x_int, acc_right_y_int) \n".to_string();
 
@@ -753,15 +753,15 @@ where
                 format!("({} + (scale i{} {}))", acc, nb_public_inputs - fixed_bases_len + 1 + i, name )
             })) } else { "".to_string() };
 
-            let acc_right_final : String = if fixed_bases_len > 0 {format!("      !acc_right_final = acc_right + acc_fixed\n")} else {
-                format!("      !acc_right_final = acc_right\n")
+            let acc_right_final : String = if fixed_bases_len > 0 {"      !acc_right_final = acc_right + acc_fixed\n".to_string()} else {
+                "      !acc_right_final = acc_right\n".to_string()
             };
 
-            let challenge_bytes = format!("      !challenge_bytes =  blake2b_256 ((bls12_381_G1_compress el) <> (bls12_381_G1_compress er) <> (bls12_381_G1_compress acc_left) <> (bls12_381_G1_compress acc_right_final))\n");
-            let challenge = format!("      !challenge =  mkScalar((byteStringToInteger LittleEndian challenge_bytes) `modulo` bls12_381_field_prime)\n");
+            let challenge_bytes = "      !challenge_bytes =  blake2b_256 ((bls12_381_G1_compress el) <> (bls12_381_G1_compress er) <> (bls12_381_G1_compress acc_left) <> (bls12_381_G1_compress acc_right_final))\n".to_string();
+            let challenge = "      !challenge =  mkScalar((byteStringToInteger LittleEndian challenge_bytes) `modulo` bls12_381_field_prime)\n".to_string();
 
-            let updated_el = format!(" + (scale challenge acc_left)");
-            let updated_er = format!(" + (scale challenge acc_right_final)");
+            let updated_el = " + (scale challenge acc_left)".to_string();
+            let updated_er = " + (scale challenge acc_right_final)".to_string();
 
             ([check_vk, neg_g1, acc_left, acc_right, acc_fixed, acc_right_final, challenge_bytes, challenge].iter().join(""), updated_el, updated_er, final_check_vks)
         });
@@ -1009,7 +1009,7 @@ where
     data.insert("PERMUTATION_COMMITMENT_G1".to_string(), assignment);
 
     let (points, exports, assignment, reprs) = circuit.proof_instantiation_data.recursion_vks.clone().map_or((String::new(), String::new(), String::new(), String::new()), |recursion_vks| {
-        if recursion_vks.len() == 0 {
+        if recursion_vks.is_empty() {
             return (String::new(), String::new(), String::new(), String::new());
         }
 

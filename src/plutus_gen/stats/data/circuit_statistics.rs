@@ -403,6 +403,8 @@ impl CircuitStatistics {
         self.pow_scalar += 1;
     }
 
+    /// Counts a scalar-from-int conversion; not a `Self`-returning constructor.
+    #[allow(clippy::wrong_self_convention)]
     pub(crate) fn from_int_scalar(&mut self) {
         self.from_int_scalar += 1;
     }

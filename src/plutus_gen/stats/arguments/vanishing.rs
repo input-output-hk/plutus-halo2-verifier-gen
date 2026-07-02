@@ -13,9 +13,7 @@ pub(crate) fn nb_vanish_commitments(circuit_degree: usize) -> usize {
 /// Returns the number of evaluations the vanishing argument contributes to
 /// the proof.
 pub(crate) fn nb_vanish_evaluations() -> usize {
-    let nb_random = 1;
-
-    nb_random
+    1
 }
 
 /// Combines all constraint expressions (gates, permutation terms, lookup terms, trash terms)

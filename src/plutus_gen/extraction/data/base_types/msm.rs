@@ -124,7 +124,7 @@ impl OptimizedMSM {
                 insertion_order.push(key.clone());
             }
 
-            groups.entry(key).or_insert_with(Vec::new).push(scalar);
+            groups.entry(key).or_default().push(scalar);
         }
 
         // Combine scalars for each G1 point
@@ -159,8 +159,7 @@ impl OptimizedMSM {
     /// Recursively traverses all scalar operations to find Power(var_name, exponent).
     #[allow(dead_code)]
     pub(crate) fn find_max_power(&self, var_name: char) -> i32 {
-        (*self)
-            .elements
+        self.elements
             .iter()
             .map(|element| {
                 let scalar = match element {

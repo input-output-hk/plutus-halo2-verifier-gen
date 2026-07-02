@@ -18,8 +18,8 @@ impl MulChip {
         let base_powers = Params::base_powers();
         let double_base_powers = Params::double_base_powers();
 
-        let limbs_max = vec![&base - BigInt::one(); nb_limbs as usize];
-        let limbs_max2 = vec![(&base - BigInt::one()).pow(2); (nb_limbs * nb_limbs) as usize];
+        let limbs_max = vec![&base - BigInt::one(); nb_limbs];
+        let limbs_max2 = vec![(&base - BigInt::one()).pow(2); nb_limbs * nb_limbs];
         let max_sum_xy = sum_bigints(&double_base_powers, &limbs_max2);
         let max_sum_z = sum_bigints(&base_powers, &limbs_max);
         let max_sum_x = max_sum_z.clone();
@@ -128,8 +128,8 @@ impl<P: FieldEmulationParams> FieldOpChip<P> for MulChip {
             .zip(vs_bounds)
             .for_each(|(mj, bounds_j)| {
                 let (lj_min, _vj_max) = bounds_j;
-                let k_min_m_urem_mj = urem(&(&k_min * &m), &mj);
-                let m_urem_mj = urem(&m, &mj);
+                let k_min_m_urem_mj = urem(&(&k_min * &m), mj);
+                let m_urem_mj = urem(&m, mj);
 
                 let bij_powers_mj: Vec<BigInt> = dp.iter().map(|b| b.rem(mj)).collect();
                 let bi_powers_mj: Vec<BigInt> = bp.iter().map(|b| b.rem(mj)).collect();

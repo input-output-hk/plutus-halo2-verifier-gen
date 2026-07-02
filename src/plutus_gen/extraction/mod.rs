@@ -107,7 +107,7 @@ where
         // Extracting permutation_terms_left and permutation_terms_right
         permutation_terms_both(
             &mut circuit_description,
-            &vk,
+            vk,
             chunk_len,
             &sets,
             nb_permutation_common,

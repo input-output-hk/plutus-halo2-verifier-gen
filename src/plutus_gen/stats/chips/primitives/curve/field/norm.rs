@@ -18,10 +18,10 @@ impl NormChip {
         let base_powers = Params::base_powers();
         let max_limb_bound = Params::max_limb_bound();
 
-        let shifts = vec![max_limb_bound; nb_limbs as usize];
+        let shifts = vec![max_limb_bound; nb_limbs];
         let sum_shifts = sum_bigints(&base_powers, &shifts);
         let max_sum_shifted_x = &sum_shifts + &sum_shifts;
-        let z_limbs_max = vec![&base - BigInt::one(); nb_limbs as usize];
+        let z_limbs_max = vec![&base - BigInt::one(); nb_limbs];
         let max_sum_z = sum_bigints(&base_powers, &z_limbs_max);
         let expr_min = -&max_sum_z - &sum_shifts;
         let expr_max = &max_sum_shifted_x - &sum_shifts;
@@ -123,9 +123,9 @@ impl<P: FieldEmulationParams> FieldOpChip<P> for NormChip {
             .zip(vs_bounds)
             .for_each(|(mj, bounds_j)| {
                 let (lj_min, _vj_max) = bounds_j;
-                let k_min_m_urem_mj = urem(&(&k_min * &m), &mj);
-                let m_urem_mj = urem(&m, &mj);
-                let sum_shifts_urem_mj = urem(&sum_shifts, &mj);
+                let k_min_m_urem_mj = urem(&(&k_min * &m), mj);
+                let m_urem_mj = urem(&m, mj);
+                let sum_shifts_urem_mj = urem(&sum_shifts, mj);
 
                 let bi_powers_mj: Vec<BigInt> = bp.iter().map(|b| b.rem(mj)).collect();
 
