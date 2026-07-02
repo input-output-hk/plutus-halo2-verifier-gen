@@ -33,92 +33,67 @@ pub fn estimate_verifier_code<PCS>(processed: Processed) -> CircuitStatistics
 where
     PCS: PcsEstimate,
 {
-    let Processed {
-        circuit_degree,
-        nb_public_inputs,
-        nb_committed_instances,
-        nb_advice,
-        nb_fixed,
-        nb_copy_constrained,
-        gate_args,
-        lookup_args,
-        trashcan_args,
-        nb_advice_fixed_evaluations,
-        max_advice_queries,
-        commitment_map,
-        kzg_halo2_point_sets,
-        nb_point_sets,
-        max_commitments_per_query,
-        recursion,
-    } = processed;
-
-    if nb_advice == 0 {
+    if processed.nb_advice == 0 {
         return CircuitStatistics::default();
     }
 
-    let nb_gates = gate_args.len();
+    let nb_gates = processed.gate_args.len();
     info!("nb_gates {nb_gates}");
 
-    let nb_lookups = lookup_args.len();
+    let nb_lookups = processed.lookup_args.len();
     info!("nb_lookups {nb_lookups}");
 
-    let nb_trashcans = trashcan_args.len();
+    let nb_trashcans = processed.trashcan_args.len();
     info!("nb_trashcans {nb_trashcans}");
 
     let size_proof = estimate_proof_size::<PCS>(
-        nb_committed_instances,
-        nb_advice,
+        processed.nb_committed_instances,
+        processed.nb_advice,
         nb_lookups,
         nb_trashcans,
-        circuit_degree,
-        nb_copy_constrained,
-        nb_advice_fixed_evaluations,
-        nb_point_sets,
+        processed.circuit_degree,
+        processed.nb_copy_constrained,
+        processed.nb_advice_fixed_evaluations,
+        processed.nb_point_sets,
     );
 
-    let vk_size = estimate_vk_size::<PCS>(nb_copy_constrained, nb_fixed);
+    let vk_size = estimate_vk_size::<PCS>(processed.nb_copy_constrained, processed.nb_fixed);
 
     // Initializing CircuitStatistics with the estimated proof size, VK size, and number of public inputs.
     let mut stats = CircuitStatistics::new(
         size_proof,
         vk_size,
-        circuit_degree,
-        nb_public_inputs,
-        nb_committed_instances,
+        processed.circuit_degree,
+        processed.nb_public_inputs,
+        processed.nb_committed_instances,
     );
 
     // Converting constants 0, 1 and δ to scalars
-    (0..3).for_each(|_| stats.from_int_scalar());
+    (0..3).for_each(|_| stats.int_to_scalar());
 
-    absorb_vk_and_inputs(&mut stats, nb_public_inputs, nb_committed_instances);
+    absorb_vk_and_inputs(
+        &mut stats,
+        processed.nb_public_inputs,
+        processed.nb_committed_instances,
+    );
 
     // Proof Extraction Steps and input evaluation generations
-    process_pes(
-        &mut stats,
-        nb_advice,
-        nb_lookups,
-        circuit_degree,
-        nb_copy_constrained,
-        nb_trashcans,
-        nb_advice_fixed_evaluations,
-        nb_public_inputs,
-        nb_committed_instances,
-    );
+    process_pes(&mut stats, &processed);
     // Polynomial Commitment Extraction Steps
-    PCS::read_transcript(&mut stats, nb_point_sets);
+    PCS::read_transcript(&mut stats, processed.nb_point_sets);
 
     let expected_transcript_size = 32 // absorbing hash of vk
-    + 48 * nb_committed_instances // absorbing committed inputs
+    + 48 * processed.nb_committed_instances // absorbing committed inputs
     + 32 // absorbing nb of public inputs
-    + 32 * nb_public_inputs // absorbing public inputs
+    + 32 * processed.nb_public_inputs // absorbing public inputs
     + size_proof; // aborsbing proof
     assert_eq!(stats.transcript_size, expected_transcript_size);
 
     // Computting X rotations
-    (0..nb_point_sets).for_each(|_| stats.rotate_omega());
+    (0..processed.nb_point_sets).for_each(|_| stats.rotate_omega());
 
     // Computing nb of blinding factors
-    let nb_blinding_factors = blinding_factors(max_advice_queries, nb_trashcans);
+    let nb_blinding_factors = blinding_factors(processed.max_advice_queries, nb_trashcans);
     info!("nb_blinding_factors {nb_blinding_factors}");
 
     // Computing rotations for vanishing polynomial
@@ -135,27 +110,37 @@ where
     stats.sub_scalar();
 
     // Computing operations per gate
-    let nb_gate_expressions: usize = gate_args.iter().map(|arg| arg.len()).sum();
+    let nb_gate_expressions: usize = processed.gate_args.iter().map(|arg| arg.len()).sum();
     info!("nb_gate_expressions {nb_gate_expressions}");
-    gate_args.into_iter().for_each(|arg| {
+    processed.gate_args.into_iter().for_each(|arg| {
         let batched_arg = ScalarExpression::batch_expressions(arg);
         stats.consume_expression(&batched_arg);
     });
 
     // Computing Lookup evals
-    let nb_lookup_expressions = lookup_args.iter().map(|arg| arg.len()).sum::<usize>();
+    let nb_lookup_expressions = processed
+        .lookup_args
+        .iter()
+        .map(|arg| arg.len())
+        .sum::<usize>();
     info!("nb_lookup_expressions {nb_lookup_expressions}");
-    PlookUp::compute_argument(&mut stats, nb_lookups, lookup_args);
+    PlookUp::compute_argument(&mut stats, nb_lookups, processed.lookup_args);
 
     // Computing Permutation evals
-    let nb_permutations = nb_copy_constrained.div_ceil(circuit_degree - 2);
+    let nb_permutations = processed
+        .nb_copy_constrained
+        .div_ceil(processed.circuit_degree - 2);
     info!("nb_permutations {nb_permutations}");
-    evaluate_permutation_terms(&mut stats, nb_copy_constrained, circuit_degree);
+    evaluate_permutation_terms(
+        &mut stats,
+        processed.nb_copy_constrained,
+        processed.circuit_degree,
+    );
 
     // Computing trashcans evals
-    let nb_trashcan_expressions: usize = trashcan_args.iter().map(|arg| arg.len()).sum();
+    let nb_trashcan_expressions: usize = processed.trashcan_args.iter().map(|arg| arg.len()).sum();
     info!("nb_trashcan_expressions {nb_trashcan_expressions}");
-    compute_trashcans(&mut stats, trashcan_args);
+    compute_trashcans(&mut stats, processed.trashcan_args);
 
     // Compute vanishing commitment
     compute_vanishing(
@@ -164,19 +149,19 @@ where
         nb_permutations,
         nb_lookups,
         nb_trashcans,
-        circuit_degree,
+        processed.circuit_degree,
     );
 
     PCS::compute_opening(
         &mut stats,
-        &commitment_map,
-        max_commitments_per_query,
-        &kzg_halo2_point_sets,
-        nb_point_sets,
+        &processed.commitment_map,
+        processed.max_commitments_per_query,
+        &processed.kzg_halo2_point_sets,
+        processed.nb_point_sets,
     );
 
     // If we do recursion
-    if recursion {
+    if processed.recursion {
         // Compute variable accumulator left point from public inputs
         (0..2).for_each(|_| {
             // For both coordinates of the point, we reconstruct the coordinate
@@ -213,7 +198,7 @@ where
         (0..4).for_each(|_| stats.compress_point());
         stats.hash_bytes(4 * 48);
         // bytes to int
-        stats.from_int_scalar();
+        stats.int_to_scalar();
 
         // Batch left and right accumulators with proof before Miller Loop
         (0..2).for_each(|_| {

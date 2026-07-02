@@ -130,8 +130,7 @@ where
                 let scaling_x = format!(
                     "  let !xn_minus_one = powMod x ({}-1)\n",
                     circuit.proof_instantiation_data.n_coefficient
-                )
-                .to_string();
+                );
                 let scaling_x_again = "  let !xn = xn_minus_one * x\n".to_string();
                 let mut to_write_down = String::with_capacity(
                     squeezing_x.len() + scaling_x.len() + scaling_x_again.len(),

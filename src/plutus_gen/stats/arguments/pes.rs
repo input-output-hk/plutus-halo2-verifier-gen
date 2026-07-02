@@ -1,4 +1,5 @@
 use super::super::data::CircuitStatistics;
+use crate::plutus_gen::stats::estimate::build::Processed;
 
 /// Absorb the vk and public (committed) inputs to the transcript.
 pub(crate) fn absorb_vk_and_inputs(
@@ -13,7 +14,7 @@ pub(crate) fn absorb_vk_and_inputs(
     (0..nb_committed_instances).for_each(|_| stats.common_g1());
 
     // Absorbing nb of public inputs (after converting the number to scalar)
-    stats.from_int_scalar();
+    stats.int_to_scalar();
     stats.common_scalar();
 
     // Absorbing public inputs
@@ -22,20 +23,17 @@ pub(crate) fn absorb_vk_and_inputs(
 
 /// Extract non-PCS commitments and evaluations from the transcript.
 /// Also generates the instance evaluations from relevant elemnets.
-#[allow(clippy::too_many_arguments)]
-pub(crate) fn process_pes(
-    stats: &mut CircuitStatistics,
-    nb_advice: usize,
-    nb_lookups: usize,
-    circuit_degree: usize,
-    nb_copy_constrained: usize,
-    nb_trash_args: usize,
-    nb_advice_fixed_evals: usize,
-    nb_public_inputs: usize,
-    nb_committed_instances: usize,
-) {
+pub(crate) fn process_pes(stats: &mut CircuitStatistics, processed: &Processed) {
+    let circuit_degree = processed.circuit_degree;
+    let nb_copy_constrained = processed.nb_copy_constrained;
+    let nb_public_inputs = processed.nb_public_inputs;
+    let nb_committed_instances = processed.nb_committed_instances;
+    let nb_lookups = processed.lookup_args.len();
+    let nb_trash_args = processed.trashcan_args.len();
+    let nb_advice_fixed_evals = processed.nb_advice_fixed_evaluations;
+
     // Advice commitments
-    (0..nb_advice).for_each(|_| stats.read_point());
+    (0..processed.nb_advice).for_each(|_| stats.read_point());
 
     // Theta
     stats.squeeze_challenge();
@@ -96,7 +94,7 @@ pub(crate) fn process_pes(
         stats.lagrange_polynomial_basis(nb_public_inputs + 1);
         stats.inner_product(nb_public_inputs + 1);
     } else {
-        stats.from_int_scalar();
+        stats.int_to_scalar();
     }
 
     // Advice and Fixed columns evaluations (one per rotation)

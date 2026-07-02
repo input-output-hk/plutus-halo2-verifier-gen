@@ -1,5 +1,5 @@
 use super::super::sum_bigints;
-use super::{EccEmulationParams, EccOpChip};
+use super::{EccEmulationParams, EccOpChip, nb_advice_columns};
 
 use crate::plutus_gen::stats::chips::curve::{non_trivial, non_zero, urem};
 use crate::plutus_gen::stats::chips::{Argument, Column, ScalarExpression};
@@ -51,7 +51,7 @@ impl Lambda2Chip {
 
 impl<P: EccEmulationParams> EccOpChip<P> for Lambda2Chip {
     fn advice() -> Vec<Column> {
-        let nb_columns = P::NB_LIMBS + std::cmp::max(P::NB_LIMBS, 2 + P::moduli().len()) + 1;
+        let nb_columns = nb_advice_columns::<P>();
         let mut columns: Vec<Column> = (0..nb_columns).map(|_| Column::empty_advice()).collect();
 
         let x_cols = 0..P::NB_LIMBS;

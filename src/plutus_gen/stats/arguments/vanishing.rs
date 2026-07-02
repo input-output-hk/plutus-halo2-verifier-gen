@@ -1,4 +1,11 @@
+use super::super::chips::RotationSet;
 use super::super::data::CircuitStatistics;
+
+/// Rotation sets for the vanishing argument's queries: one `curr()` query each for
+/// `vanishing_g` and `vanishing_rand`.
+pub(crate) fn vanishing_query_rotations() -> Vec<RotationSet> {
+    vec![RotationSet::curr(), RotationSet::curr()]
+}
 
 /// Returns the number of commitments the vanishing argument contributes to
 /// the proof.

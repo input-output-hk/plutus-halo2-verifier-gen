@@ -1,5 +1,6 @@
-use super::super::arguments::permutation::{PERM_DEGREE, perm_poly_rotations};
+use super::super::arguments::permutation::{PERM_DEGREE, permutation_query_rotations};
 use super::super::arguments::trashcans::TRASH_DEGREE;
+use super::super::arguments::vanishing::vanishing_query_rotations;
 use super::super::data::CircuitConfig;
 use super::super::lookup::{LookupEstimate, PlookUp};
 use super::super::pcs::PcsEstimate;
@@ -11,8 +12,8 @@ use std::collections::{BTreeMap, BTreeSet};
 
 pub struct Processed {
     pub(crate) circuit_degree: usize,
-    pub(super) nb_public_inputs: usize,
-    pub(super) nb_committed_instances: usize,
+    pub(crate) nb_public_inputs: usize,
+    pub(crate) nb_committed_instances: usize,
     pub(crate) nb_advice: usize,
     pub(crate) nb_fixed: usize,
     pub(crate) nb_copy_constrained: usize,
@@ -221,26 +222,10 @@ where
     }
 
     // Creating permutation queries
-    let mut permutation_queries = Vec::new();
-    (0..nb_copy_constrained).for_each(|_| {
-        permutation_queries.push(RotationSet::curr());
-    });
-    let perm_rotations = perm_poly_rotations();
-    (0..nb_copy_constrained.div_ceil(circuit_degree - 2))
-        .enumerate()
-        .for_each(|(i, _)| {
-            permutation_queries.push(if i == 0 {
-                perm_rotations[0]
-            } else {
-                perm_rotations[1]
-            });
-        });
+    let permutation_queries = permutation_query_rotations(nb_copy_constrained, circuit_degree);
 
     // Creating vanishing queries
-    let vanishing_queries = vec![
-        RotationSet::curr(), // vanishing_g
-        RotationSet::curr(), // vanishing_rand
-    ];
+    let vanishing_queries = vanishing_query_rotations();
 
     // Creating lookup queries
     let mut lookup_queries = Vec::new();

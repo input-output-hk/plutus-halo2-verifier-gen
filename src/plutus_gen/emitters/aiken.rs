@@ -122,7 +122,10 @@ where
                 .join(""),
             ProofExtractionSteps::XCoordinate => {
                 let squeezing_x = "    let (x, transcript) = squeeze_challenge(transcript)\n".to_string();
-                let scaling_x = format!("    let xn_minus_one = scale(x, {}-1)\n",circuit.proof_instantiation_data.n_coefficient).to_string();
+                let scaling_x = format!(
+                    "    let xn_minus_one = scale(x, {}-1)\n",
+                    circuit.proof_instantiation_data.n_coefficient
+                );
                 let scaling_x_again = "    let xn = mul(xn_minus_one, x)\n".to_string();
                 let mut to_write_down = String::with_capacity(squeezing_x.len() +  scaling_x.len() + scaling_x_again.len());
                 to_write_down.push_str(&squeezing_x);
@@ -699,7 +702,7 @@ where
                         format!("(({} * {batching_coeff}) + to_int(i_{}))", acc, nb_public_inputs - fixed_bases_len - 2*7 - 2 - i)
                     }));
 
-                let result = "    let acc_left_unscaled = g1_from_coords(acc_left_x_int, acc_left_y_int)\n".to_string().to_string();
+                let result = "    let acc_left_unscaled = g1_from_coords(acc_left_x_int, acc_left_y_int)\n".to_string();
                 let result2 = format!("    let acc_left = scaleG1(acc_left_unscaled, i_{})\n", nb_public_inputs - fixed_bases_len - 2*7 - 1).to_string();
 
                [serialized_x, serialized_y, result, result2].iter().join("")
@@ -715,7 +718,7 @@ where
                         format!("(({} * {batching_coeff}) + to_int(i_{}))", acc, nb_public_inputs - fixed_bases_len - 1 - i)
                     }));
 
-                let result = "    let acc_right_unscaled = g1_from_coords(acc_right_x_int, acc_right_y_int)\n".to_string().to_string();
+                let result = "    let acc_right_unscaled = g1_from_coords(acc_right_x_int, acc_right_y_int)\n".to_string();
                 let result2 = format!("    let acc_right = scaleG1(acc_right_unscaled, i_{})\n", nb_public_inputs - fixed_bases_len).to_string();
 
                [serialized_x, serialized_y, result, result2].iter().join("")

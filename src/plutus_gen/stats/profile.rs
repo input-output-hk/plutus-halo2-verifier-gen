@@ -7,7 +7,8 @@ use super::estimate::proof::estimate_proof_size;
 use super::estimate::vk::estimate_vk_size;
 use super::pcs::PcsEstimate;
 use crate::plutus_gen::stats::{
-    arguments::permutation::perm_poly_rotations,
+    arguments::permutation::permutation_query_rotations,
+    arguments::vanishing::vanishing_query_rotations,
     chips::{
         Argument, RotationSet, SupportedChips, flatten_chips, merge_chips_advice, merge_chips_fixed,
     },
@@ -77,26 +78,10 @@ pub fn chip_profile<PCS: PcsEstimate>(chip: SupportedChips) -> ChipProfile {
     let nb_gates = gate_args.len();
 
     // Creating permutation queries
-    let mut permutation_queries = Vec::new();
-    (0..nb_copy_constrained).for_each(|_| {
-        permutation_queries.push(RotationSet::curr());
-    });
-    let perm_rotations = perm_poly_rotations();
-    (0..nb_copy_constrained.div_ceil(circuit_degree - 2))
-        .enumerate()
-        .for_each(|(i, _)| {
-            permutation_queries.push(if i == 0 {
-                perm_rotations[0]
-            } else {
-                perm_rotations[1]
-            });
-        });
+    let permutation_queries = permutation_query_rotations(nb_copy_constrained, circuit_degree);
 
     // Creating vanishing queries
-    let vanishing_queries = vec![
-        RotationSet::curr(), // vanishing_g
-        RotationSet::curr(), // vanishing_rand
-    ];
+    let vanishing_queries = vanishing_query_rotations();
 
     // Creating lookup queries
     let mut lookup_queries = Vec::new();

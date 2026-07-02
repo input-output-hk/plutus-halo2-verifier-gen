@@ -26,13 +26,18 @@ pub(super) trait EccOpChip<P: EccEmulationParams> {
     fn gates() -> Vec<Argument>;
 }
 
+/// Number of advice columns each `EccOpChip` (lambda, oncurve, slope, tangent) allocates.
+pub(super) fn nb_advice_columns<P: EccEmulationParams>() -> usize {
+    P::NB_LIMBS + std::cmp::max(P::NB_LIMBS, 2 + P::moduli().len()) + 1
+}
+
 pub struct EccChip {}
 impl<P: FieldEmulationParams> FieldChipTrait<P> for EccChip {}
 impl<P: EccEmulationParams> EccChipTrait<P> for EccChip {}
 
 pub(crate) trait EccChipTrait<P: EccEmulationParams>: FieldChipTrait<P> {
     fn advice() -> Vec<Column> {
-        let ecc_len = P::NB_LIMBS + std::cmp::max(P::NB_LIMBS, 2 + P::moduli().len()) + 1;
+        let ecc_len = nb_advice_columns::<P>();
         let lambda2_advices = <Lambda2Chip as EccOpChip<P>>::advice();
         let oncurve_advices = <OnCurveChip as EccOpChip<P>>::advice();
         let slope_advices = <SlopeChip as EccOpChip<P>>::advice();

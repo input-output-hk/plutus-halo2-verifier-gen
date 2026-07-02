@@ -12,6 +12,29 @@ pub(crate) fn perm_poly_rotations() -> Vec<RotationSet> {
     ]
 }
 
+/// Rotation sets for the permutation argument's queries: one `curr()` query per
+/// copy-constrained column, plus one query per permutation commitment chunk.
+pub(crate) fn permutation_query_rotations(
+    nb_copy_constrained: usize,
+    circuit_degree: usize,
+) -> Vec<RotationSet> {
+    let mut permutation_queries = Vec::new();
+    (0..nb_copy_constrained).for_each(|_| {
+        permutation_queries.push(RotationSet::curr());
+    });
+    let perm_rotations = perm_poly_rotations();
+    (0..nb_copy_constrained.div_ceil(circuit_degree - 2))
+        .enumerate()
+        .for_each(|(i, _)| {
+            permutation_queries.push(if i == 0 {
+                perm_rotations[0]
+            } else {
+                perm_rotations[1]
+            });
+        });
+    permutation_queries
+}
+
 /// Returns the number of commitments the permutation argument contributes to
 /// the verification key.
 pub(crate) fn nb_perm_commitments_vk(nb_copy_constrained: usize) -> usize {

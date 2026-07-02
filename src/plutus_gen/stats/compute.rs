@@ -68,7 +68,7 @@ where
     );
 
     // Converting constants 0, 1 and δ to scalars
-    (0..3).for_each(|_| stats.from_int_scalar());
+    (0..3).for_each(|_| stats.int_to_scalar());
 
     // Absorb vk,
     stats.common_scalar();
@@ -79,7 +79,7 @@ where
     }
 
     // Absorb public-input count, and each PI value
-    stats.from_int_scalar();
+    stats.int_to_scalar();
     stats.common_scalar();
     (0..nb_public_inputs).for_each(|_| stats.common_scalar());
 
@@ -131,13 +131,13 @@ where
             ProofExtractionSteps::CommittedInstanceEval => group.for_each(|_| {
                 match (committed_instances_supported,nb_committed_instances) {
                     (false, _) => panic!("This case should never happen, as we should not have any CommittedInstanceEval"),
-                    (true, 0) => stats.from_int_scalar(),
+                    (true, 0) => stats.int_to_scalar(),
                     (true, _) => stats.read_scalar(),
                 }
             }),
             ProofExtractionSteps::InstanceEval => group.for_each(|_| {
                 if nb_public_inputs == 0 {
-                    stats.from_int_scalar();
+                    stats.int_to_scalar();
                 } else {
 
                     (0..=nb_public_inputs).for_each(|_| stats.rotate_omega());
@@ -356,7 +356,7 @@ where
         (0..4).for_each(|_| stats.compress_point());
         stats.hash_bytes(4 * 48);
         // bytes to int
-        stats.from_int_scalar();
+        stats.int_to_scalar();
 
         // Batch left and right accumulators with proof before Miller Loop
         (0..2).for_each(|_| {

@@ -183,7 +183,7 @@ impl CircuitStatistics {
         match exp {
             Expression::Advice(_) => (),
             Expression::Challenge(_) => (),
-            Expression::Constant(_) => self.from_int_scalar(),
+            Expression::Constant(_) => self.int_to_scalar(),
             Expression::Fixed(_) => (),
             Expression::Instance(_) => (),
             Expression::Negated(next_exp) => {
@@ -231,7 +231,7 @@ impl CircuitStatistics {
     pub(crate) fn scalar_expression(&mut self, exp: &ScalarExpression<Scalar>) {
         match exp {
             ScalarExpression::Advice(_) => (),
-            ScalarExpression::Constant(_) => self.from_int_scalar(),
+            ScalarExpression::Constant(_) => self.int_to_scalar(),
             ScalarExpression::Fixed(_) => (),
             ScalarExpression::Instance(_) => (),
             ScalarExpression::Negated(_) => self.neg_scalar(),
@@ -259,7 +259,7 @@ impl CircuitStatistics {
         (0..exp.ops.nb_add).for_each(|_| self.add_scalar());
         (0..exp.ops.nb_sub).for_each(|_| self.sub_scalar());
         (0..exp.ops.nb_mul).for_each(|_| self.mul_scalar());
-        (0..exp.ops.nb_from_int).for_each(|_| self.from_int_scalar());
+        (0..exp.ops.nb_from_int).for_each(|_| self.int_to_scalar());
     }
 
     pub(crate) fn lagrange_polynomial_basis(&mut self, range: usize) {
@@ -403,9 +403,7 @@ impl CircuitStatistics {
         self.pow_scalar += 1;
     }
 
-    /// Counts a scalar-from-int conversion; not a `Self`-returning constructor.
-    #[allow(clippy::wrong_self_convention)]
-    pub(crate) fn from_int_scalar(&mut self) {
+    pub(crate) fn int_to_scalar(&mut self) {
         self.from_int_scalar += 1;
     }
 
