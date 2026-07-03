@@ -1,17 +1,16 @@
 use anyhow::{Context as _, Result, anyhow};
-use group::{Group, ff::PrimeField};
 use log::info;
 use rand::prelude::StdRng;
 use rand_core::SeedableRng;
+use sha2::Digest;
 
+use group::Group;
 use midnight_circuits::{
-    instructions::{AssignmentInstructions, EccInstructions, PublicInputInstructions},
-    types::{AssignedNativePoint, Instantiable},
+    instructions::{AssignmentInstructions, PublicInputInstructions},
+    types::{AssignedByte, Instantiable},
 };
-use midnight_curves::{
-    Bls12, BlsScalar as Scalar, Fr as JubjubScalar, G1Projective, JubjubExtended as Jubjub,
-    JubjubSubgroup,
-};
+use midnight_curves::{Bls12, BlsScalar as Scalar, G1Projective};
+
 use midnight_proofs::{
     circuit::{Layouter, Value},
     plonk::{
@@ -39,19 +38,22 @@ type CTranscript = CircuitTranscript<CardanoFriendlyBlake2b>;
 #[path = "shared_utils/mod.rs"]
 mod shared_utils;
 
-/// Toy circuit: prove knowledge of a Jubjub discrete logarithm.
-/// Instance: point P = s·G on the Jubjub subgroup
-/// Witness:  scalar s
+/// Toy circuit: prove knowledge of a SHA-512 preimage.
+/// Instance: 64-byte hash digest (one field element per byte)
+/// Witness:  24-byte preimage
 #[derive(Clone, Default)]
-struct JubjubScalarMul;
+struct Sha512Preimage;
 
-impl Relation for JubjubScalarMul {
-    type Instance = JubjubSubgroup;
-    type Witness = JubjubScalar;
+impl Relation for Sha512Preimage {
+    type Instance = [u8; 64];
+    type Witness = [u8; 24];
     type Error = Error;
 
     fn format_instance(instance: &Self::Instance) -> Result<Vec<F>, Error> {
-        Ok(AssignedNativePoint::<Jubjub>::as_public_input(instance))
+        Ok(instance
+            .iter()
+            .flat_map(AssignedByte::<F>::as_public_input)
+            .collect())
     }
 
     fn circuit(
@@ -61,55 +63,16 @@ impl Relation for JubjubScalarMul {
         _instance: Value<Self::Instance>,
         witness: Value<Self::Witness>,
     ) -> Result<(), Error> {
-        let scalar: midnight_circuits::types::AssignedScalarOfNativeCurve<Jubjub> =
-            std_lib.jubjub().assign(layouter, witness)?;
-        let generator = std_lib
-            .jubjub()
-            .assign_fixed(layouter, <JubjubSubgroup as Group>::generator())?;
-
-        // scalar multiplication: result = s * G (exposed as public input)
-        let result = std_lib
-            .jubjub()
-            .msm(layouter, &[scalar.clone()], &[generator])?;
-
-        // point doubling: 2 * result
-        let doubled = std_lib.jubjub().double(layouter, &result)?;
-
-        // point addition: result + doubled = 3 * result
-        let added = std_lib.jubjub().add(layouter, &result, &doubled)?;
-
-        // point negation: -result
-        let negated = std_lib.jubjub().negate(layouter, &added)?;
-
-        // multiplication by a constant scalar (no witness needed for the scalar)
-        let const_mul =
-            std_lib
-                .jubjub()
-                .mul_by_constant(layouter, JubjubScalar::from(3u64), &negated)?;
-
-        let extra = std_lib.jubjub().mul(layouter, &scalar, &const_mul)?;
-
-        let end =
-            std_lib
-                .jubjub()
-                .mul_by_constant(layouter, JubjubScalar::from_u128(198), &extra)?;
-
-        let x = std_lib.jubjub().x_coordinate(&end);
-        let y = std_lib.jubjub().y_coordinate(&end);
-
-        let p = std_lib.jubjub().point_from_coordinates(layouter, &x, &y)?;
-
-        // hash to curve: map a native field element to a Jubjub point
-        // let one = std_lib.assign_fixed(layouter, <Jubjub as CircuitCurve>::Base::ONE)?;
-        // let _h2c = std_lib.hash_to_curve(layouter, &[one])?;
-
-        std_lib.jubjub().constrain_as_public_input(layouter, &p)
+        let assigned = std_lib.assign_many(layouter, &witness.transpose_array())?;
+        let output = std_lib.sha2_512(layouter, &assigned)?;
+        output
+            .iter()
+            .try_for_each(|b| std_lib.constrain_as_public_input(layouter, b))
     }
 
     fn used_chips(&self) -> ZkStdLibArch {
         ZkStdLibArch {
-            jubjub: true,
-            // poseidon: true, // required for hash_to_curve
+            sha2_512: true,
             ..ZkStdLibArch::default()
         }
     }
@@ -119,7 +82,7 @@ impl Relation for JubjubScalarMul {
     }
 
     fn read_relation<R: std::io::Read>(_reader: &mut R) -> std::io::Result<Self> {
-        Ok(JubjubScalarMul)
+        Ok(Sha512Preimage)
     }
 }
 
@@ -129,19 +92,10 @@ fn main() -> Result<()> {
     let seed = [0u8; 32];
     let mut rng: StdRng = SeedableRng::from_seed(seed);
 
-    let witness = JubjubScalar::from(7u64);
+    let witness: [u8; 24] = *b"plutus-halo2-verifier-ge";
+    let instance: [u8; 64] = sha2::Sha512::digest(witness).into();
 
-    // Mirror the circuit's chain: result=s·G, doubled=2s·G, added=3s·G,
-    // negated=-3s·G, const_mul=-9s·G, extra=-9s²·G, end=-1782s²·G
-    let g = <JubjubSubgroup as Group>::generator();
-    let result = g * witness;
-    let added = result + result + result; // 3s·G
-    let negated = -added;
-    let const_mul = negated * JubjubScalar::from(3u64);
-    let extra = const_mul * witness;
-    let instance: JubjubSubgroup = extra * JubjubScalar::from_u128(198);
-
-    let relation = JubjubScalarMul;
+    let relation = Sha512Preimage;
     let circuit = MidnightCircuit::new(
         &relation,
         Value::known(instance),
@@ -155,13 +109,14 @@ fn main() -> Result<()> {
         keygen_pk(vk.clone(), &circuit).context("keygen_pk failed")?;
 
     let mut transcript = CTranscript::init();
-    let formatted_instance = JubjubScalarMul::format_instance(&instance).unwrap();
+    let formatted_instance = Sha512Preimage::format_instance(&instance).unwrap();
+    let formatted_commited_instance = Sha512Preimage::format_committed_instances(&witness);
     create_proof(
         &params,
         &pk,
         &[circuit],
         1,
-        &[&[&[], &formatted_instance]],
+        &[&[formatted_commited_instance.as_slice(), &formatted_instance]],
         &mut transcript,
         &mut rng,
     )
@@ -182,10 +137,7 @@ fn main() -> Result<()> {
         .map_err(|e| anyhow!("{e:?}"))
         .context("verify failed")?;
 
-    let chips = &[
-        SupportedChips::EdwardsJubjub,
-        // lookup_chip("pow2range", 1, 0, 0),
-    ];
+    let chips = &[SupportedChips::Sha512];
     cost_evaluation(
         &params,
         &vk,
@@ -193,17 +145,15 @@ fn main() -> Result<()> {
         &formatted_instance,
         Some(G1Projective::identity()),
         chips,
-        CircuitConfig {
-            ..Default::default()
-        },
+        CircuitConfig::default(),
     )?;
 
     let mut invalid_proof = proof.clone();
     // index points to bytes of first scalar that is part of the proof
     // this should be safe and not result in malformed encoding exception
     // which is likely for flipping Byte for compressed G1 element
-    // simple mul has 24 G1 elements at the beginning of the proof each 48 bytes long
-    let index = 48 * 24 + 2;
+    // atms has 16 G1 elements at the beginning of the proof each 48 bytes long
+    let index = 48 * 16 + 2;
     let firs_byte = invalid_proof[index];
     let negated_firs_byte = !firs_byte;
     invalid_proof[index] = negated_firs_byte;

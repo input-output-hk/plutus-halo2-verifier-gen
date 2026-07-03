@@ -7,6 +7,7 @@ use rand_core::SeedableRng;
 use ff::Field;
 use group::Curve;
 use midnight_circuits::{
+    CircuitField,
     field::foreign::{AssignedField, params::MultiEmulationParams as MEP},
     instructions::{
         ArithInstructions, AssignmentInstructions, DecompositionInstructions, EccInstructions,
@@ -17,7 +18,7 @@ use midnight_circuits::{
 };
 use midnight_curves::{
     Bls12, BlsScalar as Scalar, G1Projective,
-    secp256k1::{Fq as Secp256k1Scalar, Secp256k1},
+    k256::{Fq as Secp256k1Scalar, K256},
 };
 use midnight_proofs::{
     circuit::{Layouter, Value},
@@ -49,7 +50,7 @@ mod shared_utils;
 const N: usize = 5; // The total number of public keys.
 const T: usize = 4; // The threshold of valid signatures.
 
-type PK = Secp256k1;
+type PK = K256;
 type MsgHash = Secp256k1Scalar;
 
 /// Toy circuit: prove knowledge of a secp256k1 discrete logarithm.
@@ -63,11 +64,13 @@ impl Relation for BitcoinThresholdECDSA {
 
     type Witness = [(PK, ECDSASig); T];
 
+    type Error = Error;
+
     fn format_instance((msg_hash, pks): &Self::Instance) -> Result<Vec<F>, Error> {
         Ok([
             AssignedField::<F, Secp256k1Scalar, MEP>::as_public_input(msg_hash),
             pks.iter()
-                .flat_map(AssignedForeignPoint::<F, Secp256k1, MEP>::as_public_input)
+                .flat_map(AssignedForeignPoint::<F, K256, MEP>::as_public_input)
                 .collect::<Vec<_>>(),
         ]
         .into_iter()
@@ -82,8 +85,8 @@ impl Relation for BitcoinThresholdECDSA {
         instance: Value<Self::Instance>,
         witness: Value<Self::Witness>,
     ) -> Result<(), Error> {
-        let secp256k1_curve = std_lib.secp256k1_curve();
-        let secp256k1_scalar = std_lib.secp256k1_scalar();
+        let secp256k1_curve = std_lib.secp256k1();
+        let secp256k1_scalar = std_lib.secp256k1().scalar_field_chip();
         let secp256k1_base = secp256k1_curve.base_field_chip();
 
         // Assign the message hash as a public input.
@@ -118,7 +121,7 @@ impl Relation for BitcoinThresholdECDSA {
         // TODO: For now, and because this is a PoC, let alpha be fixed, which should be
         // derived with Poseidon instead.
         let alpha: AssignedField<F, Secp256k1Scalar, _> =
-            secp256k1_scalar.assign_fixed(layouter, Secp256k1Scalar::from(42))?;
+            secp256k1_scalar.assign_fixed(layouter, Secp256k1Scalar::from(42u32))?;
 
         let mut alpha_powers: [_; T] = core::array::from_fn(|_| alpha.clone());
         for i in 1..T {
@@ -161,14 +164,14 @@ impl Relation for BitcoinThresholdECDSA {
             .map(|(val, r_i)| {
                 let k_point_y_val = val.zip(instance.unzip().0).zip(r_i.value()).map(
                     |(((pk_i, sig_i), msg_hash), r_i)| {
-                        let gene = Secp256k1::generator();
-                        let r_as_scalar = Secp256k1Scalar::from_bytes(&sig_i.get_r()).unwrap();
+                        let gene = K256::generator();
+                        let r_as_scalar = Secp256k1Scalar::from_bytes_le(&sig_i.get_r()).unwrap();
                         let s_inv = sig_i.get_s().invert().unwrap();
                         let k_point = gene * (s_inv * msg_hash) + pk_i * (s_inv * r_as_scalar);
 
                         // cpu sanity check
-                        assert_eq!(r_i, k_point.to_affine().x);
-                        k_point.to_affine().y
+                        assert_eq!(r_i, k_point.to_affine().x());
+                        k_point.to_affine().y()
                     },
                 );
 
@@ -187,7 +190,7 @@ impl Relation for BitcoinThresholdECDSA {
         let sum_alphas_times_msg_hash =
             secp256k1_scalar.mul(layouter, &sum_alphas, &msg_hash, None)?;
 
-        let gene = secp256k1_curve.assign_fixed(layouter, Secp256k1::generator())?;
+        let gene = secp256k1_curve.assign_fixed(layouter, K256::generator())?;
         let mut bases = vec![gene];
         bases.extend(assigned_selected_pks);
         bases.extend(k_points);
@@ -271,8 +274,8 @@ fn main() -> Result<()> {
         &[circuit],
         1,
         &[&[&[], &formatted_instance]],
-        &mut rng,
         &mut transcript,
+        &mut rng,
     )
     .context("proof generation failed")?;
     let proof = transcript.finalize();

@@ -420,6 +420,16 @@
           <span class="chip-name">Poseidon</span>
           <span class="chip-dep">⊃ Native</span>
         </label>
+        <label class="chip-toggle" id="ct-sha256">
+          <input type="checkbox" id="cb-sha256" onchange="update()" />
+          <span class="chip-name">SHA256</span>
+          <span class="chip-dep">⊃ Native</span>
+        </label>
+        <label class="chip-toggle" id="ct-sha512">
+          <input type="checkbox" id="cb-sha512" onchange="update()" />
+          <span class="chip-name">SHA512</span>
+          <span class="chip-dep">⊃ Native</span>
+        </label>
       </details>
 
       <details class="chip-subgroup" open>
@@ -437,12 +447,17 @@
         <label class="chip-toggle" id="ct-bls12381">
           <input type="checkbox" id="cb-bls12381" onchange="update()" />
           <span class="chip-name">BLS12-381</span>
-          <span class="chip-dep">⊃ Native · 15 adv</span>
+          <span class="chip-dep">⊃ Native</span>
+        </label>
+        <label class="chip-toggle" id="ct-curve25519">
+          <input type="checkbox" id="cb-curve25519" onchange="update()" />
+          <span class="chip-name">Curve25519</span>
+          <span class="chip-dep">⊃ Native</span>
         </label>
         <label class="chip-toggle" id="ct-secp256k1">
           <input type="checkbox" id="cb-secp256k1" onchange="update()" />
           <span class="chip-name">secp256k1</span>
-          <span class="chip-dep">⊃ Native · 9 adv</span>
+          <span class="chip-dep">⊃ Native</span>
         </label>
       </details>
 
@@ -694,14 +709,17 @@ import init, { estimate as wasmEstimate } from './wasm/plutus_halo2_verifier_gen
 // ─── CHIP MAP ─────────────────────────────────────────────────────────────────
 const CHIP_ID_TO_RUST = {
   'cb-native':    'Native',
+  'cb-sha256':  'Sha256',
+  'cb-sha512':  'Sha512',
   'cb-poseidon':  'Poseidon',
   'cb-jubjub':    'EdwardsJubjub',
   'cb-htc':       'HashToCurve',
   'cb-bls12381':  'WeierstrassBls12381',
+  'cb-curve25519':  'Curve25519',
   'cb-secp256k1': 'WeierstrassSecp256k1',
 };
 
-const ALL_CHIP_KEYS = ['native', 'poseidon', 'jubjub', 'htc', 'bls12381', 'secp256k1'];
+const ALL_CHIP_KEYS = ['native', 'sha256', 'sha512', 'poseidon', 'jubjub', 'htc', 'bls12381', 'curve25519', 'secp256k1'];
 
 // Chip profiles loaded from chip_profiles.json for client-side dep highlighting.
 let chipProfiles = {};

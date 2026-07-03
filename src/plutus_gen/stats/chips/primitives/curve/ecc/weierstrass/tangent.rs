@@ -1,5 +1,5 @@
-use super::super::sum_bigints;
-use super::{EccEmulationParams, EccOpChip, nb_advice_columns};
+use super::super::super::sum_bigints;
+use super::{WeierstrassEmulationParams, WierstrassOpChipTrait, nb_advice_columns};
 
 use crate::plutus_gen::stats::chips::curve::{non_trivial, non_zero, urem};
 use crate::plutus_gen::stats::chips::{Argument, Column, ScalarExpression};
@@ -8,10 +8,10 @@ use num_bigint::BigInt;
 use num_traits::One;
 use std::ops::Rem;
 
-pub(crate) struct Lambda2Chip;
+pub(crate) struct TangentChip;
 
-impl Lambda2Chip {
-    fn bounds<Params: EccEmulationParams>() -> ((BigInt, BigInt), Vec<(BigInt, BigInt)>) {
+impl TangentChip {
+    fn bounds<Params: WeierstrassEmulationParams>() -> ((BigInt, BigInt), Vec<(BigInt, BigInt)>) {
         let base = BigInt::from(2).pow(Params::LOG2_BASE);
         let nb_limbs = Params::NB_LIMBS;
         let moduli = Params::moduli();
@@ -21,12 +21,13 @@ impl Lambda2Chip {
         let limbs_max = vec![&base - BigInt::one(); nb_limbs];
         let limbs_max2 = vec![(&base - BigInt::one()).pow(2); nb_limbs * nb_limbs];
         let max_sum_px = sum_bigints(&bs, &limbs_max);
-        let max_sum_qx = max_sum_px.clone();
-        let max_sum_rx = max_sum_px.clone();
+        let max_sum_py = max_sum_px.clone();
         let max_sum_lambda = max_sum_px.clone();
-        let max_sum_lambda2 = sum_bigints(&bs2, &limbs_max2);
-        let expr_min = BigInt::from(2) - (BigInt::from(2) * max_sum_lambda + max_sum_lambda2);
-        let expr_max = BigInt::from(2) + max_sum_px + max_sum_qx + max_sum_rx;
+        let max_sum_px2 = sum_bigints(&bs2, &limbs_max2);
+        let max_sum_lpy = max_sum_px2.clone();
+        let expr_min =
+            -BigInt::from(2) * (max_sum_py + max_sum_lambda + max_sum_lpy) + BigInt::one();
+        let expr_max = BigInt::from(3) * (&max_sum_px + &max_sum_px + max_sum_px2) + BigInt::one();
 
         let expr_mj_bounds: Vec<_> = moduli
             .iter()
@@ -34,14 +35,17 @@ impl Lambda2Chip {
                 let bs_mj = bs.iter().map(|b| b.rem(mj)).collect::<Vec<_>>();
                 let bs2_mj = bs2.iter().map(|b| b.rem(mj)).collect::<Vec<_>>();
                 let max_sum_px_mj = sum_bigints(&bs_mj, &limbs_max);
-                let max_sum_qx_mj = max_sum_px_mj.clone();
-                let max_sum_rx_mj = max_sum_px_mj.clone();
+                let max_sum_py_mj = max_sum_px_mj.clone();
                 let max_sum_lambda_mj = max_sum_px_mj.clone();
-                let max_sum_lambda2_mj = sum_bigints(&bs2_mj, &limbs_max2);
-                let expr_min_mj =
-                    BigInt::from(2) - (BigInt::from(2) * max_sum_lambda_mj + max_sum_lambda2_mj);
-                let expr_max_mj = BigInt::from(2) + max_sum_px_mj + max_sum_qx_mj + max_sum_rx_mj;
-                (expr_min_mj, expr_max_mj)
+                let max_sum_px2_mj = sum_bigints(&bs2_mj, &limbs_max2);
+                let max_sum_lpy_mj = max_sum_px2_mj.clone();
+                let expr_mj_min = -BigInt::from(2)
+                    * (max_sum_py_mj + max_sum_lambda_mj + max_sum_lpy_mj)
+                    + BigInt::one();
+                let expr_mj_max = BigInt::from(3)
+                    * (&max_sum_px_mj + &max_sum_px_mj + max_sum_px2_mj)
+                    + BigInt::one();
+                (expr_mj_min, expr_mj_max)
             })
             .collect();
 
@@ -49,7 +53,7 @@ impl Lambda2Chip {
     }
 }
 
-impl<P: EccEmulationParams> EccOpChip<P> for Lambda2Chip {
+impl<P: WeierstrassEmulationParams> WierstrassOpChipTrait<P> for TangentChip {
     fn advice() -> Vec<Column> {
         let nb_columns = nb_advice_columns::<P>();
         let mut columns: Vec<Column> = (0..nb_columns).map(|_| Column::empty_advice()).collect();
@@ -72,9 +76,8 @@ impl<P: EccEmulationParams> EccOpChip<P> for Lambda2Chip {
         // cond_col queried at NEXT
         columns[cond_col].set_next();
 
-        // x_cols queried at PREV, CURR and NEXT
+        // x_cols queried at CURR and NEXT
         columns[x_cols.clone()].iter_mut().for_each(|c| {
-            c.set_prev();
             c.set_curr();
             c.set_next();
         });
@@ -98,9 +101,9 @@ impl<P: EccEmulationParams> EccOpChip<P> for Lambda2Chip {
     fn extra_fixed() -> Vec<Column> {
         let mut columns = Vec::new();
 
-        let q_lambda_squared = Column::selector();
+        let q_tangent = Column::selector();
 
-        columns.push(q_lambda_squared);
+        columns.push(q_tangent);
         columns
     }
 
@@ -116,15 +119,15 @@ impl<P: EccEmulationParams> EccOpChip<P> for Lambda2Chip {
         let dpl = dp.len();
         let bpl = bp.len();
 
-        // 2 + sum_px + sum_qx + sum_rx - (2 sum_lambda + sum_lambda2)
-        //   = (u + k_min) * m
+        //   3 * (2 * sum_px + sum_px2) + 1
+        // - 2 * (sum_py + sum_lambda + sum_lpy) = (u + k_min) * m
         let native = ScalarExpression::gate_expression(
             4,
-            3,
-            dpl + 4 * bpl + 1 + non_zero(&k_min),
+            2,
+            (bpl - 1) + 2 * dpl + 2 * bpl + 2 + non_zero(&k_min),
             0,
-            1 + dpl + (dpl - 1) + 4 * (bpl - 1) + 3,
-            (dpl - 1) + 4 * (bpl - 1) + non_trivial(&k_min) + 3,
+            1 + 2 * dpl + 2 * (dpl - 1) + 3 * (bpl - 1) + 5,
+            2 * (dpl - 1) + 3 * (bpl - 1) + non_trivial(&k_min) + 5,
         );
         gate.push(native);
 
@@ -151,27 +154,29 @@ impl<P: EccEmulationParams> EccOpChip<P> for Lambda2Chip {
                         (acc0 + non_zero(bi), acc1 + non_trivial(bi))
                     });
 
-                let nb_neg = non_zero(&m_urem_mj) + non_zero(&k_min_m_urem_mj) + 3;
-                let nb_add = bij_non_zero
-                    + 4 * bi_non_zero
+                let nb_neg = non_zero(&m_urem_mj) + non_zero(&k_min_m_urem_mj) + 2;
+                let nb_add = (bi_non_zero - 1)
+                    + 2 * bij_non_zero
+                    + 2 * bi_non_zero
                     + non_zero(&m_urem_mj)
                     + non_zero(&k_min_m_urem_mj)
                     + non_zero(&lj_min)
-                    + 1;
+                    + 2;
                 let nb_mul = 1
-                    + bij_non_zero
-                    + bij_non_trivial
-                    + 4 * bi_non_trivial
+                    + 2 * bij_non_zero
+                    + 2 * bij_non_trivial
+                    + 3 * bi_non_trivial
                     + non_trivial(&m_urem_mj)
-                    + 3;
-                let nb_from_int = bij_non_trivial
-                    + 4 * bi_non_trivial
+                    + 5;
+                let nb_from_int = 2 * bij_non_trivial
+                    + 3 * bi_non_trivial
                     + non_trivial(&m_urem_mj)
                     + non_trivial(&k_min_m_urem_mj)
                     + non_trivial(&lj_min)
-                    + 3;
+                    + 5;
 
-                // 2 + sum_px_mj + sum_qx_mj + sum_rx_mj - (2 sum_lambda_mj + sum_lambda2_mj)
+                //   3 * (2 * sum_px_mj + sum_px2_mj) + 1
+                // - 2 * (sum_py_mj + sum_lambda_mj + sum_lpy_mj)
                 // - u * (m % mj) - (k_min * m) % mj - (vj + lj_min) * mj = 0
                 let modulo_id =
                     ScalarExpression::gate_expression(4, nb_neg, nb_add, 0, nb_mul, nb_from_int);

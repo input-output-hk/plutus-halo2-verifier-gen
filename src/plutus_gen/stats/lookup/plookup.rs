@@ -20,8 +20,8 @@ impl LookupEstimate for PlookUp {
     // - S_permuted (permuted table):   queried at {cur}.
     fn lookup_poly_rotations() -> Vec<RotationSet> {
         vec![
-            RotationSet::new(false, false, true, true, false),
-            RotationSet::new(false, true, true, false, false),
+            RotationSet::new(false, false, true, true, false, false, false),
+            RotationSet::new(false, true, true, false, false, false, false),
             RotationSet::curr(),
         ]
     }

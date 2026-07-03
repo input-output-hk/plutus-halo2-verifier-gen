@@ -26,8 +26,8 @@ use midnight_proofs::{
 };
 
 use plutus_halo2_verifier_gen::plutus_gen::{
-    CardanoFriendlyBlake2b, CircuitConfig, SupportedChips, cost_evaluation,
-    generate_aiken_verifier, generate_plinth_verifier,
+    CardanoFriendlyBlake2b, CircuitConfig, cost_evaluation, generate_aiken_verifier,
+    generate_plinth_verifier,
 };
 use plutus_halo2_verifier_gen::{
     circuits::ivc_circuit::{IvcCircuit, configure_ivc_circuit, from_ivc, new_ivc},
@@ -66,8 +66,8 @@ macro_rules! prove_ivc {
             &[$circuit.clone()],
             1,
             &[&[&[], $public_inputs]],
-            &mut $rng,
             &mut transcript,
+            &mut $rng,
         );
 
         // Handle error
@@ -219,8 +219,9 @@ fn main() -> Result<()> {
 
             assert!(dual_msm.clone().check(&kzg_params.verifier_params()));
 
-            let mut proof_acc: Accumulator<S> = dual_msm.into();
-            proof_acc.extract_fixed_bases(&fixed_bases);
+            let mut proof_acc: Accumulator<S> =
+                Accumulator::from_dual_msm(dual_msm, "inner_vk", &fixed_bases);
+            proof_acc.resolve_fixed_bases(&fixed_bases);
             proof_acc.collapse();
             proof_acc
         };
@@ -230,7 +231,7 @@ fn main() -> Result<()> {
         accumulated.collapse();
 
         assert!(
-            accumulated.check(&kzg_params.s_g2().into(), &fixed_bases),
+            accumulated.check(&kzg_params.verifier_params(), &fixed_bases),
             "IVC acc verification failed"
         );
 

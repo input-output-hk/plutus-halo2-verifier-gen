@@ -1,8 +1,14 @@
 pub(crate) mod bls12_381;
 pub(crate) use bls12_381::WeierstrassBls12381;
 
+pub(crate) mod curve25519;
+pub(crate) use curve25519::Curve25519;
+
 pub(super) mod ecc;
-pub(super) use ecc::EccEmulationParams;
+pub(crate) use ecc::{
+    EdwardsChip, EdwardsChipTrait, EdwardsEmulationParams, WeierstrassChip, WeierstrassChipTrait,
+    WeierstrassEmulationParams,
+};
 
 pub(super) mod field;
 pub(crate) use field::FieldEmulationParams;

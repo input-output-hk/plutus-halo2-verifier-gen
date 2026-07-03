@@ -7,8 +7,8 @@ pub(crate) const PERM_DEGREE: usize = 3;
 /// We permute on (current, next, last) for all but the last permutation commitment.
 pub(crate) fn perm_poly_rotations() -> Vec<RotationSet> {
     vec![
-        RotationSet::new(false, false, true, true, false),
-        RotationSet::new(false, false, true, true, true),
+        RotationSet::new(false, false, true, true, false, false, false),
+        RotationSet::new(false, false, true, true, false, false, true),
     ]
 }
 

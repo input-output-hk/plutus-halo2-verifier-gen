@@ -576,13 +576,28 @@ where
 
     let (unique_grouped_points, commitment_data) = PCS::precompute_intermediate_sets(circuit);
 
+    // Sort point sets by ascending cardinality, with index as tiebreaker, matching the
+    // midnight-zk KZG verifier ordering.
+    let mut sort_order: Vec<usize> = (0..unique_grouped_points.len()).collect();
+    sort_order.sort_by_key(|&i| (unique_grouped_points[i].len(), i));
+    let sorted_points: Vec<_> = sort_order
+        .iter()
+        .map(|&i| unique_grouped_points[i].clone())
+        .collect();
+
+    // Build old_index → new_index map for remapping point_set_index in commitment data.
+    let mut old_to_new = vec![0usize; sort_order.len()];
+    for (new_idx, &old_idx) in sort_order.iter().enumerate() {
+        old_to_new[old_idx] = new_idx;
+    }
+
     let commitment_data_str = commitment_data
         .iter()
         .map(|commitment_data| {
             format!(
                 "{}, {}, [{}], [{}]",
                 commitment_data.commitment.compile_expression(),
-                commitment_data.point_set_index,
+                old_to_new[commitment_data.point_set_index],
                 commitment_data
                     .points
                     .iter()
@@ -601,7 +616,7 @@ where
     let commitment_map = format!("      !commitment_data = [({})]", commitment_data_str);
     data.insert("COMMITMENT_MAP".to_string(), commitment_map);
 
-    let point_sets = unique_grouped_points
+    let point_sets = sorted_points
         .iter()
         .map(|set| set.iter().map(RotationDescription::to_string).join(","))
         .join("],[");
@@ -613,13 +628,13 @@ where
     if PCS::pcs_type() == PCSType::Halo2MultiOpen {
         // Precompute maximum number of commitments queried for any points set,
         // it will define the number of X1 powers that we would need to compute during verification
-        let point_sets_indexes: Vec<usize> = (0..unique_grouped_points.len()).collect();
+        let point_sets_indexes: Vec<usize> = (0..sorted_points.len()).collect();
         let max_commitments_per_points_set = point_sets_indexes
             .iter()
             .map(|&idx| {
                 commitment_data
                     .iter()
-                    .filter(|cd| cd.point_set_index == idx)
+                    .filter(|cd| cd.point_set_index == sort_order[idx])
                     .count()
             })
             .max()

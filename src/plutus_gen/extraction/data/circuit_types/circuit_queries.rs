@@ -29,8 +29,8 @@ impl CircuitQueries {
     /// Returns all queries ordered by type.
     pub(crate) fn all_ordered(&self) -> [Vec<Query>; 8] {
         [
-            self.instance.clone(),
             self.advice.clone(),
+            self.instance.clone(),
             self.permutation.clone(),
             self.lookup.clone(),
             self.trashcan.clone(),

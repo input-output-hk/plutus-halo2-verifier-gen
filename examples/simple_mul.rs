@@ -75,8 +75,8 @@ fn main() -> Result<()> {
         &[circuit],
         nb_committed_instances,
         &[&[&instance]],
-        &mut rng,
         &mut transcript,
+        &mut rng,
     )
     .context("proof generation should not fail")?;
 

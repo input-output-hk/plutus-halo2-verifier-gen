@@ -1,13 +1,13 @@
-use super::ecc::{EccChip, EccChipTrait};
 use super::field::{FieldChip, FieldChipTrait};
-use crate::plutus_gen::stats::chips::curve::{fe_to_bigint, to_bigint};
+use crate::plutus_gen::stats::chips::curve::to_bigint;
 
 use super::super::super::{Argument, Chip, Column, LookupTable, SupportedChips};
-use super::{EccEmulationParams, FieldEmulationParams};
+use super::{
+    FieldEmulationParams, WeierstrassChip, WeierstrassChipTrait, WeierstrassEmulationParams,
+};
 
 use ff::PrimeField;
-use midnight_circuits::ecc::curves::WeierstrassCurve;
-use midnight_curves::secp256k1;
+use midnight_curves::k256;
 use num_bigint::BigInt;
 use num_traits::One;
 
@@ -21,7 +21,7 @@ impl FieldEmulationParams for WeierstrassSecp256k1Scalar {
     const RC_LIMB_SIZE: usize = 17;
 
     fn modulus() -> BigInt {
-        to_bigint(secp256k1::Fq::MODULUS)
+        to_bigint(k256::Fq::MODULUS)
     }
 
     fn moduli() -> Vec<BigInt> {
@@ -38,7 +38,7 @@ impl FieldEmulationParams for WeierstrassSecp256k1 {
     const RC_LIMB_SIZE: usize = 16;
 
     fn modulus() -> BigInt {
-        to_bigint(secp256k1::Fp::MODULUS)
+        to_bigint(k256::Fp::MODULUS)
     }
 
     fn moduli() -> Vec<BigInt> {
@@ -46,16 +46,16 @@ impl FieldEmulationParams for WeierstrassSecp256k1 {
     }
 }
 
-impl EccEmulationParams for WeierstrassSecp256k1 {
+impl WeierstrassEmulationParams for WeierstrassSecp256k1 {
     fn b() -> BigInt {
-        fe_to_bigint(&secp256k1::Secp256k1::B)
+        BigInt::from(7)
     }
 }
 
 impl Chip for WeierstrassSecp256k1 {
     fn advice_columns() -> Vec<Column> {
         let scalar_advices = <FieldChip as FieldChipTrait<WeierstrassSecp256k1Scalar>>::advice();
-        let ecc_advices = <EccChip as EccChipTrait<WeierstrassSecp256k1>>::advice();
+        let ecc_advices = <WeierstrassChip as WeierstrassChipTrait<WeierstrassSecp256k1>>::advice();
 
         let max_len = std::cmp::max(scalar_advices.len(), ecc_advices.len());
         let mut columns: Vec<Column> = (0..max_len).map(|_| Column::empty_advice()).collect();
@@ -73,7 +73,8 @@ impl Chip for WeierstrassSecp256k1 {
 
     fn extra_columns() -> Vec<Column> {
         let scalar_fixed = <FieldChip as FieldChipTrait<WeierstrassSecp256k1Scalar>>::extra_fixed();
-        let ecc_fixed = <EccChip as EccChipTrait<WeierstrassSecp256k1>>::extra_fixed();
+        let ecc_fixed =
+            <WeierstrassChip as WeierstrassChipTrait<WeierstrassSecp256k1>>::extra_fixed();
 
         [scalar_fixed, ecc_fixed].concat()
     }
@@ -81,17 +82,17 @@ impl Chip for WeierstrassSecp256k1 {
     fn gate_args() -> Vec<Argument> {
         let scalar_args = <FieldChip as FieldChipTrait<WeierstrassSecp256k1Scalar>>::gates();
 
-        let ecc_args = <EccChip as EccChipTrait<WeierstrassSecp256k1>>::gates();
+        let ecc_args = <WeierstrassChip as WeierstrassChipTrait<WeierstrassSecp256k1>>::gates();
 
         [scalar_args, ecc_args].concat()
     }
 
     fn lookup_args() -> Vec<Argument> {
-        <EccChip as EccChipTrait<WeierstrassSecp256k1>>::lookups()
+        <WeierstrassChip as WeierstrassChipTrait<WeierstrassSecp256k1>>::lookups()
     }
 
     fn lookup_tables() -> Vec<LookupTable> {
-        <EccChip as EccChipTrait<WeierstrassSecp256k1>>::lookup_tables()
+        <WeierstrassChip as WeierstrassChipTrait<WeierstrassSecp256k1>>::lookup_tables()
     }
 
     fn chip_deps() -> Vec<SupportedChips> {

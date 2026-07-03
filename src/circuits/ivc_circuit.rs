@@ -8,7 +8,9 @@ use group::Group;
 use midnight_circuits::{
     ecc::{
         curves::CircuitCurve,
-        foreign::{ForeignEccChip, ForeignEccConfig, nb_foreign_ecc_chip_columns},
+        foreign::weierstrass_chip::{
+            ForeignWeierstrassEccChip, ForeignWeierstrassEccConfig, nb_foreign_ecc_chip_columns,
+        },
     },
     field::{
         NativeChip, NativeConfig, NativeGadget,
@@ -90,7 +92,7 @@ pub fn configure_ivc_circuit(
 ) -> (
     NativeConfig,
     P2RDecompositionConfig,
-    ForeignEccConfig<C>,
+    ForeignWeierstrassEccConfig<C>,
     PoseidonConfig<F>,
 ) {
     let nb_advice_cols = nb_foreign_ecc_chip_columns::<F, C, C, NG>();
@@ -109,14 +111,28 @@ pub fn configure_ivc_circuit(
             [committed_instance_column, instance_column],
         ),
     );
+
+    let nb_parallel_range_checks = NB_ARITH_COLS - 1;
+    let max_bit_len = 16;
     let core_decomp_config = {
-        let pow2_config = Pow2RangeChip::configure(meta, &advice_columns[1..NB_ARITH_COLS]);
+        let pow2_config =
+            Pow2RangeChip::configure(meta, &advice_columns[1..nb_parallel_range_checks]);
         P2RDecompositionChip::configure(meta, &(native_config.clone(), pow2_config))
     };
 
-    let base_config = FieldChip::<F, CBase, C, NG>::configure(meta, &advice_columns);
-    let curve_config =
-        ForeignEccChip::<F, C, C, NG, NG>::configure(meta, &base_config, &advice_columns);
+    let base_config = FieldChip::<F, CBase, C, NG>::configure(
+        meta,
+        &advice_columns,
+        nb_parallel_range_checks,
+        max_bit_len,
+    );
+    let curve_config = ForeignWeierstrassEccChip::<F, C, C, NG, NG>::configure(
+        meta,
+        &base_config,
+        &advice_columns,
+        nb_parallel_range_checks,
+        max_bit_len,
+    );
 
     let poseidon_config = PoseidonChip::configure(
         meta,
@@ -140,7 +156,7 @@ impl Circuit<F> for IvcCircuit {
     type Config = (
         NativeConfig,
         P2RDecompositionConfig,
-        ForeignEccConfig<C>,
+        ForeignWeierstrassEccConfig<C>,
         PoseidonConfig<F>,
     );
     type FloorPlanner = SimpleFloorPlanner;
@@ -162,7 +178,7 @@ impl Circuit<F> for IvcCircuit {
         let native_chip = <NativeChip<F> as ComposableChip<F>>::new(&config.0, &());
         let core_decomp_chip = P2RDecompositionChip::new(&config.1, &(K as usize - 1));
         let scalar_chip = NativeGadget::new(core_decomp_chip.clone(), native_chip.clone());
-        let curve_chip = { ForeignEccChip::new(&config.2, &scalar_chip, &scalar_chip) };
+        let curve_chip = { ForeignWeierstrassEccChip::new(&config.2, &scalar_chip, &scalar_chip) };
         let poseidon_chip = PoseidonChip::new(&config.3, &native_chip);
 
         let verifier_chip = VerifierGadget::new(&curve_chip, &scalar_chip, &poseidon_chip);
@@ -219,7 +235,7 @@ impl Circuit<F> for IvcCircuit {
         let mut proof_acc = verifier_chip.prepare(
             &mut layouter,
             &assigned_self_vk,
-            &[("com_instance", id_point)],
+            &[id_point],
             &[&assigned_pi],
             self.prev_proof.clone(),
         )?;
@@ -265,7 +281,6 @@ mod tests {
     use midnight_circuits::{
         hash::poseidon::PoseidonState,
         types::{AssignedNative, Instantiable},
-        verifier::Msm,
     };
 
     use midnight_curves::Bls12;
@@ -307,26 +322,10 @@ mod tests {
         ));
         let fixed_base_names = fixed_bases.keys().cloned().collect::<Vec<_>>();
 
-        // This trivial accumulator must have a single base and scalar of F::ONE, and
-        // the base has to be the default point of C. This is because when parsing
-        // an empty proof, our transcript gadget places a default point on every
-        // `read_point`. Note that the `base` is left untouched on during the
-        // handling of genesis, because `scale_by_bit` only modifies the scalars.
-        //
-        // On the other hand, the scalar has to be F::ONE because it is the value
-        // obtained after a `collapse` (the last step before constraining the acc as
-        // a public input).
-        let trivial_acc = Accumulator::<S>::new(
-            Msm::new(&[C::default()], &[F::ONE], &BTreeMap::new()),
-            Msm::new(
-                &[C::default()],
-                &[F::ONE],
-                &fixed_base_names
-                    .iter()
-                    .map(|name| (name.clone(), F::ZERO))
-                    .collect(),
-            ),
-        );
+        // let fixed_bases = midnight_circuits::verifier::fixed_bases::<S>("self_vk", &vk);
+        // let fixed_base_names = fixed_bases.keys().cloned().collect::<Vec<_>>();
+
+        let trivial_acc = Accumulator::<S>::trivial(&fixed_base_names);
 
         // Set the previous values for state (to genesis), proof and acc.
         let mut prev_state = F::ZERO;
@@ -352,6 +351,7 @@ mod tests {
             public_inputs.extend(AssignedNative::<F>::as_public_input(&state));
             public_inputs.extend(AssignedAccumulator::as_public_input(&acc));
 
+            println!("Creating {i}-th IVC proof");
             let start = Instant::now();
             let proof = {
                 let mut transcript = CircuitTranscript::<PoseidonState<F>>::init();
@@ -366,8 +366,8 @@ mod tests {
                     &[circuit.clone()],
                     1,
                     &[&[&[], &public_inputs]],
-                    &mut rng.clone(),
                     &mut transcript,
+                    &mut rng.clone(),
                 )
                 .unwrap_or_else(|_| panic!("Problem creating the {i}-th IVC proof"));
                 transcript.finalize()
@@ -386,9 +386,10 @@ mod tests {
                     .expect("Verification failed");
 
                 assert!(dual_msm.clone().check(&kzg_params.verifier_params()));
+                println!("verification passed");
 
-                let mut proof_acc: Accumulator<S> = dual_msm.into();
-                proof_acc.extract_fixed_bases(&fixed_bases);
+                let mut proof_acc: Accumulator<S> =
+                    Accumulator::from_dual_msm(dual_msm, "self_vk", &fixed_bases);
                 proof_acc.collapse();
                 proof_acc
             };
@@ -405,9 +406,10 @@ mod tests {
             accumulated.collapse();
 
             assert!(
-                accumulated.check(&kzg_params.s_g2().into(), &fixed_bases),
+                accumulated.check(&kzg_params.verifier_params(), &fixed_bases),
                 "IVC acc verification failed"
             );
+            println!("Acc verification passed");
 
             println!("Asserted validity of state {:?}", state);
 

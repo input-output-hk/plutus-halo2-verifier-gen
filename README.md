@@ -238,15 +238,18 @@ All three binaries share the same flags:
 ```
 Proof inputs :
   --nb-public-inputs / --pi        Number of public inputs (required)
-  --nb-committed-instances / --ci  Whether we need committed instances
+  --committed_instances / --ci     If any committed instances
   --recursion / --rec              Whether we are doing recursion
 
 Chips (combine as needed):
   --native          Native arithmetic chip (arithmetic + parallel_add gates)
+  --sha256          SHA256 hash chip
+  --sha512          SHA512 hash chip
   --poseidon        Poseidon hash chip
   --jubjub          Jubjub Edwards curve chip
-  --bls12_381       BLS12-381 curve chip
-  --secp256k1       Secp256K1 curve chip
+  --bls12-381       BLS12-381 curve chip
+  --curve25519      Curve25519 curve chip
+  --secp256k1       Secp256k1 curve chip
   --hash-to-curve   Poseidon hash-to-Jubjub-curve chip
 
 Circuit config (all default to 0):
@@ -269,13 +272,13 @@ The `nr-pow2` stands for the number of parralel lookups for scalar decomposition
 
 ```bash
 # Full cost estimate: 3 public inputs, native chip
-cargo run --bin estimate -- --nb-public-inputs 3 --nb-committed-instances 0 --native
+cargo run --bin estimate -- --nb-public-inputs 3 --native
 
 # Proof size for a circuit with Poseidon hashing and Jubjub signatures
-cargo run --bin proof_size -- --nb-public-inputs 5 --nb-committed-instances 1 --poseidon --jubjub
+cargo run --bin proof_size -- --nb-public-inputs 5 --committed_instances --poseidon --jubjub
 
 # Full estimate for a circuit with hash-to-curve and lookup arguments
-cargo run --bin estimate -- --nb-public-inputs 2 --nb-committed-instances 0 --hash-to-curve --nb-lookups 2 --degree 8
+cargo run --bin estimate -- --nb-public-inputs 2 --hash-to-curve --nb-lookups 2 --degree 8
 ```
 
 ## License

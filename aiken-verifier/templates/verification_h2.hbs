@@ -32,6 +32,8 @@ pub fn verifier(proof: Data, {{{COMMITTED_INSTANCES_NAMES}}}{{{PUBLIC_INPUTS_NAM
     let x_prev = rotate_omega(omega, omega_inv, x, (-1))
     let x_current = rotate_omega(omega, omega_inv, x, 0)
     let x_next = rotate_omega(omega, omega_inv, x, 1)
+    let x_rot_2 = rotate_omega(omega, omega_inv, x, 2)
+    let x_rot_3 = rotate_omega(omega, omega_inv, x, 3)
     let x_last = rotate_omega(omega, omega_inv, x, (-(blinding_factors + 1)))
 
     let rotations_for_vanishing =

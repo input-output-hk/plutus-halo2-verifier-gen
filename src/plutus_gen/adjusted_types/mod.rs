@@ -1,12 +1,9 @@
 use blake2b_simd::{Params, State};
-use std::io;
-use std::io::Read;
 
 use ff::{FromUniformBytes, PrimeField};
-use group::GroupEncoding;
 
-use midnight_curves::{BlsScalar as Scalar, G1Projective};
-use midnight_proofs::transcript::{Hashable, Sampleable, TranscriptHash};
+use midnight_curves::BlsScalar as Scalar;
+use midnight_proofs::transcript::{Sampleable, TranscriptHash};
 
 /// Prefix when squeezing challenges from the transcript
 const BLAKE2B_PREFIX_CHALLENGE: u8 = 0;
@@ -62,7 +59,6 @@ impl TranscriptHash for CardanoFriendlyBlake2b {
         padded_result.to_vec()
     }
 }
-
 
 /// Standard implementation for Scalar sampling, done as in halo2
 impl Sampleable<CardanoFriendlyBlake2b> for Scalar {

@@ -113,7 +113,7 @@ where
         let mut extras = Vec::new();
         (0..extra.nb_advice).for_each(|i| {
             let rotations = if i + extra.nb_advice + extra.nb_fixed < extra_nb_evaluations {
-                RotationSet::new(false, false, true, true, false)
+                RotationSet::new(false, false, true, true, false, false, false)
             } else {
                 RotationSet::curr()
             };
@@ -152,7 +152,7 @@ where
         let mut extras_fixed = Vec::new();
         (0..extra.nb_fixed).for_each(|i| {
             let rotations = if i + 2 * extra.nb_advice + extra.nb_fixed < extra_nb_evaluations {
-                RotationSet::new(false, false, true, true, false)
+                RotationSet::new(false, false, true, true, false, false, false)
             } else {
                 RotationSet::curr()
             };

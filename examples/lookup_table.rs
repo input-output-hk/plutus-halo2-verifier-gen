@@ -67,8 +67,8 @@ fn main() -> Result<()> {
         &[circuit.clone()],
         nb_committed_instances,
         &[&[&instance]],
-        &mut rng,
         &mut transcript,
+        &mut rng,
     )
     .context("proof generation should not fail")?;
 
@@ -94,8 +94,8 @@ fn main() -> Result<()> {
         &[circuit.clone()],
         nb_committed_instances,
         &[&[&[Base::from(1u64), Base::from(1u64), Base::from(1u64)]]],
-        &mut rng,
         &mut invalid_transcript,
+        &mut rng,
     )
     .context("proof generation should not fail")?;
     let invalid_proof = invalid_transcript.finalize();
@@ -103,8 +103,8 @@ fn main() -> Result<()> {
     let chips = &[lookup_chip(
         "pow2range".to_string(),
         NB_POW2RANGE_COLS,
-        0,
-        0,
+        2,
+        1,
     )];
     // LookupTest: 4 advice, 4 fixed (complex selector + tag_col + 2 table cols), 4 lookups
     cost_evaluation(
@@ -115,9 +115,12 @@ fn main() -> Result<()> {
         None,
         chips,
         CircuitConfig {
+            nb_selectors: 1,
             nb_advice: 4,
-            nb_fixed: 4,
-            degree: 5,
+            nb_fixed: 3,
+            nb_lookups: 8,
+            degree: 2,
+            nb_evaluations: 5,
             ..Default::default()
         },
     )?;
