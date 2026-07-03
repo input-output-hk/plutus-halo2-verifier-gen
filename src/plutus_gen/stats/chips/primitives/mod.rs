@@ -1,6 +1,7 @@
 pub(crate) mod curve;
 pub(crate) use curve::{
     Curve25519, EdwardsJubjub, HashToCurve, WeierstrassBls12381, WeierstrassSecp256k1,
+    WeierstrassSecp256r1,
 };
 
 pub(crate) mod hash;

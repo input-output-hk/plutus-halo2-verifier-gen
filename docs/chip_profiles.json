@@ -632,6 +632,106 @@
     "proof_size": 3152,
     "vk_size": 1594
   },
+  "secp256r1": {
+    "deps": [
+      "native"
+    ],
+    "degree": 5,
+    "advice_cols": 9,
+    "fixed_cols": 23,
+    "copy_constraints": 10,
+    "nb_lookup_tables": 0,
+    "gates": 11,
+    "lookups": 1,
+    "trash": 0,
+    "evals": 32,
+    "gate_ops": {
+      "neg": 91,
+      "add": 705,
+      "sub": 0,
+      "mul": 989,
+      "from_int": 614
+    },
+    "lookup_ops": {
+      "neg": 10,
+      "add": 19,
+      "sub": 0,
+      "mul": 19,
+      "from_int": 10
+    },
+    "trash_ops": {
+      "neg": 0,
+      "add": 0,
+      "sub": 0,
+      "mul": 0,
+      "from_int": 0
+    },
+    "commitment_map": [
+      [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      [
+        2,
+        2
+      ],
+      [
+        3,
+        3,
+        3
+      ],
+      [
+        2
+      ],
+      [
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3
+      ]
+    ],
+    "proof_size": 3152,
+    "vk_size": 1594
+  },
   "sha256": {
     "deps": [
       "native"

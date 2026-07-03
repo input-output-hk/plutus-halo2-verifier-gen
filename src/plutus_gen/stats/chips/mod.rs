@@ -36,7 +36,8 @@ pub enum SupportedChips {
     WeierstrassBls12381,
     #[strum(to_string = "secp256k1")]
     WeierstrassSecp256k1,
-    // WeierstrassSecp256r1,
+    #[strum(to_string = "secp256r1")]
+    WeierstrassSecp256r1,
     #[strum(disabled)]
     P2RDecomposition(usize),
     // Automaton,
@@ -262,7 +263,7 @@ impl_supported_chips! {
     EdwardsJubjub        => EdwardsJubjub,
     WeierstrassBls12381  => WeierstrassBls12381,
     WeierstrassSecp256k1 => WeierstrassSecp256k1,
-    // WeierstrassSecp256r1 => WeierstrassSecp256r1,
+    WeierstrassSecp256r1 => WeierstrassSecp256r1,
     // Automaton            => Automaton,
     // Base64               => Base64,
 }

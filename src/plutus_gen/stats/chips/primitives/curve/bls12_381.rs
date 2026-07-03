@@ -1,4 +1,4 @@
-use crate::plutus_gen::stats::chips::curve::{fe_to_bigint, to_bigint};
+use crate::plutus_gen::stats::chips::curve::{fe_to_bigint_le, to_bigint};
 
 use super::super::super::{Argument, Chip, Column, LookupTable, SupportedChips};
 use super::{
@@ -32,8 +32,12 @@ impl FieldEmulationParams for WeierstrassBls12381 {
 }
 
 impl WeierstrassEmulationParams for WeierstrassBls12381 {
+    fn a() -> BigInt {
+        fe_to_bigint_le(&<midnight_curves::G1Projective as WeierstrassCurve>::A)
+    }
+
     fn b() -> BigInt {
-        fe_to_bigint(&<midnight_curves::G1Projective as WeierstrassCurve>::B)
+        fe_to_bigint_le(&<midnight_curves::G1Projective as WeierstrassCurve>::B)
     }
 }
 

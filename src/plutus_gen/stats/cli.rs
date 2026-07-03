@@ -74,6 +74,13 @@ pub struct EstimateCliArguments {
     #[arg(
         long,
         help_heading = "Chips",
+        help = "Include the secp256r1 curve chip."
+    )]
+    pub secp256r1: bool,
+
+    #[arg(
+        long,
+        help_heading = "Chips",
         help = "Include the Poseidon Hash to Jubjub Curve chip."
     )]
     pub hash_to_curve: bool,
@@ -164,6 +171,9 @@ impl EstimateCliArguments {
         }
         if self.secp256k1 {
             chips.push(SupportedChips::WeierstrassSecp256k1);
+        }
+        if self.secp256r1 {
+            chips.push(SupportedChips::WeierstrassSecp256r1);
         }
         chips
     }

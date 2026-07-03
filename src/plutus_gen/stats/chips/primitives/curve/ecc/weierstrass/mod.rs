@@ -31,6 +31,32 @@ pub(super) fn nb_advice_columns<P: WeierstrassEmulationParams>() -> usize {
     P::NB_LIMBS + std::cmp::max(P::NB_LIMBS, 2 + P::moduli().len()) + 1
 }
 
+/// Column-index ranges shared by every `WierstrassOpChip` (lambda, oncurve,
+/// slope, tangent): all four lay their columns out identically, differing
+/// only in which rotations of each range they query.
+pub(super) struct WeierstrassColumnRanges {
+    pub(super) x_cols: std::ops::Range<usize>,
+    pub(super) z_cols: std::ops::Range<usize>,
+    pub(super) u_col: usize,
+    pub(super) v_cols: std::ops::Range<usize>,
+    pub(super) cond_col: usize,
+}
+
+pub(super) fn column_ranges<P: WeierstrassEmulationParams>() -> WeierstrassColumnRanges {
+    let x_cols = 0..P::NB_LIMBS;
+    let z_cols = P::NB_LIMBS..(2 * P::NB_LIMBS);
+    let u_col = P::NB_LIMBS;
+    let v_cols = (P::NB_LIMBS + 1)..(P::NB_LIMBS + 1 + P::moduli().len());
+    let cond_col = x_cols.len() + v_cols.len() + 1;
+    WeierstrassColumnRanges {
+        x_cols,
+        z_cols,
+        u_col,
+        v_cols,
+        cond_col,
+    }
+}
+
 pub struct WeierstrassChip {}
 impl<P: FieldEmulationParams> FieldChipTrait<P> for WeierstrassChip {}
 impl<P: WeierstrassEmulationParams> WeierstrassChipTrait<P> for WeierstrassChip {}

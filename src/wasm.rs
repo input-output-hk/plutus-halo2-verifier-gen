@@ -6,7 +6,7 @@ use crate::plutus_gen::{self, CircuitConfig, SupportedChips};
 ///
 /// `chips_json` is a JSON array where each element is either:
 /// - a string: `"Native"`,`"Sha256"`, `"Sha512"`, `"Poseidon"`, `"HashToCurve"`, `"Curve25519"`,
-///   `"EdwardsJubjub"`, `"WeierstrassBls12381"`, `"WeierstrassSecp256k1"`
+///   `"EdwardsJubjub"`, `"WeierstrassBls12381"`, `"WeierstrassSecp256k1"`, `"WeierstrassSecp256r1"`
 /// - an object: `{"type":"P2RDecomposition","n":5}` or
 ///   `{"type":"Lookup","name":"...","nb_arguments":1,"input_degree":1,"table_degree":1}`
 ///
@@ -92,6 +92,7 @@ fn chip_from_str(s: &str) -> Option<SupportedChips> {
         "Curve25519" => Some(SupportedChips::Curve25519),
         "WeierstrassBls12381" => Some(SupportedChips::WeierstrassBls12381),
         "WeierstrassSecp256k1" => Some(SupportedChips::WeierstrassSecp256k1),
+        "WeierstrassSecp256r1" => Some(SupportedChips::WeierstrassSecp256r1),
         _ => None,
     }
 }

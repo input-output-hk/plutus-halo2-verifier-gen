@@ -315,6 +315,7 @@ const TABLE_CHIPS = [
   { name: 'Bls12-381',     flag: '--bls12-381',      key: 'bls12381'  },
   { name: 'Curve25519',     flag: '--curve25519',      key: 'curve25519'  },
   { name: 'Secp256k1',     flag: '--secp256k1',      key: 'secp256k1' },
+  { name: 'Secp256r1',     flag: '--secp256r1',      key: 'secp256r1' },
 ];
 
 const KEY_TO_NAME = Object.fromEntries(TABLE_CHIPS.map(({ key, name }) => [key, name]));
@@ -328,6 +329,7 @@ function populate(profiles) {
   const tbody = document.getElementById('cmp-tbody');
   TABLE_CHIPS.forEach(({ name, flag, key }) => {
     const chip  = profiles[key];
+    if (!chip) { console.warn('No profile for chip: ' + key); return; }
     const proof = fmtBytes(chip.proof_size);
     const vk    = fmtBytes(chip.vk_size);
     const total = fmtBytes(chip.proof_size + chip.vk_size);
@@ -353,6 +355,7 @@ function populate(profiles) {
   const opsTbody = document.getElementById('ops-tbody');
   TABLE_CHIPS.forEach(({ name, key: chipKey }) => {
     const p   = profiles[chipKey];
+    if (!p) { console.warn('No profile for chip: ' + chipKey); return; }
     const ops = ['neg', 'add', 'sub', 'mul', 'from_int'].reduce((acc, k) => {
       acc[k] = p.gate_ops[k] + p.lookup_ops[k] + p.trash_ops[k];
       return acc;

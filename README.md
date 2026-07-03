@@ -250,6 +250,7 @@ Chips (combine as needed):
   --bls12-381       BLS12-381 curve chip
   --curve25519      Curve25519 curve chip
   --secp256k1       Secp256k1 curve chip
+  --secp256r1       Secp256r1 curve chip
   --hash-to-curve   Poseidon hash-to-Jubjub-curve chip
 
 Circuit config (all default to 0):

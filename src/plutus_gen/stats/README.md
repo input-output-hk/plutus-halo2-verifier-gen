@@ -116,6 +116,7 @@ CI will fail if `docs/wasm/` is stale relative to the Rust source.
 | `--htc` | `HashToCurve` | Hash-to-curve (JubJub) |
 | `--bls12-381` | `WeierstrassBls12381` | BLS12-381 ECC (foreign field, 7 limbs) |
 | `--secp256k1` | `WeierstrassSecp256k1` | secp256k1 ECC (foreign field, 4 limbs) |
+| `--secp256r1` | `WeierstrassSecp256r1` | secp256r1 ECC (foreign field, 4 limbs) |
 
 ---
 
