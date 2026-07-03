@@ -533,9 +533,14 @@ cargo run <span class="flag">--bin</span> estimate -- \
         <div class="flags-section-title">Chips (combine as needed)</div>
         <table class="flags-table">
           <tr><td>--native</td><td>Arith chip (arithmetic + parallel_add gates)</td></tr>
+          <tr><td>--sha256</td><td>SHA256 hash chip</td></tr>
+          <tr><td>--sha512</td><td>SHA512 hash chip</td></tr>
           <tr><td>--poseidon</td><td>Poseidon hash chip</td></tr>
           <tr><td>--jubjub</td><td>JubJub Edwards curve chip</td></tr>
           <tr><td>--hash-to-curve</td><td>Poseidon hash-to-JubJub-curve chip</td></tr>
+          <tr><td>--curve25519</td><td>Curve25519 field/curve chip</td></tr>
+          <tr><td>--secp256k1</td><td>Secp256k1 curve chip</td></tr>
+          <tr><td>--bls12-381</td><td>BLS12-381 curve chip</td></tr>
         </table>
 
         <div class="flags-section-title">Circuit config (default 0)</div>
@@ -586,6 +591,14 @@ cargo run <span class="flag">--bin</span> estimate -- \
       <p>Standard PLONK arithmetic gate + parallel_add gate. The baseline for any custom computation.</p>
     </div>
     <div class="chip-card">
+      <h4><span class="chip-tag">--sha256</span> SHA256</h4>
+      <p>Bitwise SHA256 hash chip. Used for hashing where SHA256 is required by the target protocol.</p>
+    </div>
+    <div class="chip-card">
+      <h4><span class="chip-tag">--sha512</span> SHA512</h4>
+      <p>Bitwise SHA512 hash chip. Larger word size than SHA256, used where the protocol calls for it.</p>
+    </div>
+    <div class="chip-card">
       <h4><span class="chip-tag">--poseidon</span> Poseidon Hash</h4>
       <p>ZK-friendly Poseidon permutation over the BLS12-381 scalar field. Used in commitments and Merkle trees.</p>
     </div>
@@ -596,6 +609,10 @@ cargo run <span class="flag">--bin</span> estimate -- \
     <div class="chip-card">
       <h4><span class="chip-tag">--hash-to-curve</span> Hash-to-Curve</h4>
       <p>Maps an arbitrary message to a JubJub curve point via Poseidon hash. Required for BLS-style signature schemes.</p>
+    </div>
+    <div class="chip-card">
+      <h4><span class="chip-tag">--curve25519</span> Curve25519</h4>
+      <p>Field and curve arithmetic chip for Curve25519. Supports Ed25519/X25519-style signature and key-exchange circuits.</p>
     </div>
     <div class="chip-card">
       <h4><span class="chip-tag">--secp256k1</span> Secp256k1</h4>
