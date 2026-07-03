@@ -102,8 +102,7 @@ mod utils {
         let pk_affine = K256::from_base64(pk_base64).unwrap();
         let sig = ECDSASig::from_base64(sig_base64).unwrap();
 
-        let mut msg_hash_bytes: [u8; 32] = sha2::Sha256::digest(msg).into();
-        msg_hash_bytes.reverse(); // BE to LE
+        let msg_hash_bytes: [u8; 32] = sha2::Sha256::digest(msg).into();
         let msg_scalar = secp256k1Scalar::from_bytes_be(&msg_hash_bytes).unwrap();
 
         Ecdsa::verify(&pk_affine, &msg_scalar, &sig)
