@@ -111,6 +111,105 @@
     "proof_size": 4048,
     "vk_size": 1786
   },
+  "curve25519": {
+    "deps": [
+      "native"
+    ],
+    "degree": 5,
+    "advice_cols": 10,
+    "fixed_cols": 20,
+    "copy_constraints": 11,
+    "nb_lookup_tables": 0,
+    "gates": 8,
+    "lookups": 1,
+    "trash": 0,
+    "evals": 30,
+    "gate_ops": {
+      "neg": 42,
+      "add": 255,
+      "sub": 0,
+      "mul": 288,
+      "from_int": 200
+    },
+    "lookup_ops": {
+      "neg": 10,
+      "add": 19,
+      "sub": 0,
+      "mul": 19,
+      "from_int": 10
+    },
+    "trash_ops": {
+      "neg": 0,
+      "add": 0,
+      "sub": 0,
+      "mul": 0,
+      "from_int": 0
+    },
+    "commitment_map": [
+      [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      [
+        2,
+        2
+      ],
+      [
+        3,
+        3,
+        3
+      ],
+      [
+        2,
+        2
+      ],
+      [
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3
+      ]
+    ],
+    "proof_size": 3168,
+    "vk_size": 1498
+  },
   "htc": {
     "deps": [
       "native",
@@ -532,5 +631,209 @@
     ],
     "proof_size": 3152,
     "vk_size": 1594
+  },
+  "sha256": {
+    "deps": [
+      "native"
+    ],
+    "degree": 5,
+    "advice_cols": 8,
+    "fixed_cols": 25,
+    "copy_constraints": 7,
+    "nb_lookup_tables": 1,
+    "gates": 14,
+    "lookups": 2,
+    "trash": 0,
+    "evals": 33,
+    "gate_ops": {
+      "neg": 22,
+      "add": 173,
+      "sub": 0,
+      "mul": 156,
+      "from_int": 116
+    },
+    "lookup_ops": {
+      "neg": 0,
+      "add": 4,
+      "sub": 0,
+      "mul": 10,
+      "from_int": 0
+    },
+    "trash_ops": {
+      "neg": 0,
+      "add": 0,
+      "sub": 0,
+      "mul": 0,
+      "from_int": 0
+    },
+    "commitment_map": [
+      [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      [
+        2,
+        2,
+        2
+      ],
+      [
+        3,
+        3
+      ],
+      [
+        2,
+        2
+      ],
+      [
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3
+      ]
+    ],
+    "proof_size": 3200,
+    "vk_size": 1546
+  },
+  "sha512": {
+    "deps": [
+      "native"
+    ],
+    "degree": 5,
+    "advice_cols": 8,
+    "fixed_cols": 25,
+    "copy_constraints": 7,
+    "nb_lookup_tables": 1,
+    "gates": 14,
+    "lookups": 2,
+    "trash": 0,
+    "evals": 33,
+    "gate_ops": {
+      "neg": 22,
+      "add": 237,
+      "sub": 0,
+      "mul": 220,
+      "from_int": 180
+    },
+    "lookup_ops": {
+      "neg": 0,
+      "add": 4,
+      "sub": 0,
+      "mul": 10,
+      "from_int": 0
+    },
+    "trash_ops": {
+      "neg": 0,
+      "add": 0,
+      "sub": 0,
+      "mul": 0,
+      "from_int": 0
+    },
+    "commitment_map": [
+      [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      [
+        2,
+        2,
+        2
+      ],
+      [
+        3,
+        3
+      ],
+      [
+        2,
+        2
+      ],
+      [
+        3,
+        3
+      ],
+      [
+        4
+      ],
+      [
+        5,
+        5,
+        5,
+        5,
+        5
+      ]
+    ],
+    "proof_size": 3264,
+    "vk_size": 1546
   }
 }

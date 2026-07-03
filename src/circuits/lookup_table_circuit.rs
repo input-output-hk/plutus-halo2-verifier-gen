@@ -159,7 +159,6 @@ mod tests {
     use midnight_curves::{Base, BlsScalar as Scalar};
 
     use midnight_proofs::dev::MockProver;
-    use midnight_proofs::plonk::k_from_circuit;
     use std::marker::PhantomData;
 
     #[test]
@@ -176,9 +175,8 @@ mod tests {
             Base::from(42u64),
         ]];
 
-        let k: u32 = k_from_circuit(&circuit);
         let prover =
-            MockProver::run(k, &circuit, pi).expect("Failed to run ATMS verifier mock prover");
+            MockProver::run(&circuit, pi).expect("Failed to run ATMS verifier mock prover");
 
         prover.assert_satisfied();
     }

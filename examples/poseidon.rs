@@ -45,6 +45,7 @@ struct PoseidonPreimage;
 impl Relation for PoseidonPreimage {
     type Instance = F;
     type Witness = [F; 3];
+    type Error = Error;
 
     fn format_instance(instance: &Self::Instance) -> Result<Vec<F>, Error> {
         Ok(vec![*instance])
@@ -108,8 +109,8 @@ fn main() -> Result<()> {
         &[circuit],
         1,
         &[&[&[], &formatted_instance]],
-        &mut rng,
         &mut transcript,
+        &mut rng,
     )
     .context("proof generation failed")?;
     let proof = transcript.finalize();

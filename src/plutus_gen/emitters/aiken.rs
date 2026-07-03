@@ -576,15 +576,24 @@ where
 
     let (unique_grouped_points, commitment_data) = PCS::precompute_intermediate_sets(circuit);
 
+    // Sort point sets by ascending cardinality, with index as tiebreaker, matching the
+    // midnight-zk KZG verifier ordering.
+    let mut sort_order: Vec<usize> = (0..unique_grouped_points.len()).collect();
+    sort_order.sort_by_key(|&i| (unique_grouped_points[i].len(), i));
+    let sorted_points: Vec<_> = sort_order
+        .iter()
+        .map(|&i| unique_grouped_points[i].clone())
+        .collect();
+
     // Adding PCS related data and commitments.
     if PCS::pcs_type() == PCSType::Halo2MultiOpen {
-        let point_sets_indexes: Vec<usize> = (0..unique_grouped_points.len()).collect();
+        let point_sets_indexes: Vec<usize> = (0..sorted_points.len()).collect();
         let max_commitments_per_points_set = point_sets_indexes
             .iter()
             .map(|&idx| {
                 commitment_data
                     .iter()
-                    .filter(|cd| cd.point_set_index == idx)
+                    .filter(|cd| cd.point_set_index == sort_order[idx])
                     .count()
             })
             .max()
@@ -605,10 +614,11 @@ where
         // Pre-sort commitment data by point set index to save on this inside the contract
         let halo2_commitment_data = point_sets_indexes
             .iter()
-            .map(|idx| {
+            .map(|&new_idx| {
+                let old_idx = sort_order[new_idx];
                 let commitments_in_set: Vec<&CommitmentData> = commitment_data
                     .iter()
-                    .filter(|&cd| cd.point_set_index == *idx)
+                    .filter(|&cd| cd.point_set_index == old_idx)
                     .collect();
 
                 let commitments_in_set_str = commitments_in_set
@@ -744,7 +754,7 @@ where
         });
         data.insert("RECURSION_ACCUMULATOR".to_string(), recursion_map);
 
-        let kzg_halo2_point_sets = unique_grouped_points
+        let kzg_halo2_point_sets = sorted_points
             .iter()
             .map(|set| set.iter().map(RotationDescription::to_string).join(","))
             .join("],[");

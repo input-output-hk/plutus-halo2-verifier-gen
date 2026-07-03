@@ -278,7 +278,6 @@ mod tests {
 
     use ff::Field;
     use midnight_proofs::dev::MockProver;
-    use midnight_proofs::plonk::k_from_circuit;
     use rand::SeedableRng;
     use rand::prelude::StdRng;
 
@@ -310,9 +309,8 @@ mod tests {
 
         let pi = vec![vec![pks_comm, msg, Base::from(THRESHOLD as u64)]];
 
-        let k: u32 = k_from_circuit(&circuit);
         let prover =
-            MockProver::run(k, &circuit, pi).expect("Failed to run ATMS verifier mock prover");
+            MockProver::run(&circuit, pi).expect("Failed to run ATMS verifier mock prover");
 
         prover.assert_satisfied();
     }

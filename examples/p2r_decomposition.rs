@@ -46,6 +46,7 @@ const NR_POW2RANGE_COLS: u8 = 4;
 impl Relation for RangeCheck {
     type Instance = u8;
     type Witness = u8;
+    type Error = Error;
 
     fn format_instance(instance: &Self::Instance) -> Result<Vec<F>, Error> {
         Ok(vec![F::from(*instance as u64)])
@@ -109,8 +110,8 @@ fn main() -> Result<()> {
         &[circuit],
         0,
         &[&[&[], &formatted_instance]],
-        &mut rng,
         &mut transcript,
+        &mut rng,
     )
     .context("proof generation failed")?;
     let proof = transcript.finalize();

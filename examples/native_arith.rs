@@ -46,6 +46,7 @@ struct NativeArith;
 impl Relation for NativeArith {
     type Instance = F;
     type Witness = [F; 2];
+    type Error = Error;
 
     fn format_instance(instance: &Self::Instance) -> Result<Vec<F>, Error> {
         Ok(vec![*instance])
@@ -69,18 +70,8 @@ impl Relation for NativeArith {
 
     fn used_chips(&self) -> ZkStdLibArch {
         ZkStdLibArch {
-            jubjub: false,
-            poseidon: false,
-            sha2_256: false,
-            sha2_512: false,
-            sha3_256: false,
-            keccak_256: false,
-            blake2b: false,
-            secp256k1: false,
-            bls12_381: false,
-            base64: false,
-            automaton: false,
             nr_pow2range_cols: NR_POW2RANGE_COLS,
+            ..ZkStdLibArch::default()
         }
     }
 
@@ -119,8 +110,8 @@ fn main() -> Result<()> {
         &[circuit],
         1,
         &[&[&[], &formatted_instance]],
-        &mut rng,
         &mut transcript,
+        &mut rng,
     )
     .context("proof generation failed")?;
     let proof = transcript.finalize();

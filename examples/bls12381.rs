@@ -43,6 +43,7 @@ struct Bls12381ScalarMul;
 impl Relation for Bls12381ScalarMul {
     type Instance = G1Projective;
     type Witness = [F; 2];
+    type Error = Error;
 
     fn format_instance(instance: &Self::Instance) -> Result<Vec<F>, Error> {
         Ok(
@@ -65,13 +66,11 @@ impl Relation for Bls12381ScalarMul {
         let scalar = std_lib.mul(layouter, &a, &b, None)?;
 
         let generator = std_lib
-            .bls12_381_curve()
+            .bls12_381()
             .assign_fixed(layouter, G1Projective::generator())?;
-        let result = std_lib
-            .bls12_381_curve()
-            .msm(layouter, &[scalar], &[generator])?;
+        let result = std_lib.bls12_381().msm(layouter, &[scalar], &[generator])?;
         std_lib
-            .bls12_381_curve()
+            .bls12_381()
             .constrain_as_public_input(layouter, &result)
     }
 
@@ -122,8 +121,8 @@ fn main() -> Result<()> {
         &[circuit],
         1,
         &[&[&[], &formatted_instance]],
-        &mut rng,
         &mut transcript,
+        &mut rng,
     )
     .context("proof generation failed")?;
     let proof = transcript.finalize();

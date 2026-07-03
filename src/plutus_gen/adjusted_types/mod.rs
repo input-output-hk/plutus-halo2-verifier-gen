@@ -1,12 +1,9 @@
 use blake2b_simd::{Params, State};
-use std::io;
-use std::io::Read;
 
 use ff::{FromUniformBytes, PrimeField};
-use group::GroupEncoding;
 
-use midnight_curves::{BlsScalar as Scalar, G1Projective};
-use midnight_proofs::transcript::{Hashable, Sampleable, TranscriptHash};
+use midnight_curves::BlsScalar as Scalar;
+use midnight_proofs::transcript::{Sampleable, TranscriptHash};
 
 /// Prefix when squeezing challenges from the transcript
 const BLAKE2B_PREFIX_CHALLENGE: u8 = 0;
@@ -63,26 +60,6 @@ impl TranscriptHash for CardanoFriendlyBlake2b {
     }
 }
 
-/// Standard implementation for Scalar hashing, done as in halo2
-impl Hashable<CardanoFriendlyBlake2b> for Scalar {
-    fn to_input(&self) -> <CardanoFriendlyBlake2b as TranscriptHash>::Input {
-        self.to_repr().to_vec()
-    }
-
-    fn to_bytes(&self) -> Vec<u8> {
-        self.to_repr().to_vec()
-    }
-
-    fn read(buffer: &mut impl Read) -> io::Result<Self> {
-        let mut bytes = <Self as PrimeField>::Repr::default();
-
-        buffer.read_exact(bytes.as_mut())?;
-
-        Option::from(Self::from_repr(bytes))
-            .ok_or_else(|| io::Error::other("Invalid BLS12-381 scalar encoding in proof"))
-    }
-}
-
 /// Standard implementation for Scalar sampling, done as in halo2
 impl Sampleable<CardanoFriendlyBlake2b> for Scalar {
     fn sample(hash_output: <CardanoFriendlyBlake2b as TranscriptHash>::Output) -> Self {
@@ -91,25 +68,5 @@ impl Sampleable<CardanoFriendlyBlake2b> for Scalar {
         let mut bytes = [0u8; 64];
         bytes[..hash_output.len()].copy_from_slice(&hash_output);
         Scalar::from_uniform_bytes(&bytes)
-    }
-}
-
-/// Standard implementation for G1Projective hashing, done as in halo2
-impl Hashable<CardanoFriendlyBlake2b> for G1Projective {
-    fn to_input(&self) -> <CardanoFriendlyBlake2b as TranscriptHash>::Input {
-        Hashable::<State>::to_bytes(self)
-    }
-
-    fn to_bytes(&self) -> Vec<u8> {
-        <Self as GroupEncoding>::to_bytes(self).as_ref().to_vec()
-    }
-
-    fn read(buffer: &mut impl Read) -> io::Result<Self> {
-        let mut bytes = <Self as GroupEncoding>::Repr::default();
-
-        buffer.read_exact(bytes.as_mut())?;
-
-        Option::from(Self::from_bytes(&bytes))
-            .ok_or_else(|| io::Error::other("Invalid BLS12-381 point encoding in proof"))
     }
 }

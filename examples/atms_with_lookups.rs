@@ -95,8 +95,8 @@ fn main() -> Result<()> {
         &[circuit],
         nb_committed_instances,
         &[&[&instance]],
-        &mut rng.clone(),
         &mut transcript,
+        &mut rng.clone(),
     )
     .context("proof generation should not fail")?;
 

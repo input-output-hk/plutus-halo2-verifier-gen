@@ -6,15 +6,15 @@ use base64::{STANDARD_NO_PAD, decode_config};
 use midnight_circuits::{
     field::foreign::{AssignedField, params::MultiEmulationParams},
     instructions::{
-        AssertionInstructions, AssignmentInstructions, Base64Instructions,
-        DecompositionInstructions, EccInstructions, RangeCheckInstructions,
+        AssertionInstructions, AssignmentInstructions, Base64Instructions, ControlFlowInstructions,
+        DecompositionInstructions, EccInstructions, EqualityInstructions, RangeCheckInstructions,
         public_input::CommittedInstanceInstructions,
     },
     parsing::{DateFormat, Separator, StdLibParser},
     testing_utils::ecdsa::{ECDSASig, FromBase64},
     types::{AssignedByte, AssignedForeignPoint, AssignedNative},
 };
-use midnight_curves::secp256k1::{Fq as secp256k1Scalar, Secp256k1};
+use midnight_curves::k256::{Fq as secp256k1Scalar, K256};
 use midnight_proofs::{
     circuit::{Layouter, Value},
     plonk::{Error, commit_to_instances},
@@ -35,12 +35,12 @@ use midnight_proofs::{
     transcript::{CircuitTranscript, Transcript},
 };
 
+use midnight_circuits::CircuitField;
+use midnight_curves::{Bls12, BlsScalar as Scalar};
 use plutus_halo2_verifier_gen::{
     kzg_params::get_or_create_kzg_params,
     plutus_gen::{CardanoFriendlyBlake2b, generate_aiken_verifier, generate_plinth_verifier},
 };
-
-use midnight_curves::{Bls12, BlsScalar as Scalar};
 use rand::SeedableRng;
 use rand::prelude::StdRng;
 
@@ -55,8 +55,11 @@ mod shared_utils;
 mod utils {
     use std::{fs::OpenOptions, io::Read};
 
-    use midnight_circuits::testing_utils::ecdsa::{ECDSASig, Ecdsa, FromBase64};
-    use midnight_curves::secp256k1::{Fq as secp256k1Scalar, Secp256k1};
+    use midnight_circuits::{
+        CircuitField,
+        testing_utils::ecdsa::{ECDSASig, Ecdsa, FromBase64},
+    };
+    use midnight_curves::k256::{Fq as secp256k1Scalar, K256};
     use midnight_proofs::plonk::Error;
     use sha2::Digest;
 
@@ -96,12 +99,11 @@ mod utils {
     /// The public key, message (or payload) and signature are expected in base64
     /// encoding.
     pub(crate) fn verify_credential_sig(pk_base64: &[u8], msg: &[u8], sig_base64: &[u8]) -> bool {
-        let pk_affine = Secp256k1::from_base64(pk_base64).unwrap();
+        let pk_affine = K256::from_base64(pk_base64).unwrap();
         let sig = ECDSASig::from_base64(sig_base64).unwrap();
 
-        let mut msg_hash_bytes: [u8; 32] = sha2::Sha256::digest(msg).into();
-        msg_hash_bytes.reverse(); // BE to LE
-        let msg_scalar = secp256k1Scalar::from_bytes(&msg_hash_bytes).unwrap();
+        let msg_hash_bytes: [u8; 32] = sha2::Sha256::digest(msg).into();
+        let msg_scalar = secp256k1Scalar::from_bytes_be(&msg_hash_bytes).unwrap();
 
         Ecdsa::verify(&pk_affine, &msg_scalar, &sig)
     }
@@ -116,12 +118,10 @@ const PUB_KEY: &[u8] =
     b"_bDXlQJ636HHOvXSe-flG0f-OkkRu8Jusm93PB2GBjoykg753nsOiW1vhEpCnxxybkMdarJLXIUJIYw1K2emQI";
 
 // Secret key of the credential holder.
-const HOLDER_SK: SK = SK::from_raw([
-    0x87c251f40ac6a55e,
-    0xc82dbae785c00836,
-    0x36f09fcb94100833,
-    0xc4e05a8ec16835ce,
-]);
+const HOLDER_SK_BYTES: [u8; 32] = [
+    0xc4, 0xe0, 0x5a, 0x8e, 0xc1, 0x68, 0x35, 0xce, 0x36, 0xf0, 0x9f, 0xcb, 0x94, 0x10, 0x08, 0x33,
+    0xc8, 0x2d, 0xba, 0xe7, 0x85, 0xc0, 0x08, 0x36, 0x87, 0xc2, 0x51, 0xf4, 0x0a, 0xc6, 0xa5, 0x5e,
+];
 
 const HEADER_LEN: usize = 38;
 const PAYLOAD_LEN: usize = 2463;
@@ -148,6 +148,7 @@ const COORD_LEN: usize = 43;
 impl Relation for CredentialProperty {
     type Instance = ();
     type Witness = (Payload, SK);
+    type Error = Error;
 
     fn format_instance(_instance: &Self::Instance) -> Result<Vec<F>, Error> {
         Ok(vec![])
@@ -168,9 +169,9 @@ impl Relation for CredentialProperty {
         _instance: Value<Self::Instance>,
         witness: Value<Self::Witness>,
     ) -> Result<(), Error> {
-        let secp256k1_curve = std_lib.secp256k1_curve();
+        let secp256k1_curve = std_lib.secp256k1();
         let b64_chip = std_lib.base64();
-        let automaton_chip = std_lib.automaton();
+        let automaton_chip = std_lib.scanner();
 
         let (json, sk) = witness.unzip();
 
@@ -192,7 +193,7 @@ impl Relation for CredentialProperty {
             std_lib.constrain_as_committed_public_input(layouter, &byte_as_f)?;
         }
 
-        let parsed_json = automaton_chip.parse(layouter, &StdLibParser::Jwt, &json)?;
+        let parsed_json = automaton_chip.parse(layouter, StdLibParser::Jwt.into(), &json)?;
 
         // // Check Name.
         let name = Self::get_property(std_lib, layouter, &json, &parsed_json, 3, NAME_LEN)?;
@@ -218,11 +219,13 @@ impl Relation for CredentialProperty {
             .assigned_from_be_bytes(layouter, &y_val[..32])?;
 
         let holder_pk = secp256k1_curve.point_from_coordinates(layouter, &x_coord, &y_coord)?;
-        let holder_sk: AssignedField<_, secp256k1Scalar, MultiEmulationParams> =
-            std_lib.secp256k1_scalar().assign(layouter, sk)?;
+        let holder_sk: AssignedField<_, secp256k1Scalar, MultiEmulationParams> = std_lib
+            .secp256k1()
+            .scalar_field_chip()
+            .assign(layouter, sk)?;
 
-        let gen_point: AssignedForeignPoint<_, Secp256k1, MultiEmulationParams> =
-            secp256k1_curve.assign_fixed(layouter, Secp256k1::generator())?;
+        let gen_point: AssignedForeignPoint<_, K256, MultiEmulationParams> =
+            secp256k1_curve.assign_fixed(layouter, K256::generator())?;
         let must_be_pk = secp256k1_curve.msm(layouter, &[holder_sk], &[gen_point])?;
         secp256k1_curve.assert_equal(layouter, &holder_pk, &must_be_pk)?;
 
@@ -272,17 +275,18 @@ impl CredentialProperty {
         val_len: usize,
     ) -> Result<Vec<AssignedByte<F>>, Error> {
         let parser = std_lib.parser();
-        let parsed_seq: Value<Vec<F>> =
-            Value::from_iter(parsed_body.iter().map(|b| b.value().copied()));
-        let idx = parsed_seq.map(|parsed_seq| {
-            let idx = parsed_seq
-                .iter()
-                .position(|&m| m == F::from(marker as u64))
-                .expect("Property should appear in the credential.");
-            F::from(idx as u64)
-        });
+        let marker_f = F::from(marker as u64);
 
-        let idx = std_lib.assign(layouter, idx)?; // idx will be range-checked in `fetch_bytes`.
+        // In-circuit scan: find the first position of `marker` in `parsed_body`.
+        // Iterating in reverse so that the final overwrite is the first occurrence of
+        // the marker.
+        let mut idx: AssignedNative<F> = std_lib.assign_fixed(layouter, F::from(0u64))?;
+        for (i, m) in parsed_body.iter().enumerate().rev() {
+            let is_match = std_lib.is_equal_to_fixed(layouter, m, marker_f)?;
+            let i_val: AssignedNative<F> = std_lib.assign_fixed(layouter, F::from(i as u64))?;
+            idx = std_lib.select(layouter, &is_match, &i_val, &idx)?;
+        }
+
         parser.fetch_bytes(layouter, body, &idx, val_len)
     }
 
@@ -310,7 +314,7 @@ impl CredentialProperty {
         limit_date: Date,
     ) -> Result<(), Error> {
         let format = (DateFormat::YYYYMMDD, Separator::Sep('-'));
-        let date = std_lib.parser().date_to_int(layouter, date, format)?;
+        let date = std_lib.parser().date_to_int(layouter, date, format, None)?;
         std_lib.assert_lower_than_fixed(layouter, &date, &limit_date.into())
     }
     // Creates an CredentialProperty witness from:
@@ -338,19 +342,18 @@ fn main() -> Result<()> {
     let seed = [0u8; 32]; // UNSAFE, constant seed is used for testing purposes
     let mut rng: StdRng = SeedableRng::from_seed(seed);
 
-    const K: u32 = 15;
-
-    let kzg_params: ParamsKZG<Bls12> = ParamsKZG::<Bls12>::unsafe_setup(K, rng.clone());
-
     let witness = CredentialProperty::witness_from_blob(credential_blob.as_slice());
-    let witness = (witness.0, HOLDER_SK);
+    let holder_sk = SK::from_bytes_be(&HOLDER_SK_BYTES).expect("Valid scalar");
+
+    let witness = (witness.0, holder_sk);
     let circuit = MidnightCircuit::new(
         &CredentialProperty,
         Value::known(()),
         Value::known(witness),
         None,
     );
-    let k = k_from_circuit(&circuit);
+
+    let k: u32 = k_from_circuit(&circuit);
 
     let params: Params = get_or_create_kzg_params(k, rng.clone())?;
     let vk: VerifyingKey<Scalar, KZG> =
@@ -364,7 +367,7 @@ fn main() -> Result<()> {
     info!("Public inputs: {:?}", formatted_instance);
     let committed_instance = CredentialProperty::format_committed_instances(&witness);
     let committed_credential = commit_to_instances::<_, KZGCommitmentScheme<_>>(
-        &kzg_params,
+        &params,
         vk.get_domain(),
         &committed_instance,
     );
@@ -377,15 +380,15 @@ fn main() -> Result<()> {
         &[circuit],
         nb_committed_instances,
         &[&[&committed_instance, &formatted_instance]],
-        &mut rng,
         &mut transcript,
+        &mut rng,
     )
     .context("proof generation should not fail")?;
 
     let proof = transcript.finalize();
 
     let mut invalid_proof = proof.clone();
-    let index = 48 * 44 + 2;
+    let index = 48 * 57 + 2;
     let firs_byte = invalid_proof[index];
     let negated_firs_byte = !firs_byte;
     invalid_proof[index] = negated_firs_byte;

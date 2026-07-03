@@ -1,8 +1,9 @@
-use super::ecc::{EccChip, EccChipTrait};
 use crate::plutus_gen::stats::chips::curve::{fe_to_bigint, to_bigint};
 
 use super::super::super::{Argument, Chip, Column, LookupTable, SupportedChips};
-use super::{EccEmulationParams, FieldEmulationParams};
+use super::{
+    FieldEmulationParams, WeierstrassChip, WeierstrassChipTrait, WeierstrassEmulationParams,
+};
 
 use ff::PrimeField;
 use midnight_circuits::ecc::curves::WeierstrassCurve;
@@ -30,31 +31,31 @@ impl FieldEmulationParams for WeierstrassBls12381 {
     }
 }
 
-impl EccEmulationParams for WeierstrassBls12381 {
+impl WeierstrassEmulationParams for WeierstrassBls12381 {
     fn b() -> BigInt {
-        fe_to_bigint(&<bls12_381::G1Projective as WeierstrassCurve>::B)
+        fe_to_bigint(&<midnight_curves::G1Projective as WeierstrassCurve>::B)
     }
 }
 
 impl Chip for WeierstrassBls12381 {
     fn advice_columns() -> Vec<Column> {
-        <EccChip as EccChipTrait<WeierstrassBls12381>>::advice()
+        <WeierstrassChip as WeierstrassChipTrait<WeierstrassBls12381>>::advice()
     }
 
     fn extra_columns() -> Vec<Column> {
-        <EccChip as EccChipTrait<WeierstrassBls12381>>::extra_fixed()
+        <WeierstrassChip as WeierstrassChipTrait<WeierstrassBls12381>>::extra_fixed()
     }
 
     fn gate_args() -> Vec<Argument> {
-        <EccChip as EccChipTrait<WeierstrassBls12381>>::gates()
+        <WeierstrassChip as WeierstrassChipTrait<WeierstrassBls12381>>::gates()
     }
 
     fn lookup_args() -> Vec<Argument> {
-        <EccChip as EccChipTrait<WeierstrassBls12381>>::lookups()
+        <WeierstrassChip as WeierstrassChipTrait<WeierstrassBls12381>>::lookups()
     }
 
     fn lookup_tables() -> Vec<LookupTable> {
-        <EccChip as EccChipTrait<WeierstrassBls12381>>::lookup_tables()
+        <WeierstrassChip as WeierstrassChipTrait<WeierstrassBls12381>>::lookup_tables()
     }
 
     fn chip_deps() -> Vec<SupportedChips> {

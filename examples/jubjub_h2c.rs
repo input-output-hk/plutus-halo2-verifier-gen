@@ -59,6 +59,7 @@ struct JubjubH2C;
 impl Relation for JubjubH2C {
     type Instance = JubjubSubgroup;
     type Witness = F;
+    type Error = Error;
 
     fn format_instance(instance: &Self::Instance) -> Result<Vec<F>, Error> {
         Ok(AssignedNativePoint::<Jubjub>::as_public_input(instance))
@@ -133,8 +134,8 @@ fn main() -> Result<()> {
         &[circuit],
         1,
         &[&[&[], &formatted_instance]],
-        &mut rng,
         &mut transcript,
+        &mut rng,
     )
     .context("proof generation failed")?;
     let proof = transcript.finalize();

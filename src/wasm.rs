@@ -5,8 +5,8 @@ use crate::plutus_gen::{self, CircuitConfig, SupportedChips};
 /// Compute all estimates for a circuit and return them as a JSON string.
 ///
 /// `chips_json` is a JSON array where each element is either:
-/// - a string: `"Native"`, `"Poseidon"`, `"HashToCurve"`, `"EdwardsJubjub"`,
-///   `"WeierstrassBls12381"`, `"WeierstrassBn256"`, `"WeierstrassSecp256k1"`
+/// - a string: `"Native"`,`"Sha256"`, `"Sha512"`, `"Poseidon"`, `"HashToCurve"`, `"Curve25519"`,
+///   `"EdwardsJubjub"`, `"WeierstrassBls12381"`, `"WeierstrassSecp256k1"`
 /// - an object: `{"type":"P2RDecomposition","n":5}` or
 ///   `{"type":"Lookup","name":"...","nb_arguments":1,"input_degree":1,"table_degree":1}`
 ///
@@ -84,9 +84,12 @@ fn parse_chips(json: &str) -> Vec<SupportedChips> {
 fn chip_from_str(s: &str) -> Option<SupportedChips> {
     match s {
         "Native" => Some(SupportedChips::Native),
+        "Sha256" => Some(SupportedChips::Sha256),
+        "Sha512" => Some(SupportedChips::Sha512),
         "Poseidon" => Some(SupportedChips::Poseidon),
         "HashToCurve" => Some(SupportedChips::HashToCurve),
         "EdwardsJubjub" => Some(SupportedChips::EdwardsJubjub),
+        "Curve25519" => Some(SupportedChips::Curve25519),
         "WeierstrassBls12381" => Some(SupportedChips::WeierstrassBls12381),
         "WeierstrassSecp256k1" => Some(SupportedChips::WeierstrassSecp256k1),
         _ => None,

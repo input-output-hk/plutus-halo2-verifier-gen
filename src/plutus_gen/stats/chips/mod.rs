@@ -17,26 +17,30 @@ pub(crate) use types::{
 pub enum SupportedChips {
     #[strum(to_string = "native")]
     Native,
-    // SchnorrRescueSidechain,
-    // RescueSidechain,
     #[strum(to_string = "poseidon")]
     Poseidon,
+    // Blake2b,
+    // Sha3256,
+    // Keccak256,
+    #[strum(to_string = "sha256")]
+    Sha256,
+    #[strum(to_string = "sha512")]
+    Sha512,
     #[strum(to_string = "htc")]
     HashToCurve,
-    // Sha256,
-    // Sha512,
+    #[strum(to_string = "curve25519")]
+    Curve25519,
     #[strum(to_string = "jubjub")]
     EdwardsJubjub,
     #[strum(to_string = "bls12381")]
     WeierstrassBls12381,
     #[strum(to_string = "secp256k1")]
     WeierstrassSecp256k1,
+    // WeierstrassSecp256r1,
     #[strum(disabled)]
     P2RDecomposition(usize),
     // Automaton,
     // Base64,
-    // Blake2b,
-    // KeccakSha3,
     #[strum(disabled)]
     VerifierGadget,
     #[strum(disabled)]
@@ -247,19 +251,20 @@ macro_rules! impl_supported_chips {
 
 impl_supported_chips! {
     Native               => Native,
-    // SchnorrRescueSidechain => SchnorrRescueSidechain,
-    // RescueSidechain      => RescueSidechain,
     Poseidon             => Poseidon,
-    // Sha256               => Sha256,
-    // Sha512               => Sha512,
+    Sha256               => Sha256,
+    Sha512               => Sha512,
+    // Keccak256           => Keccak256, // 3rd party impl
+    // Sha3256           => Sha3256, // 3rd party impl
+    // Blake2b              => Blake2b, // 3rd party impl
     HashToCurve         => HashToCurve,
+    Curve25519          => Curve25519,
     EdwardsJubjub        => EdwardsJubjub,
     WeierstrassBls12381  => WeierstrassBls12381,
     WeierstrassSecp256k1 => WeierstrassSecp256k1,
+    // WeierstrassSecp256r1 => WeierstrassSecp256r1,
     // Automaton            => Automaton,
     // Base64               => Base64,
-    // Blake2b              => Blake2b,
-    // KeccakSha3           => KeccakSha3,
 }
 
 /// Flattens `chips` and all their transitive `CHIP_DEPS` into a deduplicated set.

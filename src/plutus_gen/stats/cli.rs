@@ -38,6 +38,12 @@ pub struct EstimateCliArguments {
     )]
     pub native: bool,
 
+    #[arg(long, help_heading = "Chips", help = "Include the SHA256 hash chip.")]
+    pub sha256: bool,
+
+    #[arg(long, help_heading = "Chips", help = "Include the SHA512 hash chip.")]
+    pub sha512: bool,
+
     #[arg(long, help_heading = "Chips", help = "Include the Poseidon hash chip.")]
     pub poseidon: bool,
 
@@ -50,6 +56,13 @@ pub struct EstimateCliArguments {
         help = "Include the BLS12-381 curve chip."
     )]
     pub bls12_381: bool,
+
+    #[arg(
+        long,
+        help_heading = "Chips",
+        help = "Include the Curve25519 curve chip."
+    )]
+    pub curve25519: bool,
 
     #[arg(
         long,
@@ -134,11 +147,20 @@ impl EstimateCliArguments {
         if self.hash_to_curve {
             chips.push(SupportedChips::HashToCurve);
         }
+        if self.sha256 {
+            chips.push(SupportedChips::Sha256);
+        }
+        if self.sha512 {
+            chips.push(SupportedChips::Sha512);
+        }
         if self.poseidon {
             chips.push(SupportedChips::Poseidon);
         }
         if self.bls12_381 {
             chips.push(SupportedChips::WeierstrassBls12381);
+        }
+        if self.curve25519 {
+            chips.push(SupportedChips::Curve25519);
         }
         if self.secp256k1 {
             chips.push(SupportedChips::WeierstrassSecp256k1);
