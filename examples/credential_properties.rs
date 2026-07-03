@@ -6,8 +6,8 @@ use base64::{STANDARD_NO_PAD, decode_config};
 use midnight_circuits::{
     field::foreign::{AssignedField, params::MultiEmulationParams},
     instructions::{
-        AssertionInstructions, AssignmentInstructions, Base64Instructions,
-        DecompositionInstructions, EccInstructions, RangeCheckInstructions,
+        AssertionInstructions, AssignmentInstructions, Base64Instructions, ControlFlowInstructions,
+        DecompositionInstructions, EccInstructions, EqualityInstructions, RangeCheckInstructions,
         public_input::CommittedInstanceInstructions,
     },
     parsing::{DateFormat, Separator, StdLibParser},
@@ -275,17 +275,18 @@ impl CredentialProperty {
         val_len: usize,
     ) -> Result<Vec<AssignedByte<F>>, Error> {
         let parser = std_lib.parser();
-        let parsed_seq: Value<Vec<F>> =
-            Value::from_iter(parsed_body.iter().map(|b| b.value().copied()));
-        let idx = parsed_seq.map(|parsed_seq| {
-            let idx = parsed_seq
-                .iter()
-                .position(|&m| m == F::from(marker as u64))
-                .expect("Property should appear in the credential.");
-            F::from(idx as u64)
-        });
+        let marker_f = F::from(marker as u64);
 
-        let idx = std_lib.assign(layouter, idx)?; // idx will be range-checked in `fetch_bytes`.
+        // In-circuit scan: find the first position of `marker` in `parsed_body`.
+        // Iterating in reverse so that the final overwrite is the first occurrence of
+        // the marker.
+        let mut idx: AssignedNative<F> = std_lib.assign_fixed(layouter, F::from(0u64))?;
+        for (i, m) in parsed_body.iter().enumerate().rev() {
+            let is_match = std_lib.is_equal_to_fixed(layouter, m, marker_f)?;
+            let i_val: AssignedNative<F> = std_lib.assign_fixed(layouter, F::from(i as u64))?;
+            idx = std_lib.select(layouter, &is_match, &i_val, &idx)?;
+        }
+
         parser.fetch_bytes(layouter, body, &idx, val_len)
     }
 
@@ -341,10 +342,6 @@ fn main() -> Result<()> {
     let seed = [0u8; 32]; // UNSAFE, constant seed is used for testing purposes
     let mut rng: StdRng = SeedableRng::from_seed(seed);
 
-    const K: u32 = 15;
-
-    let kzg_params: ParamsKZG<Bls12> = ParamsKZG::<Bls12>::unsafe_setup(K, rng.clone());
-
     let witness = CredentialProperty::witness_from_blob(credential_blob.as_slice());
     let holder_sk = SK::from_bytes_be(&HOLDER_SK_BYTES).expect("Valid scalar");
 
@@ -355,7 +352,8 @@ fn main() -> Result<()> {
         Value::known(witness),
         None,
     );
-    let k = k_from_circuit(&circuit);
+
+    let k: u32 = k_from_circuit(&circuit);
 
     let params: Params = get_or_create_kzg_params(k, rng.clone())?;
     let vk: VerifyingKey<Scalar, KZG> =
@@ -369,7 +367,7 @@ fn main() -> Result<()> {
     info!("Public inputs: {:?}", formatted_instance);
     let committed_instance = CredentialProperty::format_committed_instances(&witness);
     let committed_credential = commit_to_instances::<_, KZGCommitmentScheme<_>>(
-        &kzg_params,
+        &params,
         vk.get_domain(),
         &committed_instance,
     );
@@ -390,7 +388,7 @@ fn main() -> Result<()> {
     let proof = transcript.finalize();
 
     let mut invalid_proof = proof.clone();
-    let index = 48 * 44 + 2;
+    let index = 48 * 57 + 2;
     let firs_byte = invalid_proof[index];
     let negated_firs_byte = !firs_byte;
     invalid_proof[index] = negated_firs_byte;
