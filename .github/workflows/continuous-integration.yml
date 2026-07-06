@@ -28,7 +28,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: check-wasm
     if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/midnight-zk'
-  concurrency:
+    concurrency:
       group: pages
       cancel-in-progress: true
     permissions:
