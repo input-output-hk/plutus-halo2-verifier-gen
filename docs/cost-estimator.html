@@ -533,6 +533,8 @@ cargo run <span class="flag">--bin</span> estimate -- \
         <div class="flags-section-title">Chips (combine as needed)</div>
         <table class="flags-table">
           <tr><td>--native</td><td>Arith chip (arithmetic + parallel_add gates)</td></tr>
+          <tr><td>--automaton</td><td>Regular expression parsing (automaton) chip</td></tr>
+          <tr><td>--base64</td><td>Base64 decoding chip</td></tr>
           <tr><td>--sha256</td><td>SHA256 hash chip</td></tr>
           <tr><td>--sha512</td><td>SHA512 hash chip</td></tr>
           <tr><td>--poseidon</td><td>Poseidon hash chip</td></tr>
@@ -540,6 +542,7 @@ cargo run <span class="flag">--bin</span> estimate -- \
           <tr><td>--hash-to-curve</td><td>Poseidon hash-to-JubJub-curve chip</td></tr>
           <tr><td>--curve25519</td><td>Curve25519 field/curve chip</td></tr>
           <tr><td>--secp256k1</td><td>Secp256k1 curve chip</td></tr>
+          <tr><td>--secp256r1</td><td>Secp256r1 curve chip</td></tr>
           <tr><td>--bls12-381</td><td>BLS12-381 curve chip</td></tr>
         </table>
 
@@ -591,6 +594,14 @@ cargo run <span class="flag">--bin</span> estimate -- \
       <p>Standard PLONK arithmetic gate + parallel_add gate. The baseline for any custom computation.</p>
     </div>
     <div class="chip-card">
+      <h4><span class="chip-tag">--automaton</span> Automaton</h4>
+      <p>Regular expression parsing via a fixed lookup-table automaton. Used for structural validation of committed byte strings.</p>
+    </div>
+    <div class="chip-card">
+      <h4><span class="chip-tag">--base64</span> Base64</h4>
+      <p>Base64 decoding chip. Used to decode base64-encoded data inside the circuit.</p>
+    </div>
+    <div class="chip-card">
       <h4><span class="chip-tag">--sha256</span> SHA256</h4>
       <p>Bitwise SHA256 hash chip. Used for hashing where SHA256 is required by the target protocol.</p>
     </div>
@@ -617,6 +628,10 @@ cargo run <span class="flag">--bin</span> estimate -- \
     <div class="chip-card">
       <h4><span class="chip-tag">--secp256k1</span> Secp256k1</h4>
       <p>Bitcoin/Ethereum elliptic curve. Supports ECDSA verification and threshold multisignature (ATMS) circuits.</p>
+    </div>
+    <div class="chip-card">
+      <h4><span class="chip-tag">--secp256r1</span> Secp256r1</h4>
+      <p>NIST P-256 elliptic curve. Supports ECDSA verification circuits such as WebAuthn and TLS.</p>
     </div>
     <div class="chip-card">
       <h4><span class="chip-tag">--bls12-381</span> BLS12-381</h4>

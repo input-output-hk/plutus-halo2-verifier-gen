@@ -25,6 +25,29 @@ pub(super) fn nb_advice_columns<P: EdwardsEmulationParams>() -> usize {
     P::NB_LIMBS + std::cmp::max(P::NB_LIMBS, 1 + P::moduli().len()) + 1
 }
 
+/// Column-index ranges shared by every `EdwardsOpChip` (currently just
+/// addition, but kept alongside `WeierstrassColumnRanges` for consistency
+/// should a second Edwards op-chip be added later).
+pub(super) struct EdwardsColumnRanges {
+    pub(super) x_cols: std::ops::Range<usize>,
+    pub(super) z_cols: std::ops::Range<usize>,
+    pub(super) u_col: usize,
+    pub(super) v_cols: std::ops::Range<usize>,
+}
+
+pub(super) fn column_ranges<P: EdwardsEmulationParams>() -> EdwardsColumnRanges {
+    let x_cols = 0..P::NB_LIMBS;
+    let z_cols = P::NB_LIMBS..(2 * P::NB_LIMBS);
+    let u_col = P::NB_LIMBS;
+    let v_cols = (P::NB_LIMBS + 1)..(P::NB_LIMBS + 1 + P::moduli().len());
+    EdwardsColumnRanges {
+        x_cols,
+        z_cols,
+        u_col,
+        v_cols,
+    }
+}
+
 pub struct EdwardsChip {}
 impl<P: FieldEmulationParams> FieldChipTrait<P> for EdwardsChip {}
 impl<P: EdwardsEmulationParams> EdwardsChipTrait<P> for EdwardsChip {}

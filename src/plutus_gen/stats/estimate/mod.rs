@@ -13,6 +13,16 @@ use proof::estimate_proof_size;
 use verifier::estimate_verifier_code;
 use vk::estimate_vk_size;
 
+/// Breakdown of a size estimate: number of commitments, number of scalar evaluations,
+/// and the resulting size in bytes (`commitments * 48 + evals * 32`, plus any constant
+/// overhead). VK estimates have no evaluations, so `evals` is always 0 for those.
+#[derive(Default, Clone, Copy)]
+pub(crate) struct SizeEstimate {
+    pub commitments: usize,
+    pub evals: usize,
+    pub bytes: usize,
+}
+
 /// All size and operation-count estimates for a circuit, computed in a single pass.
 ///
 /// Structural fields (nb_adv, nb_cc, …) reflect the merged result of all selected chips
@@ -141,7 +151,7 @@ pub fn all_estimates(
     let nb_comms = bc_advice + bc_perm + bc_trash + bc_vanish + bc_lookup + bc_pcs;
     let nb_scalars = bs_evals + bs_perm + bs_trash + bs_vanish + bs_lookup + bs_pcs;
     let proof_size = nb_comms * 48 + nb_scalars * 32;
-    let vk_size = estimate_vk_size::<H2MO>(nb_cc, nb_fixed);
+    let vk_size = estimate_vk_size::<H2MO>(nb_cc, nb_fixed).bytes;
     let input_size = nb_pi * 32 + nb_ci * 48;
 
     // ── Verifier stats (consumes `processed`) ─────────────────────────────────
@@ -222,6 +232,7 @@ pub fn proof_size(
         processed.nb_advice_fixed_evaluations,
         processed.nb_point_sets,
     )
+    .bytes
 }
 
 pub fn vk_size(
@@ -239,7 +250,7 @@ pub fn vk_size(
         used_chips,
     );
 
-    estimate_vk_size::<H2MO>(processed.nb_copy_constrained, processed.nb_fixed)
+    estimate_vk_size::<H2MO>(processed.nb_copy_constrained, processed.nb_fixed).bytes
 }
 
 pub fn verifier_stats(

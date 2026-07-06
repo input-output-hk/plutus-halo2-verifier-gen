@@ -95,4 +95,14 @@ pub(crate) trait FieldEmulationParams {
     fn max_limb_bound() -> BigInt {
         BigInt::from(2).pow(2 * Self::LOG2_BASE)
     }
+
+    /// The maximum value a single limb (`limbs_max`) or a pairwise product of
+    /// two limbs (`limbs_max2`) can take, replicated once per limb / limb-pair
+    /// position. Used by every gate's `bounds()` to size its worst-case sums.
+    fn limb_bounds() -> (Vec<BigInt>, Vec<BigInt>) {
+        let base = BigInt::from(2).pow(Self::LOG2_BASE);
+        let limbs_max = vec![&base - BigInt::one(); Self::NB_LIMBS];
+        let limbs_max2 = vec![(&base - BigInt::one()).pow(2); Self::NB_LIMBS * Self::NB_LIMBS];
+        (limbs_max, limbs_max2)
+    }
 }

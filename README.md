@@ -70,7 +70,7 @@ sh <(curl -L https://nixos.org/nix/install)
 substituters = https://cache.nixos.org https://cache.iog.io
 trusted-public-keys = hydra.iohk.io:f/Ea+s+dFdN+3Y/G+FDgSq+a5NEWhJGzdjvKNGv0/EQ= cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY=
 experimental-features = nix-command flakes
-allow-import-from-derivation = "true"
+allow-import-from-derivation = true
 ```
 
 3. The contract can be build from the relevant templates folder using the nix shell:
@@ -78,6 +78,7 @@ allow-import-from-derivation = "true"
 ```bash
 nix develop github:input-output-hk/devx#ghc96-iog
 cd plinth-verifier
+cabal update
 cabal build -j all
 cabal test all
 ```
@@ -243,6 +244,8 @@ Proof inputs :
 
 Chips (combine as needed):
   --native          Native arithmetic chip (arithmetic + parallel_add gates)
+  --automaton       Regular expression parsing (automaton) chip
+  --base64          Base64 decoding chip
   --sha256          SHA256 hash chip
   --sha512          SHA512 hash chip
   --poseidon        Poseidon hash chip
@@ -250,6 +253,7 @@ Chips (combine as needed):
   --bls12-381       BLS12-381 curve chip
   --curve25519      Curve25519 curve chip
   --secp256k1       Secp256k1 curve chip
+  --secp256r1       Secp256r1 curve chip
   --hash-to-curve   Poseidon hash-to-Jubjub-curve chip
 
 Circuit config (all default to 0):

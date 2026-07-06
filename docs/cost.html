@@ -459,6 +459,25 @@
           <span class="chip-name">secp256k1</span>
           <span class="chip-dep">⊃ Native</span>
         </label>
+        <label class="chip-toggle" id="ct-secp256r1">
+          <input type="checkbox" id="cb-secp256r1" onchange="update()" />
+          <span class="chip-name">secp256r1</span>
+          <span class="chip-dep">⊃ Native</span>
+        </label>
+      </details>
+
+      <details class="chip-subgroup" open>
+        <summary>Parsing</summary>
+        <label class="chip-toggle" id="ct-automaton">
+          <input type="checkbox" id="cb-automaton" onchange="update()" />
+          <span class="chip-name">Automaton</span>
+          <span class="chip-dep">⊃ Native</span>
+        </label>
+        <label class="chip-toggle" id="ct-base64">
+          <input type="checkbox" id="cb-base64" onchange="update()" />
+          <span class="chip-name">Base64</span>
+          <span class="chip-dep">⊃ Native</span>
+        </label>
       </details>
 
       <div class="chip-profile-label" id="chip-profile-label">Active profile: <strong>none</strong></div>
@@ -717,9 +736,12 @@ const CHIP_ID_TO_RUST = {
   'cb-bls12381':  'WeierstrassBls12381',
   'cb-curve25519':  'Curve25519',
   'cb-secp256k1': 'WeierstrassSecp256k1',
+  'cb-secp256r1': 'WeierstrassSecp256r1',
+  'cb-automaton': 'Automaton',
+  'cb-base64': 'Base64',
 };
 
-const ALL_CHIP_KEYS = ['native', 'sha256', 'sha512', 'poseidon', 'jubjub', 'htc', 'bls12381', 'curve25519', 'secp256k1'];
+const ALL_CHIP_KEYS = ['native', 'sha256', 'sha512', 'poseidon', 'jubjub', 'htc', 'bls12381', 'curve25519', 'secp256k1', 'secp256r1', 'automaton', 'base64'];
 
 // Chip profiles loaded from chip_profiles.json for client-side dep highlighting.
 let chipProfiles = {};

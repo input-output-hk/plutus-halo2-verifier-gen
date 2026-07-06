@@ -55,9 +55,10 @@ where
         processed.nb_copy_constrained,
         processed.nb_advice_fixed_evaluations,
         processed.nb_point_sets,
-    );
+    )
+    .bytes;
 
-    let vk_size = estimate_vk_size::<PCS>(processed.nb_copy_constrained, processed.nb_fixed);
+    let vk_size = estimate_vk_size::<PCS>(processed.nb_copy_constrained, processed.nb_fixed).bytes;
 
     // Initializing CircuitStatistics with the estimated proof size, VK size, and number of public inputs.
     let mut stats = CircuitStatistics::new(

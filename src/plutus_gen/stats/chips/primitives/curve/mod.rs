@@ -22,5 +22,8 @@ pub(crate) use jubjub::EdwardsJubjub;
 pub(crate) mod secp256k1;
 pub(crate) use secp256k1::WeierstrassSecp256k1;
 
+pub(crate) mod secp256r1;
+pub(crate) use secp256r1::WeierstrassSecp256r1;
+
 pub(crate) mod utils;
 pub(crate) use utils::*;

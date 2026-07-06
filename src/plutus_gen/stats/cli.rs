@@ -38,6 +38,16 @@ pub struct EstimateCliArguments {
     )]
     pub native: bool,
 
+    #[arg(
+        long,
+        help_heading = "Chips",
+        help = "Include regular expression parsing."
+    )]
+    pub automaton: bool,
+
+    #[arg(long, help_heading = "Chips", help = "Include Base64 operations.")]
+    pub base64: bool,
+
     #[arg(long, help_heading = "Chips", help = "Include the SHA256 hash chip.")]
     pub sha256: bool,
 
@@ -70,6 +80,13 @@ pub struct EstimateCliArguments {
         help = "Include the secp256k1 curve chip."
     )]
     pub secp256k1: bool,
+
+    #[arg(
+        long,
+        help_heading = "Chips",
+        help = "Include the secp256r1 curve chip."
+    )]
+    pub secp256r1: bool,
 
     #[arg(
         long,
@@ -141,6 +158,12 @@ impl EstimateCliArguments {
         if self.native {
             chips.push(SupportedChips::Native);
         }
+        if self.automaton {
+            chips.push(SupportedChips::Automaton);
+        }
+        if self.base64 {
+            chips.push(SupportedChips::Base64);
+        }
         if self.jubjub {
             chips.push(SupportedChips::EdwardsJubjub);
         }
@@ -164,6 +187,9 @@ impl EstimateCliArguments {
         }
         if self.secp256k1 {
             chips.push(SupportedChips::WeierstrassSecp256k1);
+        }
+        if self.secp256r1 {
+            chips.push(SupportedChips::WeierstrassSecp256r1);
         }
         chips
     }

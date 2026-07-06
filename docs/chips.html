@@ -106,9 +106,18 @@
     .cmp-table-cmp { table-layout: fixed; }
     .cmp-table-cmp .th-chip  { width: 130px; }
     .cmp-table-cmp .th-dep   { width: 200px; text-align: left !important; }
-    .cmp-table-cmp .th-stat  { width: 68px; }
-    .cmp-table-cmp .th-size  { width: 82px; }
+    .cmp-table-cmp .th-stat  { width: 80px; }
+    .cmp-table-cmp .th-size  { width: 92px; }
+    .cmp-table-cmp th { white-space: normal; line-height: 1.3; }
     .cmp-table-cmp td.td-deps { text-align: left; font-size: 11px; color: var(--muted); }
+    .cmp-table-deps { width: auto; max-width: 420px; margin: 0 auto; }
+    .cmp-table-deps th, .cmp-table-deps td { padding: 6px 12px; font-size: 12px; }
+    .cmp-table-deps .th-chip { width: 100px; }
+    .cmp-table-deps .th-dep { width: 320px; }
+    .cmp-table-expr { width: auto; max-width: 420px; margin: 0 auto; }
+    .cmp-table-expr th, .cmp-table-expr td { padding: 6px 12px; font-size: 12px; }
+    .cmp-table-expr .th-chip { width: 130px; }
+    .cmp-table-expr .th-stat { width: 90px; }
     .cmp-table td {
       padding: 10px 12px; border-bottom: 1px solid var(--border);
       vertical-align: middle;
@@ -233,6 +242,18 @@
       &nbsp;&nbsp;Chip advice columns are merged by max-count (not summed) &mdash; JubJub's 9 cols absorb Native's 5.
       </span>
     </div>
+
+    <div class="cmp-wrap" style="margin-top:1rem;">
+      <table class="cmp-table cmp-table-cmp cmp-table-deps">
+        <thead>
+          <tr>
+            <th class="th-chip">Chip</th>
+            <th class="th-dep">Dependencies</th>
+          </tr>
+        </thead>
+        <tbody id="deps-tbody"></tbody>
+      </table>
+    </div>
   </div>
 
   <!-- Comparison tables -->
@@ -248,16 +269,19 @@
       <table class="cmp-table cmp-table-cmp">
         <thead>
           <tr>
-            <th class="th-chip">Chip</th>
-            <th class="th-dep">Dependencies</th>
-            <th class="th-stat">Adv cols</th>
-            <th class="th-stat">Fixed cols</th>
-            <th class="th-stat">Lookups</th>
-            <th class="th-stat">Trash</th>
-            <th class="th-stat">Evals</th>
-            <th class="th-size">Proof</th>
-            <th class="th-size">VK</th>
-            <th class="th-size">Total</th>
+            <th rowspan="2" class="th-chip">Chip</th>
+            <th rowspan="2" class="th-stat">Adv cols</th>
+            <th rowspan="2" class="th-stat">Fixed cols</th>
+            <th rowspan="2" class="th-stat">Lookups</th>
+            <th rowspan="2" class="th-stat">Trash</th>
+            <th colspan="3" class="th-group">Proof size</th>
+            <th colspan="2" class="th-group">VK size</th>
+            <th class="th-group">Total</th>
+          </tr>
+          <tr>
+            <th class="td-group-start th-stat">Com</th><th class="th-stat">Evals</th><th class="th-size">Bytes</th>
+            <th class="td-group-start th-stat">Com</th><th class="th-size">Bytes</th>
+            <th class="td-group-start th-size">Bytes</th>
           </tr>
         </thead>
         <tbody id="cmp-tbody"></tbody>
@@ -274,6 +298,24 @@
 
     <div class="subsection-title" style="margin-top:2rem;">Verifier Operation Counts</div>
     <div class="section-desc">
+      Number of individual scalar expressions contributed by each chip, before
+      batching into gate, lookup, and trashcan arguments.
+    </div>
+    <div class="cmp-wrap">
+      <table class="cmp-table cmp-table-cmp cmp-table-expr">
+        <thead>
+          <tr>
+            <th class="th-chip">Chip</th>
+            <th class="th-stat">Gate expr.</th>
+            <th class="th-stat">Lookup expr.</th>
+            <th class="th-stat">Trash expr.</th>
+          </tr>
+        </thead>
+        <tbody id="expr-tbody"></tbody>
+      </table>
+    </div>
+
+    <div class="section-desc" style="margin-top:1.5rem;">
       Minimum number of scalar operations required per chip summed across gate, lookup, and trashcan arguments as well as number of operations for the Multi-Scalar Multiplications (MSMs).
     </div>
     <div class="cmp-wrap">
@@ -315,6 +357,9 @@ const TABLE_CHIPS = [
   { name: 'Bls12-381',     flag: '--bls12-381',      key: 'bls12381'  },
   { name: 'Curve25519',     flag: '--curve25519',      key: 'curve25519'  },
   { name: 'Secp256k1',     flag: '--secp256k1',      key: 'secp256k1' },
+  { name: 'Secp256r1',     flag: '--secp256r1',      key: 'secp256r1' },
+  { name: 'Automaton',     flag: '--automaton',      key: 'automaton' },
+  { name: 'Base64',        flag: '--base64',         key: 'base64'    },
 ];
 
 const KEY_TO_NAME = Object.fromEntries(TABLE_CHIPS.map(({ key, name }) => [key, name]));
@@ -324,28 +369,42 @@ function fmtBytes(b) {
 }
 
 function populate(profiles) {
+  // Dependency table.
+  const depsTbody = document.getElementById('deps-tbody');
+  TABLE_CHIPS.forEach(({ name, key }) => {
+    const chip = profiles[key];
+    if (!chip) { console.warn('No profile for chip: ' + key); return; }
+    const depsLabel = chip.deps && chip.deps.length
+      ? chip.deps.map(d => KEY_TO_NAME[d] || d).join(', ')
+      : '—';
+    const tr = document.createElement('tr');
+    tr.innerHTML =
+      '<td class="chip-name-cell">' + name + '</td>' +
+      '<td class="td-deps">' + depsLabel + '</td>';
+    depsTbody.appendChild(tr);
+  });
+
   // Comparison table.
   const tbody = document.getElementById('cmp-tbody');
   TABLE_CHIPS.forEach(({ name, flag, key }) => {
     const chip  = profiles[key];
+    if (!chip) { console.warn('No profile for chip: ' + key); return; }
     const proof = fmtBytes(chip.proof_size);
     const vk    = fmtBytes(chip.vk_size);
     const total = fmtBytes(chip.proof_size + chip.vk_size);
-    const depsLabel = chip.deps && chip.deps.length
-      ? chip.deps.map(d => KEY_TO_NAME[d] || d).join(', ')
-      : '—';
     const tr    = document.createElement('tr');
     tr.innerHTML =
       '<td class="chip-name-cell">' + name + '</td>' +
-      '<td class="td-deps">' + depsLabel + '</td>' +
       '<td>' + chip.advice_cols + '</td>' +
       '<td>' + chip.fixed_cols + '</td>' +
       '<td>' + chip.lookups + '</td>' +
       '<td class="' + (chip.trash > 0 ? 'val-pink' : '') + '">' + chip.trash + '</td>' +
+      '<td class="td-group-start">' + chip.proof_commitments + '</td>' +
       '<td>' + chip.evals + '</td>' +
       '<td class="val-hi">' + proof + '</td>' +
+      '<td class="td-group-start">' + chip.vk_commitments + '</td>' +
       '<td>' + vk + '</td>' +
-      '<td class="val-hi">' + total + '</td>';
+      '<td class="val-hi td-group-start">' + total + '</td>';
     tbody.appendChild(tr);
   });
 
@@ -353,6 +412,7 @@ function populate(profiles) {
   const opsTbody = document.getElementById('ops-tbody');
   TABLE_CHIPS.forEach(({ name, key: chipKey }) => {
     const p   = profiles[chipKey];
+    if (!p) { console.warn('No profile for chip: ' + chipKey); return; }
     const ops = ['neg', 'add', 'sub', 'mul', 'from_int'].reduce((acc, k) => {
       acc[k] = p.gate_ops[k] + p.lookup_ops[k] + p.trash_ops[k];
       return acc;
@@ -380,6 +440,20 @@ function populate(profiles) {
       '<td>'                        + msm.addG1 + '</td>' +
       '<td class="val-hi">'         + msm.mulG1 + '</td>';
     opsTbody.appendChild(tr);
+  });
+
+  // Scalar-expression counts, before batching into gate/lookup/trashcan arguments.
+  const exprTbody = document.getElementById('expr-tbody');
+  TABLE_CHIPS.forEach(({ name, key }) => {
+    const p = profiles[key];
+    if (!p) { console.warn('No profile for chip: ' + key); return; }
+    const tr = document.createElement('tr');
+    tr.innerHTML =
+      '<td class="chip-name-cell">' + name + '</td>' +
+      '<td>' + p.gate_expressions + '</td>' +
+      '<td>' + p.lookups + '</td>' +
+      '<td class="' + (p.trash > 0 ? 'val-pink' : '') + '">' + p.trash + '</td>';
+    exprTbody.appendChild(tr);
   });
 }
 

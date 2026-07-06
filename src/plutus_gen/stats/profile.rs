@@ -36,8 +36,11 @@ pub struct ChipProfile {
     pub copy_constraints: usize,
     pub nb_lookup_tables: usize,
     pub gates: usize,
+    pub gate_expressions: usize,
     pub lookups: usize,
     pub trash: usize,
+    pub proof_commitments: usize,
+    pub vk_commitments: usize,
     pub evals: usize,
     pub gate_ops: ScalarOps,
     pub lookup_ops: ScalarOps,
@@ -68,14 +71,17 @@ pub fn chip_profile<PCS: PcsEstimate>(chip: SupportedChips) -> ChipProfile {
 
     let lookup_args: Vec<Argument> = chips.iter().flat_map(|c| c.lookups()).collect();
     let nb_lookups = lookup_args.len();
+    let nb_lookup_scalars = lookup_args.iter().flatten().count();
 
     let trashcan_args: Vec<Argument> = chips.iter().flat_map(|c| c.trashcans()).collect();
     let nb_trashcans = trashcan_args.len();
+    let nb_trash_scalars = trashcan_args.iter().flatten().count();
 
     let circuit_degree = compute_degree(0, nb_copy_constrained, nb_lookups, nb_trashcans, &chips);
 
     let gate_args: Vec<Argument> = chips.iter().flat_map(|c| c.gates()).collect();
     let nb_gates = gate_args.len();
+    let nb_gate_scalars = gate_args.iter().flatten().count();
 
     // Creating permutation queries
     let permutation_queries = permutation_query_rotations(nb_copy_constrained, circuit_degree);
@@ -131,7 +137,7 @@ pub fn chip_profile<PCS: PcsEstimate>(chip: SupportedChips) -> ChipProfile {
     let trash_ops = fold_args(&trashcan_args);
 
     // Proof and VK sizes at pi=1, ci=0 (minimal baseline for this chip in isolation).
-    let proof_size = estimate_proof_size::<PCS>(
+    let proof_estimate = estimate_proof_size::<PCS>(
         0,
         nb_advice,
         nb_lookups,
@@ -141,7 +147,7 @@ pub fn chip_profile<PCS: PcsEstimate>(chip: SupportedChips) -> ChipProfile {
         nb_evaluations,
         nb_point_sets,
     );
-    let vk_size = estimate_vk_size::<PCS>(nb_copy_constrained, nb_fixed);
+    let vk_estimate = estimate_vk_size::<PCS>(nb_copy_constrained, nb_fixed);
     let nb_lookup_tables = tables.len();
 
     ChipProfile {
@@ -150,16 +156,19 @@ pub fn chip_profile<PCS: PcsEstimate>(chip: SupportedChips) -> ChipProfile {
         fixed_cols: nb_fixed,
         copy_constraints: nb_copy_constrained,
         nb_lookup_tables,
-        lookups: nb_lookups,
-        trash: nb_trashcans,
+        lookups: nb_lookup_scalars,
+        trash: nb_trash_scalars,
         degree: circuit_degree,
-        evals: nb_evaluations,
+        evals: proof_estimate.evals,
         gates: nb_gates,
+        gate_expressions: nb_gate_scalars,
         gate_ops,
         lookup_ops,
         trash_ops,
         commitment_map,
-        proof_size,
-        vk_size,
+        proof_commitments: proof_estimate.commitments,
+        vk_commitments: vk_estimate.commitments,
+        proof_size: proof_estimate.bytes,
+        vk_size: vk_estimate.bytes,
     }
 }

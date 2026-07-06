@@ -1,3 +1,4 @@
+use super::SizeEstimate;
 use crate::plutus_gen::stats::{arguments::permutation::nb_perm_commitments_vk, pcs::PcsEstimate};
 
 /// Estimates the verification key size in bytes (compressed G1 elements only).
@@ -9,10 +10,16 @@ use crate::plutus_gen::stats::{arguments::permutation::nb_perm_commitments_vk, p
 pub(crate) fn estimate_vk_size<PCS: PcsEstimate>(
     nb_copy_constrained: usize,
     nb_fixed: usize,
-) -> usize {
+) -> SizeEstimate {
     if nb_copy_constrained == 0 || nb_fixed == 0 {
-        return 0;
+        return SizeEstimate::default();
     }
 
-    10 + 48 * (nb_fixed + nb_perm_commitments_vk(nb_copy_constrained) + PCS::nb_commitments_vk())
+    let commitments =
+        nb_fixed + nb_perm_commitments_vk(nb_copy_constrained) + PCS::nb_commitments_vk();
+    SizeEstimate {
+        commitments,
+        evals: 0,
+        bytes: 10 + 48 * commitments,
+    }
 }

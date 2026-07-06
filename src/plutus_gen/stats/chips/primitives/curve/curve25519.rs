@@ -1,5 +1,5 @@
 use super::field::{FieldChip, FieldChipTrait};
-use crate::plutus_gen::stats::chips::curve::{fe_to_bigint, to_bigint};
+use crate::plutus_gen::stats::chips::curve::{fe_to_bigint_le, to_bigint};
 
 use super::super::super::{Argument, Chip, Column, LookupTable, SupportedChips};
 use super::{EdwardsChip, EdwardsChipTrait, EdwardsEmulationParams, FieldEmulationParams};
@@ -42,11 +42,11 @@ impl FieldEmulationParams for Curve25519 {
 
 impl EdwardsEmulationParams for Curve25519 {
     fn a() -> BigInt {
-        fe_to_bigint(&curve25519::CURVE_A)
+        fe_to_bigint_le(&curve25519::CURVE_A)
     }
 
     fn d() -> BigInt {
-        fe_to_bigint(&curve25519::CURVE_D)
+        fe_to_bigint_le(&curve25519::CURVE_D)
     }
 }
 

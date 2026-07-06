@@ -1,7 +1,9 @@
 use super::super::sum_bigints;
 use super::{FieldEmulationParams, FieldOpChip};
 
-use crate::plutus_gen::stats::chips::curve::{non_trivial, non_zero, urem};
+use crate::plutus_gen::stats::chips::curve::{
+    count_non_trivial, count_non_zero, k_and_m_residues, non_trivial, non_zero, urem,
+};
 use crate::plutus_gen::stats::chips::{Argument, Column, ScalarExpression};
 
 use num_bigint::BigInt;
@@ -123,19 +125,14 @@ impl<P: FieldEmulationParams> FieldOpChip<P> for NormChip {
             .zip(vs_bounds)
             .for_each(|(mj, bounds_j)| {
                 let (lj_min, _vj_max) = bounds_j;
-                let k_min_m_urem_mj = urem(&(&k_min * &m), mj);
-                let m_urem_mj = urem(&m, mj);
+                let (k_min_m_urem_mj, m_urem_mj) = k_and_m_residues(&k_min, &m, mj);
                 let sum_shifts_urem_mj = urem(&sum_shifts, mj);
-
-                let bi_powers_mj: Vec<BigInt> = bp.iter().map(|b| b.rem(mj)).collect();
 
                 // We compute the number of coefficients that:
                 // - are not 0s, so that we know we add the associated expression
                 // - are neither 0s or 1s, so that we multiply the associated expression (by non trivial nb)
-                let (bi_non_zero, bi_non_trivial) =
-                    bi_powers_mj.iter().fold((0, 0), |(acc0, acc1), bi| {
-                        (acc0 + non_zero(bi), acc1 + non_trivial(bi))
-                    });
+                let bi_non_zero = count_non_zero(&bp, mj);
+                let bi_non_trivial = count_non_trivial(&bp, mj);
 
                 let nb_neg = non_zero(&sum_shifts_urem_mj)
                     + non_zero(&m_urem_mj)
