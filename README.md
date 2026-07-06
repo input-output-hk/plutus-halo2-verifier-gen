@@ -70,7 +70,7 @@ sh <(curl -L https://nixos.org/nix/install)
 substituters = https://cache.nixos.org https://cache.iog.io
 trusted-public-keys = hydra.iohk.io:f/Ea+s+dFdN+3Y/G+FDgSq+a5NEWhJGzdjvKNGv0/EQ= cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY=
 experimental-features = nix-command flakes
-allow-import-from-derivation = "true"
+allow-import-from-derivation = true
 ```
 
 3. The contract can be build from the relevant templates folder using the nix shell:
@@ -78,6 +78,7 @@ allow-import-from-derivation = "true"
 ```bash
 nix develop github:input-output-hk/devx#ghc96-iog
 cd plinth-verifier
+cabal update
 cabal build -j all
 cabal test all
 ```
