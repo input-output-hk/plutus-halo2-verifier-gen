@@ -111,6 +111,8 @@ CI will fail if `docs/wasm/` is stale relative to the Rust source.
 | CLI flag | `SupportedChips` variant | Description |
 |----------|--------------------------|-------------|
 | `--native` | `Native` | Native field arithmetic |
+| `--automaton` | `Automaton` | Regular expression parsing (fixed lookup table) |
+| `--base64` | `Base64` | Base64 decoding |
 | `--poseidon` | `Poseidon` | Poseidon hash |
 | `--jubjub` | `EdwardsJubjub` | JubJub ECC (Edwards curve) |
 | `--htc` | `HashToCurve` | Hash-to-curve (JubJub) |

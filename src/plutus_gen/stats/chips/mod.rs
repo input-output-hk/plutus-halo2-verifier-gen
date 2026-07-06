@@ -40,8 +40,10 @@ pub enum SupportedChips {
     WeierstrassSecp256r1,
     #[strum(disabled)]
     P2RDecomposition(usize),
-    // Automaton,
-    // Base64,
+    #[strum(to_string = "automaton")]
+    Automaton,
+    #[strum(to_string = "base64")]
+    Base64,
     #[strum(disabled)]
     VerifierGadget,
     #[strum(disabled)]
@@ -264,8 +266,8 @@ impl_supported_chips! {
     WeierstrassBls12381  => WeierstrassBls12381,
     WeierstrassSecp256k1 => WeierstrassSecp256k1,
     WeierstrassSecp256r1 => WeierstrassSecp256r1,
-    // Automaton            => Automaton,
-    // Base64               => Base64,
+    Automaton            => Automaton,
+    Base64               => Base64,
 }
 
 /// Flattens `chips` and all their transitive `CHIP_DEPS` into a deduplicated set.

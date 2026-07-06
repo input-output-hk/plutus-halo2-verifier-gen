@@ -243,6 +243,8 @@ Proof inputs :
 
 Chips (combine as needed):
   --native          Native arithmetic chip (arithmetic + parallel_add gates)
+  --automaton       Regular expression parsing (automaton) chip
+  --base64          Base64 decoding chip
   --sha256          SHA256 hash chip
   --sha512          SHA512 hash chip
   --poseidon        Poseidon hash chip

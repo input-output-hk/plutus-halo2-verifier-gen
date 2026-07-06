@@ -38,6 +38,16 @@ pub struct EstimateCliArguments {
     )]
     pub native: bool,
 
+    #[arg(
+        long,
+        help_heading = "Chips",
+        help = "Include regular expression parsing."
+    )]
+    pub automaton: bool,
+
+    #[arg(long, help_heading = "Chips", help = "Include Base64 operations.")]
+    pub base64: bool,
+
     #[arg(long, help_heading = "Chips", help = "Include the SHA256 hash chip.")]
     pub sha256: bool,
 
@@ -147,6 +157,12 @@ impl EstimateCliArguments {
         let mut chips = Vec::new();
         if self.native {
             chips.push(SupportedChips::Native);
+        }
+        if self.automaton {
+            chips.push(SupportedChips::Automaton);
+        }
+        if self.base64 {
+            chips.push(SupportedChips::Base64);
         }
         if self.jubjub {
             chips.push(SupportedChips::EdwardsJubjub);

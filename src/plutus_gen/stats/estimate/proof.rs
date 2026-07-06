@@ -1,3 +1,4 @@
+use super::SizeEstimate;
 use crate::plutus_gen::stats::{
     arguments::permutation::{nb_perm_commitments, nb_perm_evaluations},
     arguments::{
@@ -30,7 +31,7 @@ pub(crate) fn estimate_proof_size<PCS: PcsEstimate>(
     nb_copy_constrained: usize,
     nb_evaluations: usize,
     nb_point_sets: usize,
-) -> usize {
+) -> SizeEstimate {
     // Commitments
     // - advice commitments: 1 per advice column
     // - permutation commitments: 1 per chunks of copy-constrained columns
@@ -59,7 +60,11 @@ pub(crate) fn estimate_proof_size<PCS: PcsEstimate>(
         + PCS::nb_evaluations(nb_point_sets);
 
     if nb_advice == 0 {
-        return 0;
+        return SizeEstimate::default();
     }
-    nb_commitments * 48 + nb_scalars * 32
+    SizeEstimate {
+        commitments: nb_commitments,
+        evals: nb_scalars,
+        bytes: nb_commitments * 48 + nb_scalars * 32,
+    }
 }
