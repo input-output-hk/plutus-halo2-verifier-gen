@@ -56,7 +56,9 @@ where
     )
     .bytes;
 
-    let vk_size = estimate_vk_size::<PCS>(processed.nb_copy_constrained, processed.nb_fixed).bytes;
+    let estimated_vk = estimate_vk_size::<PCS>(processed.nb_copy_constrained, processed.nb_fixed);
+    let vk_coms = estimated_vk.commitments;
+    let vk_size = estimated_vk.bytes;
 
     // Initializing CircuitStatistics with the estimated proof size, VK size, and number of public inputs.
     let mut stats = CircuitStatistics::new(
@@ -187,8 +189,8 @@ where
         stats.scale();
 
         // Compute fixed accumulator from vk and -g1
-        stats.msm(vk_size + 1);
-        (0..vk_size + 1).for_each(|_| {
+        stats.msm(vk_coms + 1);
+        (0..vk_coms + 1).for_each(|_| {
             stats.decompress_point();
         });
 
