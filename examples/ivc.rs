@@ -220,6 +220,9 @@ fn main() -> Result<()> {
     }
 
     let chips = &[];
+    // We set nr_pow2range_cols to 3 to mirror ivc_circuit configuration where
+    // Pow2RangeChip::configure(meta, &advice_columns[1..nb_parallel_range_checks]);
+    // with let nb_parallel_range_checks = NB_ARITH_COLS - 1; // = 4
     cost_evaluation(
         &kzg_params,
         &vk,
@@ -227,7 +230,10 @@ fn main() -> Result<()> {
         &instance,
         Some(C::identity()),
         chips,
-        CircuitConfig::default(),
+        CircuitConfig {
+            nr_pow2range_cols: Some(3),
+            ..CircuitConfig::default()
+        },
     )?;
 
     let mut invalid_proof = prev_proof.clone();
