@@ -55,18 +55,6 @@ where
                     let (c, s) = PCS::step_stat(step);
                     (acc.0 + c, acc.1 + s)
                 });
-        println!(
-            "proof comm: {} + {} = {}",
-            pes_commitments,
-            pcs_commitments,
-            pes_commitments + pcs_commitments
-        );
-        println!(
-            "proof scalars: {} + {} = {}",
-            pes_scalars,
-            pcs_scalars,
-            pes_scalars + pcs_scalars
-        );
         (pes_commitments + pcs_commitments) * 48 + (pes_scalars + pcs_scalars) * 32
     };
 
