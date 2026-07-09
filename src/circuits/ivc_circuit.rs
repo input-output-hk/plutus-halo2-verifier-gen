@@ -201,7 +201,7 @@ impl Circuit<F> for IvcCircuit {
 
         // Witness a proof and an accumulator that ensure the validity of `prev_state`.
         let prev_acc = {
-            let mut fixed_base_names = vec![String::from("com_instance")];
+            let mut fixed_base_names = vec![];
             fixed_base_names.extend(verifier::fixed_base_names::<S>(
                 self_vk_name,
                 self_cs.num_fixed_columns() + self_cs.num_selectors(),
@@ -221,7 +221,7 @@ impl Circuit<F> for IvcCircuit {
 
         let id_point = curve_chip.assign_fixed(&mut layouter, C::identity())?;
 
-        let assigned_pi = [
+        let prev_proof_pi = [
             verifier_chip.as_public_input(&mut layouter, &assigned_self_vk)?,
             vec![prev_state.clone()],
             verifier_chip.as_public_input(&mut layouter, &prev_acc)?,
@@ -232,11 +232,11 @@ impl Circuit<F> for IvcCircuit {
 
         // Verify a witnessed proof that ensures the validity of `prev_state`.
         // The proof is valid iff `proof_acc` satisfies the invariant.
-        let mut proof_acc = verifier_chip.prepare(
+        let mut prev_proof_acc = verifier_chip.prepare(
             &mut layouter,
             &assigned_self_vk,
             &[id_point],
-            &[&assigned_pi],
+            &[&prev_proof_pi],
             self.prev_proof.clone(),
         )?;
 
@@ -249,10 +249,8 @@ impl Circuit<F> for IvcCircuit {
             &mut layouter,
             &scalar_chip,
             &is_not_genesis,
-            &mut proof_acc,
+            &mut prev_proof_acc,
         )?;
-
-        proof_acc.collapse(&mut layouter, &curve_chip, &scalar_chip)?;
 
         // Accumulate the `proof_acc` with the previous witnessed accumulator.
         // `next_acc` will satisfy the invariant iff both `proof_acc` and `prev_acc` do.
@@ -261,7 +259,7 @@ impl Circuit<F> for IvcCircuit {
             &verifier_chip,
             &scalar_chip,
             &poseidon_chip,
-            &[proof_acc, prev_acc],
+            &[prev_proof_acc, prev_acc],
         )?;
 
         // Finally, collapse the resulting accumulator and constraint it as public.

@@ -5,9 +5,7 @@ use super::super::arguments::vanishing::compute_vanishing;
 use super::super::data::CircuitStatistics;
 use super::super::lookup::{LookupEstimate, PlookUp};
 use super::super::pcs::PcsEstimate;
-use crate::plutus_gen::stats::chips::{
-    ScalarExpression, WeierstrassBls12381, curve::FieldEmulationParams,
-};
+use crate::plutus_gen::stats::chips::ScalarExpression;
 use crate::plutus_gen::stats::estimate::build::Processed;
 use crate::plutus_gen::stats::estimate::{estimate_proof_size, estimate_vk_size};
 use log::info;
@@ -166,7 +164,8 @@ where
         // Compute variable accumulator left point from public inputs
         (0..2).for_each(|_| {
             // For both coordinates of the point, we reconstruct the coordinate
-            (0..WeierstrassBls12381::NB_LIMBS).for_each(|_| {
+            // The WeierstrassBls12381::NB_LIMBS limbs are packed into 2 chunks
+            (0..2).for_each(|_| {
                 stats.add_scalar();
                 stats.mul_scalar();
             });
@@ -178,7 +177,8 @@ where
         // Compute variable accumulator left point from public inputs
         (0..2).for_each(|_| {
             // For both coordinates of the point, we reconstruct the coordinate
-            (0..WeierstrassBls12381::NB_LIMBS).for_each(|_| {
+            // The WeierstrassBls12381::NB_LIMBS limbs are packed into 2 chunks
+            (0..2).for_each(|_| {
                 stats.add_scalar();
                 stats.mul_scalar();
             });
