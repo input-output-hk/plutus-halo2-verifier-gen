@@ -97,9 +97,7 @@ pub(crate) trait EdwardsChipTrait<P: EdwardsEmulationParams>: FieldChipTrait<P> 
     }
 
     fn fixed() -> Vec<Column> {
-        let columns = <AdditionChip as EdwardsOpChipTrait<P>>::fixed();
-
-        columns
+        <AdditionChip as EdwardsOpChipTrait<P>>::fixed()
     }
 
     fn extra_fixed() -> Vec<Column> {

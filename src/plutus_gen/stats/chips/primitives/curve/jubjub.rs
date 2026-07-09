@@ -7,8 +7,8 @@ impl Chip for EdwardsJubjub {
     fn advice_columns() -> Vec<Column> {
         let current_next = RotationSet::new(false, false, true, true, false, false, false);
         vec![
-            Column::advice(current_next.clone(), true),
-            Column::advice(current_next.clone(), true),
+            Column::advice(current_next, true),
+            Column::advice(current_next, true),
             Column::advice(RotationSet::curr(), true),
             Column::advice(RotationSet::curr(), true),
             Column::advice(RotationSet::curr(), true),
