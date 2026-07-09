@@ -8,7 +8,6 @@ use std::collections::HashMap;
 
 use crate::plutus_gen::extraction::data::{CircuitRepresentation, ProofExtractionSteps};
 use crate::plutus_gen::extraction::pcs::ExtractPCS;
-use crate::plutus_gen::stats::chips::{WeierstrassBls12381, curve::FieldEmulationParams};
 
 use super::data::CircuitStatistics;
 
@@ -56,6 +55,18 @@ where
                     let (c, s) = PCS::step_stat(step);
                     (acc.0 + c, acc.1 + s)
                 });
+        println!(
+            "proof comm: {} + {} = {}",
+            pes_commitments,
+            pcs_commitments,
+            pes_commitments + pcs_commitments
+        );
+        println!(
+            "proof scalars: {} + {} = {}",
+            pes_scalars,
+            pcs_scalars,
+            pes_scalars + pcs_scalars
+        );
         (pes_commitments + pcs_commitments) * 48 + (pes_scalars + pcs_scalars) * 32
     };
 
@@ -319,8 +330,8 @@ where
     if circuit.proof_instantiation_data.recursion_vks.is_some() {
         // Compute variable accumulator left point from public inputs
         (0..2).for_each(|_| {
-            // For both coordinates of the point, we reconstruct the coordinate
-            (0..WeierstrassBls12381::NB_LIMBS).for_each(|_| {
+            // For both coordinates of the point, we reconstruct the coordinate from the 2 chunks
+            (0..2).for_each(|_| {
                 stats.add_scalar();
                 stats.mul_scalar();
             });
@@ -331,8 +342,8 @@ where
         // Compute variable accumulator right point from public inputs
         // Compute variable accumulator left point from public inputs
         (0..2).for_each(|_| {
-            // For both coordinates of the point, we reconstruct the coordinate
-            (0..WeierstrassBls12381::NB_LIMBS).for_each(|_| {
+            // For both coordinates of the point, we reconstruct the coordinate from the 2 chunks
+            (0..2).for_each(|_| {
                 stats.add_scalar();
                 stats.mul_scalar();
             });
