@@ -319,10 +319,6 @@ mod tests {
             "self_vk", &vk,
         ));
         let fixed_base_names = fixed_bases.keys().cloned().collect::<Vec<_>>();
-
-        // let fixed_bases = midnight_circuits::verifier::fixed_bases::<S>("self_vk", &vk);
-        // let fixed_base_names = fixed_bases.keys().cloned().collect::<Vec<_>>();
-
         let trivial_acc = Accumulator::<S>::trivial(&fixed_base_names);
 
         // Set the previous values for state (to genesis), proof and acc.
