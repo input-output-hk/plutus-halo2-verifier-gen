@@ -17,7 +17,6 @@ common common-lang
                -fno-strictness
                -fno-unbox-strict-fields
                -fno-unbox-small-strict-fields
-  PlutusTx.Plugin:defer-errors
 
 library
   import:           common-lang
