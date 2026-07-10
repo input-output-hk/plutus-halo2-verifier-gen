@@ -162,10 +162,14 @@ impl CircuitStatistics {
             mul_point: s1.mul_point.abs_diff(s2.mul_point),
             msm: {
                 let max_len = s1.msm.len().max(s2.msm.len());
+                let mut msm1 = s1.msm.clone();
+                let mut msm2 = s2.msm.clone();
+                msm1.sort_unstable();
+                msm2.sort_unstable();
                 (0..max_len)
                     .map(|i| {
-                        let a = s1.msm.get(i).cloned().unwrap_or(0);
-                        let b = s2.msm.get(i).cloned().unwrap_or(0);
+                        let a = msm1.get(i).cloned().unwrap_or(0);
+                        let b = msm2.get(i).cloned().unwrap_or(0);
                         a.abs_diff(b)
                     })
                     .collect()

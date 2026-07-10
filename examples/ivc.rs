@@ -2,7 +2,6 @@ use anyhow::{Context as _, Result};
 use log::info;
 use rand::prelude::StdRng;
 use rand_core::SeedableRng;
-use std::collections::BTreeMap;
 
 use ff::Field;
 use group::Group;
@@ -10,7 +9,7 @@ use group::Group;
 use midnight_circuits::{
     hash::poseidon::PoseidonState,
     types::{AssignedNative, Instantiable},
-    verifier::{Accumulator, AssignedAccumulator, AssignedVk, BlstrsEmulation, Msm, SelfEmulation},
+    verifier::{Accumulator, AssignedAccumulator, AssignedVk, BlstrsEmulation, SelfEmulation},
 };
 use midnight_curves::{Bls12, BlsScalar as Scalar};
 use midnight_proofs::{
@@ -89,7 +88,7 @@ macro_rules! verify_prepare {
             &[&[$public_inputs]],
             &mut transcript,
         )
-        .expect("Verification failed");
+        .expect(format!("{}th Verification preparation failed", $i).as_str());
         transcript
             .assert_empty()
             .expect("Transcript should be empty");
@@ -115,33 +114,9 @@ fn main() -> Result<()> {
     let vk = keygen_vk_with_k(&kzg_params, &default_ivc_circuit, k).unwrap();
     let pk = keygen_pk(vk.clone(), &default_ivc_circuit).unwrap();
 
-    let mut fixed_bases = BTreeMap::new();
-    fixed_bases.insert(String::from("com_instance"), C::identity());
-    fixed_bases.extend(midnight_circuits::verifier::fixed_bases::<S>(
-        "self_vk", &vk,
-    ));
+    let fixed_bases = midnight_circuits::verifier::fixed_bases::<S>("self_vk", &vk);
     let fixed_base_names = fixed_bases.keys().cloned().collect::<Vec<_>>();
-
-    // This trivial accumulator must have a single base and scalar of F::ONE, and
-    // the base has to be the default point of C. This is because when parsing
-    // an empty proof, our transcript gadget places a default point on every
-    // `read_point`. Note that the `base` is left untouched on during the
-    // handling of genesis, because `scale_by_bit` only modifies the scalars.
-    //
-    // On the other hand, the scalar has to be F::ONE because it is the value
-    // obtained after a `collapse` (the last step before constraining the acc as
-    // a public input).
-    let trivial_acc = Accumulator::<S>::new(
-        Msm::new(&[C::default()], &[F::ONE], &BTreeMap::new()),
-        Msm::new(
-            &[C::default()],
-            &[F::ONE],
-            &fixed_base_names
-                .iter()
-                .map(|name| (name.clone(), F::ZERO))
-                .collect(),
-        ),
-    );
+    let trivial_acc = Accumulator::<S>::trivial(&fixed_base_names);
 
     // Set the previous values for state (to genesis), proof and acc.
     let mut prev_state = F::ZERO;
@@ -217,13 +192,12 @@ fn main() -> Result<()> {
                 verify_prepare!(i, CTranscript, &proof, &vk, &instance)
             };
 
-            assert!(dual_msm.clone().check(&kzg_params.verifier_params()));
+            assert!(
+                dual_msm.clone().check(&kzg_params.verifier_params()),
+                "IVC proof verification failed"
+            );
 
-            let mut proof_acc: Accumulator<S> =
-                Accumulator::from_dual_msm(dual_msm, "inner_vk", &fixed_bases);
-            proof_acc.resolve_fixed_bases(&fixed_bases);
-            proof_acc.collapse();
-            proof_acc
+            Accumulator::from_dual_msm(dual_msm, "self_vk", &fixed_bases)
         };
 
         // Aggregating new accumulator with previous one, and checking both verify successfully.
@@ -246,6 +220,9 @@ fn main() -> Result<()> {
     }
 
     let chips = &[];
+    // We set nr_pow2range_cols to 3 to mirror ivc_circuit configuration where
+    // Pow2RangeChip::configure(meta, &advice_columns[1..nb_parallel_range_checks]);
+    // with let nb_parallel_range_checks = NB_ARITH_COLS - 1; // = 4
     cost_evaluation(
         &kzg_params,
         &vk,
@@ -253,15 +230,18 @@ fn main() -> Result<()> {
         &instance,
         Some(C::identity()),
         chips,
-        CircuitConfig::default(),
+        CircuitConfig {
+            nr_pow2range_cols: Some(3),
+            ..CircuitConfig::default()
+        },
     )?;
 
     let mut invalid_proof = prev_proof.clone();
     // index points to bytes of first scalar that is part of the proof
     // this should be safe and not result in malformed encoding exception
     // which is likely for flipping Byte for compressed G1 element
-    // atms has 42 G1 elements at the beginning of the proof each 48 bytes long
-    let index = 48 * 42 + 2;
+    // atms has 41 G1 elements at the beginning of the proof each 48 bytes long
+    let index = 48 * 41 + 2;
     let firs_byte = invalid_proof[index];
     let negated_firs_byte = !firs_byte;
     invalid_proof[index] = negated_firs_byte;

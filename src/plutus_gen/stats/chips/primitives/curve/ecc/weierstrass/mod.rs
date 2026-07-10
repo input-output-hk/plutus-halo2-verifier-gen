@@ -65,8 +65,7 @@ pub(crate) trait WeierstrassChipTrait<P: WeierstrassEmulationParams>:
     FieldChipTrait<P>
 {
     fn advice() -> Vec<Column> {
-        let ecc_len =
-            P::NB_LIMBS as usize + std::cmp::max(P::NB_LIMBS as usize, 2 + P::moduli().len()) + 1;
+        let ecc_len = P::NB_LIMBS + std::cmp::max(P::NB_LIMBS, 2 + P::moduli().len()) + 1;
         let lambda2_advices = <Lambda2Chip as WierstrassOpChipTrait<P>>::advice();
         let oncurve_advices = <OnCurveChip as WierstrassOpChipTrait<P>>::advice();
         let slope_advices = <SlopeChip as WierstrassOpChipTrait<P>>::advice();

@@ -5,9 +5,7 @@ use super::super::arguments::vanishing::compute_vanishing;
 use super::super::data::CircuitStatistics;
 use super::super::lookup::{LookupEstimate, PlookUp};
 use super::super::pcs::PcsEstimate;
-use crate::plutus_gen::stats::chips::{
-    ScalarExpression, WeierstrassBls12381, curve::FieldEmulationParams,
-};
+use crate::plutus_gen::stats::chips::ScalarExpression;
 use crate::plutus_gen::stats::estimate::build::Processed;
 use crate::plutus_gen::stats::estimate::{estimate_proof_size, estimate_vk_size};
 use log::info;
@@ -58,7 +56,9 @@ where
     )
     .bytes;
 
-    let vk_size = estimate_vk_size::<PCS>(processed.nb_copy_constrained, processed.nb_fixed).bytes;
+    let estimated_vk = estimate_vk_size::<PCS>(processed.nb_copy_constrained, processed.nb_fixed);
+    let vk_coms = estimated_vk.commitments;
+    let vk_size = estimated_vk.bytes;
 
     // Initializing CircuitStatistics with the estimated proof size, VK size, and number of public inputs.
     let mut stats = CircuitStatistics::new(
@@ -166,7 +166,8 @@ where
         // Compute variable accumulator left point from public inputs
         (0..2).for_each(|_| {
             // For both coordinates of the point, we reconstruct the coordinate
-            (0..WeierstrassBls12381::NB_LIMBS).for_each(|_| {
+            // The WeierstrassBls12381::NB_LIMBS limbs are packed into 2 chunks
+            (0..2).for_each(|_| {
                 stats.add_scalar();
                 stats.mul_scalar();
             });
@@ -178,7 +179,8 @@ where
         // Compute variable accumulator left point from public inputs
         (0..2).for_each(|_| {
             // For both coordinates of the point, we reconstruct the coordinate
-            (0..WeierstrassBls12381::NB_LIMBS).for_each(|_| {
+            // The WeierstrassBls12381::NB_LIMBS limbs are packed into 2 chunks
+            (0..2).for_each(|_| {
                 stats.add_scalar();
                 stats.mul_scalar();
             });
@@ -186,9 +188,9 @@ where
         stats.g1_from_coords();
         stats.scale();
 
-        // Compute fixed accumulator from vk, -g1 and PIs
-        stats.msm(vk_size + 3);
-        (0..vk_size).for_each(|_| {
+        // Compute fixed accumulator from vk and -g1
+        stats.msm(vk_coms + 1);
+        (0..vk_coms + 1).for_each(|_| {
             stats.decompress_point();
         });
 

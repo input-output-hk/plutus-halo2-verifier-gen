@@ -10,6 +10,7 @@ use crate::plutus_gen::extraction::pcs::{ExtractPCS, PCSType};
 use group::{GroupEncoding, prime::PrimeCurveAffine};
 use handlebars::{Handlebars, RenderError};
 use itertools::Itertools;
+use std::collections::BTreeMap;
 use std::{collections::HashMap, fs::File, path::Path};
 
 fn capitalize_first(s: &str) -> String {
@@ -684,29 +685,32 @@ where
 
             let final_check_vks = "&& b".to_string();
 
-            let serialized_acc = 2 * 2 * 7 + 2;
+             // We make the assumption that the accumulator has been collapsed.
+            // As such, the lhs and rhs have both 1 base point and corresponding scalar, the rhs also has a fixed base.
+            // 2 points, each with x and y coordinate, each coordinate is 32 bytes when serialized, encoded each in 7 limbs, the limns are then packed together in 2 chunks (one of 4 limbs and one of 3)
+            let serialized_acc = 2 * 2 * 2 + 2;
 
             let (fixed_bases, fixed_bases_len) = {
                 let mut ivc_fixed_bases = Vec::new();
                 let mut size = 0;
 
-                if nb_committed_instances > 0 {
-                    ivc_fixed_bases.push("ci1".to_string());
-                    size += 1;
-                }
 
                 size += 1;
                 ivc_fixed_bases.push("negGenG1".to_string());
 
-
+                let mut f_coms_order = BTreeMap::new();
                 circuit.proof_instantiation_data.fixed_commitments.iter().enumerate().for_each(|(i, _)| {
-                    ivc_fixed_bases.push(format!("f{}_commitment", i+1 ));
+                    f_coms_order.insert(format!("f_com_{}",i), format!("f{}_commitment", i+1));
                     size += 1;
                 });
+                ivc_fixed_bases.append(&mut f_coms_order.values().cloned().collect());
+
+                let mut p_coms_order = BTreeMap::new();
                 circuit.proof_instantiation_data.permutation_commitments.iter().enumerate().for_each(|(i, _)| {
-                    ivc_fixed_bases.push(format!("p{}_commitment", i+1 ));
+                    p_coms_order.insert(format!("p_com_{}",i), format!("p{}_commitment", i+1));
                     size += 1;
                 });
+                ivc_fixed_bases.append(&mut p_coms_order.values().cloned().collect());
 
                 recursion_vks.iter().for_each(|vki| {
                     vki.fixed_commitments.iter().enumerate().for_each(|(i, _)| {
@@ -723,34 +727,35 @@ where
                 (ivc_fixed_bases, size)
             };
 
-            assert!(nb_public_inputs >= (fixed_bases_len + serialized_acc), "Not enough public inputs to support recursion. Required at least {}, but only {} provided.", fixed_bases_len + serialized_acc, nb_public_inputs);
+            assert!(nb_public_inputs >= (fixed_bases_len + serialized_acc), "Not enough public inputs to support recursion. Required at least {} + {} = {}, but only {} provided.", fixed_bases_len ,serialized_acc, fixed_bases_len + serialized_acc, nb_public_inputs);
 
             let neg_g1 = "      !negGenG1 = bls12_381_G1_neg (bls12_381_G1_uncompress bls12_381_G1_compressed_generator)\n".to_string();
 
-            let batching_coeff = "72057594037927936".to_string();
+            // (Bls12-381 P::LIMBS = 2^56)^4
+            let batching_coeff = "26959946667150639794667015087019630673637144422540572481103610249216".to_string();
 
             let acc_left : String = {
-                let serialized_x = format!("      !acc_left_x = mkFp ((1 + {}) `modulo` bls12_381_base_prime)\n", (0..7).fold("0".to_string(), |acc, i| {
-                        format!("({} * {batching_coeff} + (unScalar i{}))", acc, nb_public_inputs - fixed_bases_len - 3*7 - 2 - i)
+                let serialized_x = format!("      !acc_left_x = mkFp ((1 + {}) `modulo` bls12_381_base_prime)\n", (0..2).fold("0".to_string(), |acc, i| {
+                        format!("({} * {batching_coeff} + (unScalar i{}))", acc, nb_public_inputs - fixed_bases_len - 3*2 - 2 - i)
                     }));
 
-                let serialized_y = format!("      !acc_left_y = mkFp ((1 + {}) `modulo` bls12_381_base_prime)\n", (0..7).fold("0".to_string(), |acc, i| {
-                        format!("({} * {batching_coeff} + (unScalar i{}))", acc, nb_public_inputs - fixed_bases_len - 2*7 - 2 - i)
+                let serialized_y = format!("      !acc_left_y = mkFp ((1 + {}) `modulo` bls12_381_base_prime)\n", (0..2).fold("0".to_string(), |acc, i| {
+                        format!("({} * {batching_coeff} + (unScalar i{}))", acc, nb_public_inputs - fixed_bases_len - 2*2 - 2 - i)
                     }));
 
                 let uncompressed  = "      !uncompressed_acc_left = BlsUtils.fromCoordsG1Point(acc_left_x, acc_left_y) \n".to_string();
 
-                let result = format!("      !acc_left = scale i{} uncompressed_acc_left\n", nb_public_inputs - fixed_bases_len - 2*7 - 1).to_string();
+                let result = format!("      !acc_left = scale i{} uncompressed_acc_left\n", nb_public_inputs - fixed_bases_len - 2*2 - 1).to_string();
 
                [serialized_x, serialized_y, uncompressed, result].iter().join("")
             };
 
             let acc_right : String = {
-                let serialized_x = format!("      !acc_right_x_int = mkFp ((1 + {}) `modulo` bls12_381_base_prime)\n", (0..7).fold("0".to_string(), |acc, i| {
-                        format!("({} * {batching_coeff} + (unScalar i{}))", acc, nb_public_inputs - fixed_bases_len - 7 - 1 - i)
+                let serialized_x = format!("      !acc_right_x_int = mkFp ((1 + {}) `modulo` bls12_381_base_prime)\n", (0..2).fold("0".to_string(), |acc, i| {
+                        format!("({} * {batching_coeff} + (unScalar i{}))", acc, nb_public_inputs - fixed_bases_len - 2 - 1 - i)
                     }));
 
-                let serialized_y = format!("      !acc_right_y_int = mkFp ((1 + {}) `modulo` bls12_381_base_prime)\n", (0..7).fold("0".to_string(), |acc, i| {
+                let serialized_y = format!("      !acc_right_y_int = mkFp ((1 + {}) `modulo` bls12_381_base_prime)\n", (0..2).fold("0".to_string(), |acc, i| {
                         format!("({} * {batching_coeff} + (unScalar i{}))", acc, nb_public_inputs - fixed_bases_len - 1 - i)
                     }));
 

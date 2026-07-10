@@ -13,6 +13,7 @@ use ff::Field;
 use group::{Curve, Group, GroupEncoding};
 use handlebars::{Handlebars, RenderError};
 use itertools::Itertools;
+use std::collections::BTreeMap;
 use std::{collections::HashMap, fs::File, iter::once, path::Path};
 
 /// A valid proof, an invalid proof, the public inputs, and the optional committed instance
@@ -648,31 +649,31 @@ where
 
             // We make the assumption that the accumulator has been collapsed.
             // As such, the lhs and rhs have both 1 base point and corresponding scalar, the rhs also has a fixed base.
-            // 2 points, each with x and y coordinate, each coordinate is 32 bytes when serialized, encodede deach in 7 limbs
+            // 2 points, each with x and y coordinate, each coordinate is 32 bytes when serialized, encoded each in 7 limbs, the limns are then packed together in 2 chunks (one of 4 limbs and one of 3)
             // 2 scalars
-            let serialized_acc = 2 * 2 * 7 + 2;
+            let serialized_acc = 2 * 2 * 2 + 2;
 
             let (fixed_bases, fixed_bases_len) = {
                 let mut ivc_fixed_bases = Vec::new();
                 let mut size = 0;
 
-                if nb_committed_instances > 0 {
-                    ivc_fixed_bases.push("ci_1".to_string());
-                    size += 1;
-                }
 
                 size += 1; // for G, which is always a fixed base
                 ivc_fixed_bases.push("neg_g1_generator".to_string());
 
-
+                let mut f_coms_order = BTreeMap::new();
                 circuit.proof_instantiation_data.fixed_commitments.iter().enumerate().for_each(|(i, _)| {
-                    ivc_fixed_bases.push(format!("f{}_commitment", i+1 ));
+                    f_coms_order.insert(format!("f_com_{}",i), format!("f{}_commitment", i+1));
                     size += 1;
                 });
+                ivc_fixed_bases.append(&mut f_coms_order.values().cloned().collect());
+
+                let mut p_coms_order = BTreeMap::new();
                 circuit.proof_instantiation_data.permutation_commitments.iter().enumerate().for_each(|(i, _)| {
-                    ivc_fixed_bases.push(format!("p{}_commitment", i+1 ));
+                    p_coms_order.insert(format!("p_com_{}",i), format!("p{}_commitment", i+1));
                     size += 1;
                 });
+                ivc_fixed_bases.append(&mut p_coms_order.values().cloned().collect());
 
                 recursion_vks.iter().for_each(|vki| {
                     vki.fixed_commitments.iter().enumerate().for_each(|(i, _)| {
@@ -700,31 +701,32 @@ where
             assert!(nb_public_inputs >= (nb_vks + fixed_bases_len + serialized_acc), "Not enough public inputs to support recursion. Required at least {}, but only {} provided.", fixed_bases_len + serialized_acc + nb_vks, nb_public_inputs);
 
 
-            let batching_coeff = "72057594037927936".to_string();
+            // (Bls12-381 P::LIMBS = 2^56)^4
+            let batching_coeff = "26959946667150639794667015087019630673637144422540572481103610249216".to_string();
             let base_field_modulo = "0x1a0111ea397fe69a4b1ba7b6434bacd764774b84f38512bf6730d2a0f6b0f6241eabfffeb153ffffb9feffffffffaaab".to_string();
 
             let acc_left : String = {
-                let serialized_x = format!("    let acc_left_x_int = (1 + {}) % {base_field_modulo}\n", (0..7).fold("0".to_string(), |acc, i| {
-                        format!("(({} * {batching_coeff}) + to_int(i_{}))", acc, nb_public_inputs - fixed_bases_len - 3*7 - 2 - i)
+                let serialized_x = format!("    let acc_left_x_int = (1 + {}) % {base_field_modulo}\n", (0..2).fold("0".to_string(), |acc, i| {
+                        format!("(({} * {batching_coeff}) + to_int(i_{}))", acc, nb_public_inputs - fixed_bases_len - 3*2 - 2 - i)
                     }));
 
-                let serialized_y = format!("    let acc_left_y_int = (1 + {}) % {base_field_modulo}\n", (0..7).fold("0".to_string(), |acc, i| {
-                        format!("(({} * {batching_coeff}) + to_int(i_{}))", acc, nb_public_inputs - fixed_bases_len - 2*7 - 2 - i)
+                let serialized_y = format!("    let acc_left_y_int = (1 + {}) % {base_field_modulo}\n", (0..2).fold("0".to_string(), |acc, i| {
+                        format!("(({} * {batching_coeff}) + to_int(i_{}))", acc, nb_public_inputs - fixed_bases_len - 2*2 - 2 - i)
                     }));
 
                 let result = "    let acc_left_unscaled = g1_from_coords(acc_left_x_int, acc_left_y_int)\n".to_string();
-                let result2 = format!("    let acc_left = scaleG1(acc_left_unscaled, i_{})\n", nb_public_inputs - fixed_bases_len - 2*7 - 1).to_string();
+                let result2 = format!("    let acc_left = scaleG1(acc_left_unscaled, i_{})\n", nb_public_inputs - fixed_bases_len - 2*2 - 1).to_string();
 
                [serialized_x, serialized_y, result, result2].iter().join("")
             };
 
 
             let acc_right : String = {
-                let serialized_x = format!("\n    let acc_right_x_int = (1 + {}) % {base_field_modulo}\n", (0..7).fold("0".to_string(), |acc, i| {
-                        format!("(({} * {batching_coeff}) + to_int(i_{}))", acc, nb_public_inputs - fixed_bases_len - 7 - 1 - i)
+                let serialized_x = format!("\n    let acc_right_x_int = (1 + {}) % {base_field_modulo}\n", (0..2).fold("0".to_string(), |acc, i| {
+                        format!("(({} * {batching_coeff}) + to_int(i_{}))", acc, nb_public_inputs - fixed_bases_len - 2 - 1 - i)
                     }));
 
-                let serialized_y = format!("    let acc_right_y_int = (1 + {}) % {base_field_modulo}\n", (0..7).fold("0".to_string(), |acc, i| {
+                let serialized_y = format!("    let acc_right_y_int = (1 + {}) % {base_field_modulo}\n", (0..2).fold("0".to_string(), |acc, i| {
                         format!("(({} * {batching_coeff}) + to_int(i_{}))", acc, nb_public_inputs - fixed_bases_len - 1 - i)
                     }));
 
@@ -828,6 +830,12 @@ where
             );
         }
         Some((proof, invalid_proof, public_inputs, committed_instances_opt)) => {
+            let pis_condition = if circuit.proof_instantiation_data.recursion_vks.is_some() {
+                |x| x == 1
+            } else {
+                |x| x != 0
+            };
+
             let valid_pi = public_inputs
                 .iter()
                 .map(|e| format!("from_int(0x{})", hex::encode(e.to_bytes_be())))
@@ -837,7 +845,7 @@ where
                 .iter()
                 .enumerate()
                 .map(|(i, &e)| {
-                    let input = if i != 0 { e + Scalar::ONE } else { e };
+                    let input = if pis_condition(i) { e + Scalar::ONE } else { e };
                     format!("from_int(0x{})", hex::encode(input.to_bytes_be()))
                 })
                 .join(", ");
@@ -846,7 +854,7 @@ where
                 .iter()
                 .enumerate()
                 .map(|(i, &e)| {
-                    let input = if i != 0 { Scalar::ZERO } else { e };
+                    let input = if pis_condition(i) { Scalar::ZERO } else { e };
                     format!("from_int(0x{})", hex::encode(input.to_bytes_be()))
                 })
                 .join(", ");

@@ -8,7 +8,6 @@ use std::collections::HashMap;
 
 use crate::plutus_gen::extraction::data::{CircuitRepresentation, ProofExtractionSteps};
 use crate::plutus_gen::extraction::pcs::ExtractPCS;
-use crate::plutus_gen::stats::chips::{WeierstrassBls12381, curve::FieldEmulationParams};
 
 use super::data::CircuitStatistics;
 
@@ -319,8 +318,8 @@ where
     if circuit.proof_instantiation_data.recursion_vks.is_some() {
         // Compute variable accumulator left point from public inputs
         (0..2).for_each(|_| {
-            // For both coordinates of the point, we reconstruct the coordinate
-            (0..WeierstrassBls12381::NB_LIMBS).for_each(|_| {
+            // For both coordinates of the point, we reconstruct the coordinate from the 2 chunks
+            (0..2).for_each(|_| {
                 stats.add_scalar();
                 stats.mul_scalar();
             });
@@ -331,8 +330,8 @@ where
         // Compute variable accumulator right point from public inputs
         // Compute variable accumulator left point from public inputs
         (0..2).for_each(|_| {
-            // For both coordinates of the point, we reconstruct the coordinate
-            (0..WeierstrassBls12381::NB_LIMBS).for_each(|_| {
+            // For both coordinates of the point, we reconstruct the coordinate from the 2 chunks
+            (0..2).for_each(|_| {
                 stats.add_scalar();
                 stats.mul_scalar();
             });
@@ -342,10 +341,9 @@ where
 
         // Compute fixed accumulator
         let vk_len = vk.fixed_commitments().len() + vk.permutation().commitments().len();
-        // The MSM also comprises the negated generator, and 2 group elements
-        // for the public inputs and committed instances.
-        stats.msm(vk_len + 3);
-        (0..vk_len).for_each(|_| {
+        // The MSM also comprises the negated generator.
+        stats.msm(vk_len + 1);
+        (0..vk_len + 1).for_each(|_| {
             stats.decompress_point();
         });
 
