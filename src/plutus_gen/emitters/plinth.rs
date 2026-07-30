@@ -247,333 +247,332 @@ where
     data.insert("PES".to_string(), proof_extraction_stage);
 
     // Adding expressions for gates, lookups, permutations and trashcans
-    {
-        // Adding gate expressions
-        // For gates, the selector is already included in the constraint/expression
-        let gates = circuit
-            .expressions
-            .compiled_gate_equations
-            .iter()
-            .enumerate()
-            .map(|(id, gate)| {
-                format!(
-                    "      !gate_eq{:?} = {}\n",
-                    id + 1,
-                    gate.compile_expression()
-                )
-            })
-            .join("");
-        data.insert("GATES".to_string(), gates);
 
-        // Adding lookup table expressions
-        let lookup_tables = circuit
-            .expressions
-            .compiled_lookups_equations
-            .1
-            .iter()
-            .enumerate()
-            .map(|(id, gate)| {
-                format!(
-                    "      !lookup_table_eq{:?} = {}\n",
-                    id + 1,
-                    combine_plinth_expressions(gate.clone(), THETA_STR)
-                )
-            })
-            .join("");
-        data.insert("LOOKUP_TABLES_EXPRESSIONS".to_string(), lookup_tables);
-
-        // Adding lookup input expressions
-        let lookup_inputs = circuit
-            .expressions
-            .compiled_lookups_equations
-            .0
-            .iter()
-            .enumerate()
-            .map(|(id, gate)| {
-                format!(
-                    "      !lookup_input_eq{:?} = {}\n",
-                    id + 1,
-                    combine_plinth_expressions(gate.clone(), THETA_STR)
-                )
-            })
-            .join("");
-        data.insert("LOOKUP_INPUTS_EXPRESSIONS".to_string(), lookup_inputs);
-
-        // Combining lookup expressions
-        let lookup_equations = (1..=circuit.expressions.compiled_lookups_equations.0.len())
-        .map(|id| {
-            // !l1 = evaluation_at_0 * (scalarOne - product_eval_1)
-            // !l2 = last_evaluation * (product_eval_1 * product_eval_1 - product_eval_1)
-            // 
-            // !lookup_left_1 = product_eval_1 * (permuted_input_eval_1 + beta) * (permuted_table_eval_1 + gamma)
-            // !lookup_right_1 = product_eval_1 * (lookup_input_eq1 + beta) * (lookup_table_eq1 + gamma)
-            // 
-            // !l3 = (lookup_left_1 - lookup_right_1) * active_rows
-            // 
-            // !l4 = evaluation_at_0 * (permuted_input_eval_1 - permuted_table_eval_1)
-            // !l5 = (permuted_input_eval_1 - permuted_table_eval_1)
-            //     * &(permuted_input_eval_1 - permuted_input_inv_eval_1) * active_rows
-
-            let l1 = format!("{} * ({} - product_eval_{})", EVAL_0_STR, ONE_STR, id);
-            let l2 = format!("{} * (product_eval_{} * product_eval_{} - product_eval_{})", EVAL_LAST_STR, id, id, id);
-            let left = format!("product_next_eval_{} * (permuted_input_eval_{} + beta) * (permuted_table_eval_{} + gamma)", id, id, id);
-            let right = format!("product_eval_{} * (lookup_input_eq{} + beta) * (lookup_table_eq{} + gamma)", id, id, id);
-            let l3 = format!("(lookup_left_{} - lookup_right_{}) * active_rows", id, id);
-            let l4 = format!("{} * (permuted_input_eval_{} - permuted_table_eval_{})", EVAL_0_STR, id, id);
-            let l5 = format!("(permuted_input_eval_{} - permuted_table_eval_{}) * (permuted_input_eval_{} - permuted_input_inv_eval_{}) * active_rows", id, id, id, id);
-
-            format!("      !lookup_expression_1_{} = {}\n", id, l1) +
-                format!("      !lookup_expression_2_{} = {}\n", id, l2).as_str() +
-                format!("      !lookup_left_{} = {}\n", id, left).as_str() +
-                format!("      !lookup_right_{} = {}\n", id, right).as_str() +
-                format!("      !lookup_expression_3_{} = {}\n", id, l3).as_str() +
-                format!("      !lookup_expression_4_{} = {}\n", id, l4).as_str() +
-                format!("      !lookup_expression_5_{} = {}\n\n\n", id, l5).as_str()
+    // Adding gate expressions
+    // For gates, the selector is already included in the constraint/expression
+    let gates = circuit
+        .expressions
+        .compiled_gate_equations
+        .iter()
+        .enumerate()
+        .map(|(id, gate)| {
+            format!(
+                "      !gate_eq{:?} = {}\n",
+                id + 1,
+                gate.compile_expression()
+            )
         })
         .join("");
+    data.insert("GATES".to_string(), gates);
 
-        data.insert("LOOKUPS".to_string(), lookup_equations);
+    // Adding lookup table expressions
+    let lookup_tables = circuit
+        .expressions
+        .compiled_lookups_equations
+        .1
+        .iter()
+        .enumerate()
+        .map(|(id, gate)| {
+            format!(
+                "      !lookup_table_eq{:?} = {}\n",
+                id + 1,
+                combine_plinth_expressions(gate.clone(), THETA_STR)
+            )
+        })
+        .join("");
+    data.insert("LOOKUP_TABLES_EXPRESSIONS".to_string(), lookup_tables);
 
-        // Adding permutation evaluation expressions
-        let permutation_evals = circuit
-            .expressions
-            .permutations_evaluated_terms
-            .iter()
-            .enumerate()
-            .map(|(id, expression)| {
-                let term = expression.compile_expression();
-                format!("      !term{:?} = {}\n", id + 1, term)
-            })
-            .join("");
-        data.insert("PERMUTATIONS_EVALS".to_string(), permutation_evals);
+    // Adding lookup input expressions
+    let lookup_inputs = circuit
+        .expressions
+        .compiled_lookups_equations
+        .0
+        .iter()
+        .enumerate()
+        .map(|(id, gate)| {
+            format!(
+                "      !lookup_input_eq{:?} = {}\n",
+                id + 1,
+                combine_plinth_expressions(gate.clone(), THETA_STR)
+            )
+        })
+        .join("");
+    data.insert("LOOKUP_INPUTS_EXPRESSIONS".to_string(), lookup_inputs);
 
-        let mut sets_lhs: HashMap<char, String> = HashMap::new();
-        let mut sets_rhs: HashMap<char, String> = HashMap::new();
+    // Combining lookup expressions
+    let lookup_equations = (1..=circuit.expressions.compiled_lookups_equations.0.len())
+    .map(|id| {
+        // !l1 = evaluation_at_0 * (scalarOne - product_eval_1)
+        // !l2 = last_evaluation * (product_eval_1 * product_eval_1 - product_eval_1)
+        // 
+        // !lookup_left_1 = product_eval_1 * (permuted_input_eval_1 + beta) * (permuted_table_eval_1 + gamma)
+        // !lookup_right_1 = product_eval_1 * (lookup_input_eq1 + beta) * (lookup_table_eq1 + gamma)
+        // 
+        // !l3 = (lookup_left_1 - lookup_right_1) * active_rows
+        // 
+        // !l4 = evaluation_at_0 * (permuted_input_eval_1 - permuted_table_eval_1)
+        // !l5 = (permuted_input_eval_1 - permuted_table_eval_1)
+        //     * &(permuted_input_eval_1 - permuted_input_inv_eval_1) * active_rows
 
-        // Adding left permutation expressions
-        let permutation_lhs = circuit
-            .expressions
-            .permutation_terms_left
-            .iter()
-            .enumerate()
-            .map(|(id, (set, expression))| {
-                if sets_lhs.contains_key(set) {
-                    let existing = sets_lhs
-                        .get(set)
-                        .unwrap_or_else(|| panic!("set {} not found", set));
-                    sets_lhs.insert(*set, format!("{} * left{:?}", existing, id + 1));
-                } else {
-                    sets_lhs.insert(*set, format!("left{:?}", id + 1));
-                };
-                let term = expression.compile_expression();
-                format!("      !left{:?} = {} --part of set {}\n", id + 1, term, set)
-            })
-            .join("");
-        data.insert("PERMUTATIONS_LHS".to_string(), permutation_lhs);
+        let l1 = format!("{} * ({} - product_eval_{})", EVAL_0_STR, ONE_STR, id);
+        let l2 = format!("{} * (product_eval_{} * product_eval_{} - product_eval_{})", EVAL_LAST_STR, id, id, id);
+        let left = format!("product_next_eval_{} * (permuted_input_eval_{} + beta) * (permuted_table_eval_{} + gamma)", id, id, id);
+        let right = format!("product_eval_{} * (lookup_input_eq{} + beta) * (lookup_table_eq{} + gamma)", id, id, id);
+        let l3 = format!("(lookup_left_{} - lookup_right_{}) * active_rows", id, id);
+        let l4 = format!("{} * (permuted_input_eval_{} - permuted_table_eval_{})", EVAL_0_STR, id, id);
+        let l5 = format!("(permuted_input_eval_{} - permuted_table_eval_{}) * (permuted_input_eval_{} - permuted_input_inv_eval_{}) * active_rows", id, id, id, id);
 
-        // Combining left permutation expressions
-        let lhf_sets = sets_lhs
-            .iter()
-            .sorted_by_key(|(c, _)| **c)
-            .enumerate()
-            .map(|(set_number, (set_id, terms))| {
+        format!("      !lookup_expression_1_{} = {}\n", id, l1) +
+            format!("      !lookup_expression_2_{} = {}\n", id, l2).as_str() +
+            format!("      !lookup_left_{} = {}\n", id, left).as_str() +
+            format!("      !lookup_right_{} = {}\n", id, right).as_str() +
+            format!("      !lookup_expression_3_{} = {}\n", id, l3).as_str() +
+            format!("      !lookup_expression_4_{} = {}\n", id, l4).as_str() +
+            format!("      !lookup_expression_5_{} = {}\n\n\n", id, l5).as_str()
+    })
+    .join("");
+
+    data.insert("LOOKUPS".to_string(), lookup_equations);
+
+    // Adding permutation evaluation expressions
+    let permutation_evals = circuit
+        .expressions
+        .permutations_evaluated_terms
+        .iter()
+        .enumerate()
+        .map(|(id, expression)| {
+            let term = expression.compile_expression();
+            format!("      !term{:?} = {}\n", id + 1, term)
+        })
+        .join("");
+    data.insert("PERMUTATIONS_EVALS".to_string(), permutation_evals);
+
+    let mut sets_lhs: HashMap<char, String> = HashMap::new();
+    let mut sets_rhs: HashMap<char, String> = HashMap::new();
+
+    // Adding left permutation expressions
+    let permutation_lhs = circuit
+        .expressions
+        .permutation_terms_left
+        .iter()
+        .enumerate()
+        .map(|(id, (set, expression))| {
+            if sets_lhs.contains_key(set) {
+                let existing = sets_lhs
+                    .get(set)
+                    .unwrap_or_else(|| panic!("set {} not found", set));
+                sets_lhs.insert(*set, format!("{} * left{:?}", existing, id + 1));
+            } else {
+                sets_lhs.insert(*set, format!("left{:?}", id + 1));
+            };
+            let term = expression.compile_expression();
+            format!("      !left{:?} = {} --part of set {}\n", id + 1, term, set)
+        })
+        .join("");
+    data.insert("PERMUTATIONS_LHS".to_string(), permutation_lhs);
+
+    // Combining left permutation expressions
+    let lhf_sets = sets_lhs
+        .iter()
+        .sorted_by_key(|(c, _)| **c)
+        .enumerate()
+        .map(|(set_number, (set_id, terms))| {
+            format!(
+                "      !left_set{:?} = {} * {} \n",
+                set_number + 1,
+                perm_eval_str(set_id, 2),
+                terms
+            )
+        })
+        .join("");
+    data.insert("LHS_SETS".to_string(), lhf_sets);
+
+    // Adding right permutation expressions
+    let permutation_rhs = circuit
+        .expressions
+        .permutation_terms_right
+        .iter()
+        .enumerate()
+        .map(|(id, (set, expression))| {
+            if sets_rhs.contains_key(set) {
+                let existing = sets_rhs
+                    .get(set)
+                    .unwrap_or_else(|| panic!("set {} not found", set));
+                sets_rhs.insert(*set, format!("{} * right{:?}", existing, id + 1));
+            } else {
+                sets_rhs.insert(*set, format!("right{:?}", id + 1));
+            };
+            let term = expression.compile_expression();
+            format!(
+                "      !right{:?} = {} --part of set {}\n",
+                id + 1,
+                term,
+                set
+            )
+        })
+        .join("");
+    data.insert("PERMUTATIONS_RHS".to_string(), permutation_rhs);
+
+    // Combining right permutation expressions
+    let rhf_sets = sets_rhs
+        .iter()
+        .sorted_by_key(|(c, _)| **c)
+        .enumerate()
+        .map(|(set_number, (set_id, terms))| {
+            format!(
+                "      !right_set{:?} = {} * {} \n",
+                set_number + 1,
+                perm_eval_str(set_id, 1),
+                terms
+            )
+        })
+        .join("");
+    data.insert("RHS_SETS".to_string(), rhf_sets);
+
+    // Combining left and right permutation expressions
+    let permutations_combined = if sets_lhs.len() == sets_rhs.len() {
+        let sets_number = sets_lhs.len();
+        (1..=sets_number).map(|n| {
+        format!("      !permutations{} = (left_set{} - right_set{}) * ({} - ({} + sum_of_evaluation_for_blinding_factors))\n", n, n, n, ONE_STR, EVAL_LAST_STR)
+    }).join("")
+    } else {
+        panic!("permutations sets have to be equal length")
+    };
+    data.insert("PERMUTATIONS_COMBINED".to_string(), permutations_combined);
+
+    // Adding trashcan expressions
+    let trashcans = circuit
+        .expressions
+        .compiled_trashcans
+        .iter()
+        .enumerate()
+        .map(|(id, trash_info)| {
+            let (_name, selector, expression) = trash_info;
+            format!(
+                "      !trashcanExp{} = {} - (({} - {}) * trashcanEval{})\n",
+                id + 1,
+                combine_plinth_expressions(expression.clone(), TRASH_STR),
+                ONE_STR,
+                selector.compile_expression(),
+                id + 1
+            )
+        })
+        .join("");
+    data.insert("TRASHCANS".to_string(), trashcans);
+
+    // Computing vanishing expressions by relisting all gates and step expressions
+    let gates_count = circuit.expressions.compiled_gate_equations.len();
+    let permutations_eval_count = circuit.expressions.permutations_evaluated_terms.len();
+    let sets_count = sets_lhs.len();
+    let lookups_count = circuit.expressions.compiled_lookups_equations.0.len();
+    let trashcans_count = circuit.expressions.compiled_trashcans.len();
+
+    let mut total_nb_expressions = 0;
+
+    // Adding gate expressions to vanishing
+    let mut vanishing_expressions = (1..=gates_count)
+        .map(|n| format!("      !expression{} = gate_eq{}\n", n, n))
+        .collect::<Vec<_>>();
+    total_nb_expressions += gates_count;
+
+    // Adding permutation evaluation expressions to vanishing
+    let expressions = (1..=permutations_eval_count)
+        .map(|n| {
+            format!(
+                "      !expression{} = term{}\n",
+                n + total_nb_expressions,
+                n
+            )
+        })
+        .collect::<Vec<_>>();
+    total_nb_expressions += permutations_eval_count;
+    vanishing_expressions.extend(expressions);
+
+    // Adding combined permutation expressions to vanishing
+    let expressions = (1..=sets_count)
+        .map(|n| {
+            format!(
+                "      !expression{} = permutations{}\n",
+                n + total_nb_expressions,
+                n
+            )
+        })
+        .collect::<Vec<_>>();
+    vanishing_expressions.extend(expressions);
+    total_nb_expressions += sets_count;
+
+    // Adding lookup expressions to vanishing
+    let expressions = (1..=lookups_count)
+        .flat_map(|n| {
+            [
                 format!(
-                    "      !left_set{:?} = {} * {} \n",
-                    set_number + 1,
-                    perm_eval_str(set_id, 2),
-                    terms
-                )
-            })
-            .join("");
-        data.insert("LHS_SETS".to_string(), lhf_sets);
-
-        // Adding right permutation expressions
-        let permutation_rhs = circuit
-            .expressions
-            .permutation_terms_right
-            .iter()
-            .enumerate()
-            .map(|(id, (set, expression))| {
-                if sets_rhs.contains_key(set) {
-                    let existing = sets_rhs
-                        .get(set)
-                        .unwrap_or_else(|| panic!("set {} not found", set));
-                    sets_rhs.insert(*set, format!("{} * right{:?}", existing, id + 1));
-                } else {
-                    sets_rhs.insert(*set, format!("right{:?}", id + 1));
-                };
-                let term = expression.compile_expression();
-                format!(
-                    "      !right{:?} = {} --part of set {}\n",
-                    id + 1,
-                    term,
-                    set
-                )
-            })
-            .join("");
-        data.insert("PERMUTATIONS_RHS".to_string(), permutation_rhs);
-
-        // Combining right permutation expressions
-        let rhf_sets = sets_rhs
-            .iter()
-            .sorted_by_key(|(c, _)| **c)
-            .enumerate()
-            .map(|(set_number, (set_id, terms))| {
-                format!(
-                    "      !right_set{:?} = {} * {} \n",
-                    set_number + 1,
-                    perm_eval_str(set_id, 1),
-                    terms
-                )
-            })
-            .join("");
-        data.insert("RHS_SETS".to_string(), rhf_sets);
-
-        // Combining left and right permutation expressions
-        let permutations_combined = if sets_lhs.len() == sets_rhs.len() {
-            let sets_number = sets_lhs.len();
-            (1..=sets_number).map(|n| {
-            format!("      !permutations{} = (left_set{} - right_set{}) * ({} - ({} + sum_of_evaluation_for_blinding_factors))\n", n, n, n, ONE_STR, EVAL_LAST_STR)
-        }).join("")
-        } else {
-            panic!("permutations sets have to be equal length")
-        };
-        data.insert("PERMUTATIONS_COMBINED".to_string(), permutations_combined);
-
-        // Adding trashcan expressions
-        let trashcans = circuit
-            .expressions
-            .compiled_trashcans
-            .iter()
-            .enumerate()
-            .map(|(id, trash_info)| {
-                let (_name, selector, expression) = trash_info;
-                format!(
-                    "      !trashcanExp{} = {} - (({} - {}) * trashcanEval{})\n",
-                    id + 1,
-                    combine_plinth_expressions(expression.clone(), TRASH_STR),
-                    ONE_STR,
-                    selector.compile_expression(),
-                    id + 1
-                )
-            })
-            .join("");
-        data.insert("TRASHCANS".to_string(), trashcans);
-
-        // Computing vanishing expressions by relisting all gates and step expressions
-        let gates_count = circuit.expressions.compiled_gate_equations.len();
-        let permutations_eval_count = circuit.expressions.permutations_evaluated_terms.len();
-        let sets_count = sets_lhs.len();
-        let lookups_count = circuit.expressions.compiled_lookups_equations.0.len();
-        let trashcans_count = circuit.expressions.compiled_trashcans.len();
-
-        let mut total_nb_expressions = 0;
-
-        // Adding gate expressions to vanishing
-        let mut vanishing_expressions = (1..=gates_count)
-            .map(|n| format!("      !expression{} = gate_eq{}\n", n, n))
-            .collect::<Vec<_>>();
-        total_nb_expressions += gates_count;
-
-        // Adding permutation evaluation expressions to vanishing
-        let expressions = (1..=permutations_eval_count)
-            .map(|n| {
-                format!(
-                    "      !expression{} = term{}\n",
-                    n + total_nb_expressions,
+                    "      !expression{} = lookup_expression_1_{}\n",
+                    ((n - 1) * 5) + 1 + total_nb_expressions,
                     n
-                )
-            })
-            .collect::<Vec<_>>();
-        total_nb_expressions += permutations_eval_count;
-        vanishing_expressions.extend(expressions);
-
-        // Adding combined permutation expressions to vanishing
-        let expressions = (1..=sets_count)
-            .map(|n| {
+                ),
                 format!(
-                    "      !expression{} = permutations{}\n",
-                    n + total_nb_expressions,
+                    "      !expression{} = lookup_expression_2_{}\n",
+                    ((n - 1) * 5) + 2 + total_nb_expressions,
                     n
-                )
-            })
-            .collect::<Vec<_>>();
-        vanishing_expressions.extend(expressions);
-        total_nb_expressions += sets_count;
-
-        // Adding lookup expressions to vanishing
-        let expressions = (1..=lookups_count)
-            .flat_map(|n| {
-                [
-                    format!(
-                        "      !expression{} = lookup_expression_1_{}\n",
-                        ((n - 1) * 5) + 1 + total_nb_expressions,
-                        n
-                    ),
-                    format!(
-                        "      !expression{} = lookup_expression_2_{}\n",
-                        ((n - 1) * 5) + 2 + total_nb_expressions,
-                        n
-                    ),
-                    format!(
-                        "      !expression{} = lookup_expression_3_{}\n",
-                        ((n - 1) * 5) + 3 + total_nb_expressions,
-                        n
-                    ),
-                    format!(
-                        "      !expression{} = lookup_expression_4_{}\n",
-                        ((n - 1) * 5) + 4 + total_nb_expressions,
-                        n
-                    ),
-                    format!(
-                        "      !expression{} = lookup_expression_5_{}\n",
-                        ((n - 1) * 5) + 5 + total_nb_expressions,
-                        n
-                    ),
-                ]
-            })
-            .collect::<Vec<_>>();
-        total_nb_expressions += lookups_count * 5;
-        vanishing_expressions.extend(expressions);
-
-        // Adding trashcan expressions to vanishing
-        let expressions = (1..=trashcans_count)
-            .map(|n| {
+                ),
                 format!(
-                    "      !expression{} = trashcanExp{}\n",
-                    n + total_nb_expressions,
+                    "      !expression{} = lookup_expression_3_{}\n",
+                    ((n - 1) * 5) + 3 + total_nb_expressions,
                     n
-                )
-            })
-            .collect::<Vec<_>>();
-        total_nb_expressions += trashcans_count;
-        vanishing_expressions.extend(expressions);
+                ),
+                format!(
+                    "      !expression{} = lookup_expression_4_{}\n",
+                    ((n - 1) * 5) + 4 + total_nb_expressions,
+                    n
+                ),
+                format!(
+                    "      !expression{} = lookup_expression_5_{}\n",
+                    ((n - 1) * 5) + 5 + total_nb_expressions,
+                    n
+                ),
+            ]
+        })
+        .collect::<Vec<_>>();
+    total_nb_expressions += lookups_count * 5;
+    vanishing_expressions.extend(expressions);
 
-        data.insert(
-            "VANISHING_EXPRESSIONS".to_string(),
-            vanishing_expressions.join(""),
-        );
+    // Adding trashcan expressions to vanishing
+    let expressions = (1..=trashcans_count)
+        .map(|n| {
+            format!(
+                "      !expression{} = trashcanExp{}\n",
+                n + total_nb_expressions,
+                n
+            )
+        })
+        .collect::<Vec<_>>();
+    total_nb_expressions += trashcans_count;
+    vanishing_expressions.extend(expressions);
 
-        // Adding vanishing evaluations
-        let mut vanishing_evaluation = format!("({} * y + expression1)", ZERO_STR);
-        for n in 2..=total_nb_expressions {
-            vanishing_evaluation = format!("({} * y + expression{})", vanishing_evaluation, n)
-        }
-        let vanishing_evaluation = format!("      !hEval = {}\n", vanishing_evaluation);
-        data.insert("VANISHING_EVALUATION".to_string(), vanishing_evaluation);
+    data.insert(
+        "VANISHING_EXPRESSIONS".to_string(),
+        vanishing_expressions.join(""),
+    );
 
-        // Adding vanishing_g and h_commitments expressions
-        let h_commitments = circuit
-            .expressions
-            .h_commitments
-            .iter()
-            .map(|(variable_name, expression)| {
-                let term = expression.compile_expression();
-                format!("      !{} = {}\n", variable_name, term)
-            })
-            .join("");
-        data.insert("H_COMMITMENTS".to_string(), h_commitments);
+    // Adding vanishing evaluations
+    let mut vanishing_evaluation = format!("({} * y + expression1)", ZERO_STR);
+    for n in 2..=total_nb_expressions {
+        vanishing_evaluation = format!("({} * y + expression{})", vanishing_evaluation, n)
     }
+    let vanishing_evaluation = format!("      !hEval = {}\n", vanishing_evaluation);
+    data.insert("VANISHING_EVALUATION".to_string(), vanishing_evaluation);
+
+    // Adding vanishing_g and h_commitments expressions
+    let h_commitments = circuit
+        .expressions
+        .h_commitments
+        .iter()
+        .map(|(variable_name, expression)| {
+            let term = expression.compile_expression();
+            format!("      !{} = {}\n", variable_name, term)
+        })
+        .join("");
+    data.insert("H_COMMITMENTS".to_string(), h_commitments);
 
     let (unique_grouped_points, commitment_data) = PCS::precompute_intermediate_sets(circuit);
 
@@ -808,8 +807,6 @@ where
             "(\"s_g2\", BlsUtils.traceG2 s_g2)",
             "(\"el\", BlsUtils.traceG1 el)",
             "(\"er\", BlsUtils.traceG1 er)",
-            "(\"vanishing_query\", BlsUtils.traceMVQ vanishing_query x_current)",
-            "(\"random_query\", BlsUtils.traceMVQ random_query x_current)",
         ]
         .to_vec()
         .iter()
@@ -817,48 +814,8 @@ where
         .collect();
 
         let gates_traces: Vec<_> = (1..=gates_count).map(|e| format!("gate_eq{}", e)).collect();
-        let expressions_traces: Vec<_> = (1..=expressions_count)
+        let expressions_traces: Vec<_> = (1..=total_nb_expressions)
             .map(|e| format!("expression{}", e))
-            .collect();
-
-        let advice_queries_traces: Vec<_> = circuit
-            .queries
-            .advice
-            .iter()
-            .enumerate()
-            .map(|(q, idx)| (format!("a{}_query", idx), q.point.to_string()))
-            .collect();
-
-        let fixed_queries_traces: Vec<_> = circuit
-            .queries
-            .fixed
-            .iter()
-            .enumerate()
-            .map(|(q, idx)| (format!("f{}_query", idx), q.point.to_string()))
-            .collect();
-
-        let permutation_queries_traces: Vec<_> = circuit
-            .queries
-            .permutation
-            .iter()
-            .enumerate()
-            .map(|(q, idx)| (format!("permutations_query{}", idx), q.point.to_string()))
-            .collect();
-
-        let common_queries_traces: Vec<_> = circuit
-            .queries
-            .common
-            .iter()
-            .enumerate()
-            .map(|(q, idx)| (format!("p{}_query", idx), q.point.to_string()))
-            .collect();
-
-        let lookups_queries_traces: Vec<_> = circuit
-            .queries
-            .lookup
-            .iter()
-            .enumerate()
-            .map(|(q, idx)| (format!("l{}_query", idx), q.point.to_string()))
             .collect();
 
         let scalar_traces: Vec<_> = [gates_traces, expressions_traces]
@@ -866,19 +823,8 @@ where
             .flatten()
             .map(|e| format!("(\"{}\", BlsUtils.traceScalar {})", e, e))
             .collect();
-        let mvq_traces: Vec<_> = [
-            advice_queries_traces,
-            fixed_queries_traces,
-            permutation_queries_traces,
-            common_queries_traces,
-            lookups_queries_traces,
-        ]
-        .iter()
-        .flatten()
-        .map(|(e, p)| format!("(\"{}\", BlsUtils.traceMVQ {} {})", e, e, p))
-        .collect();
 
-        let all_traces = [constants_tracing, scalar_traces, mvq_traces];
+        let all_traces = [constants_tracing, scalar_traces];
         let all_traces: Vec<_> = all_traces.iter().flatten().collect();
 
         data.insert("TRACES".to_string(), all_traces.iter().join(",\n       "));

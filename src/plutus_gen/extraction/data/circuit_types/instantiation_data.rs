@@ -11,8 +11,6 @@ use midnight_proofs::poly::commitment::PolynomialCommitmentScheme;
 use midnight_proofs::poly::kzg::params::ParamsKZG;
 
 use ff::Field;
-#[cfg(feature = "plutus_debug")]
-use log::info;
 
 /// Type listing all instantiation specific data
 #[derive(Clone, Debug, Default)]
