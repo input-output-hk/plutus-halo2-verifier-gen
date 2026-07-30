@@ -291,7 +291,7 @@ mod tests {
     use rand::SeedableRng;
     use rand::prelude::StdRng;
 
-    use std::{collections::BTreeMap, time::Instant};
+    use std::time::Instant;
 
     #[test]
     fn test_ivc_circuit() {
@@ -313,11 +313,7 @@ mod tests {
         let pk = keygen_pk(vk.clone(), &default_ivc_circuit).unwrap();
         println!("Computed vk and pk in {:?} s", start.elapsed());
 
-        let mut fixed_bases = BTreeMap::new();
-        fixed_bases.insert(String::from("com_instance"), C::identity());
-        fixed_bases.extend(midnight_circuits::verifier::fixed_bases::<S>(
-            "self_vk", &vk,
-        ));
+        let fixed_bases = midnight_circuits::verifier::fixed_bases::<S>("self_vk", &vk);
         let fixed_base_names = fixed_bases.keys().cloned().collect::<Vec<_>>();
         let trivial_acc = Accumulator::<S>::trivial(&fixed_base_names);
 
