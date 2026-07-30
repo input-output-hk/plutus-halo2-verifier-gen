@@ -10,9 +10,6 @@ use midnight_proofs::poly::commitment::PolynomialCommitmentScheme;
 
 use ff::Field;
 
-#[cfg(feature = "plutus_debug")]
-use log::info;
-
 pub(crate) fn extract_proof_steps<PCS>(
     circuit_repr: &mut CircuitRepresentation<PCS>,
     vk: &VerifyingKey<Scalar, PCS>,

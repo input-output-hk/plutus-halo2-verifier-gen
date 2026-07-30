@@ -11,9 +11,6 @@ use crate::plutus_gen::extraction::Evaluations;
 
 use crate::plutus_gen::stats::data::CircuitStatistics;
 
-#[cfg(feature = "plutus_debug")]
-use log::info;
-
 use itertools::Itertools;
 use std::collections::HashMap;
 

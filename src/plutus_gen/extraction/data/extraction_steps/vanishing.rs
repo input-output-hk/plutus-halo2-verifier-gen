@@ -3,9 +3,6 @@
 use super::super::{CircuitRepresentation, ExpressionG1, ScalarExpression, constants::*};
 use crate::plutus_gen::extraction::pcs::ExtractPCS;
 
-#[cfg(feature = "plutus_debug")]
-use log::info;
-
 pub(crate) fn vanishing_expressions<PCS>(circuit_repr: &mut CircuitRepresentation<PCS>)
 where
     PCS: ExtractPCS,
