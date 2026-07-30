@@ -378,10 +378,7 @@ mod tests {
                 assert!(dual_msm.clone().check(&kzg_params.verifier_params()));
                 println!("verification passed");
 
-                let mut proof_acc: Accumulator<S> =
-                    Accumulator::from_dual_msm(dual_msm, "self_vk", &fixed_bases);
-                proof_acc.collapse();
-                proof_acc
+                Accumulator::from_dual_msm(dual_msm, "self_vk", &fixed_bases)
             };
 
             // Prepare the witnesses of the next iteration.
