@@ -22,8 +22,8 @@ This repository provides two Rust tools for working with Halo2 proofs on the Car
 
 2. **Plutus Generation Pipeline** (`src/plutus_gen/`)
     - `extraction/`: Extracts circuit data from Halo2 structures
-    - `code_emitters_plinth.rs`: Generates Plinth code from Handlebars templates optimized for specific circuits
-    - `code_emitters_aiken.rs`: Generates Aiken code from Handlebars templates optimized for specific circuits
+    - `emitters/plinth.rs`: Generates Plinth code from Handlebars templates optimized for specific circuits
+    - `emitters/aiken.rs`: Generates Aiken code from Handlebars templates optimized for specific circuits
     - `stats/`: Estimates verifier costs from circuit parameters, without a full circuit run
 
 3. **Plinth Verifier** (`plinth-verifier/`) — used by the Verifier Generator only
@@ -152,7 +152,7 @@ locations:
 **Plinth verifier:**
 
 * The generated proof is saved in `./plinth-verifier/plutus-halo2/test/Generic/serialized_proof.json`.
-* The public inputs are saved in `./plinth-verifier/plutus-halo2/test/Generic/serialized_public_inputs.hex`.
+* The public inputs are saved in `./plinth-verifier/plutus-halo2/test/Generic/serialized_public_input.hex`.
 * The generated Plinth verifier code is saved in:
 
 ```
@@ -162,13 +162,13 @@ locations:
 
 **Aiken verifier:**
 
-* The generated proof is saved in `./aiken-verifier/submitter/serialized_proof.json`.
-* The public inputs are saved in `./aiken-verifier/submitter/serialized_public_inputs.hex`.
+* The generated proof is saved in `./aiken-verifier/submitter/serialized_proof.hex`.
+* The public inputs are saved in `./aiken-verifier/submitter/serialized_public_input.hex`.
 * The generated Aiken verifier code is saved in:
 
 ```
 ./aiken-verifier/aiken_halo2/lib/proof_verifier.ak
-./aiken-verifier/aiken_halo2/lib/vk.ak
+./aiken-verifier/aiken_halo2/lib/verifier_key.ak
 ```
 
 ### Running the generated Plinth verifier
@@ -239,7 +239,7 @@ All three binaries share the same flags:
 ```
 Proof inputs :
   --nb-public-inputs / --pi        Number of public inputs (required)
-  --committed_instances / --ci     If any committed instances
+  --committed-instances / --ci     If any committed instances
   --recursion / --rec              Whether we are doing recursion
 
 Chips (combine as needed):
@@ -279,7 +279,7 @@ The `nr-pow2` stands for the number of parralel lookups for scalar decomposition
 cargo run --bin estimate -- --nb-public-inputs 3 --native
 
 # Proof size for a circuit with Poseidon hashing and Jubjub signatures
-cargo run --bin proof_size -- --nb-public-inputs 5 --committed_instances --poseidon --jubjub
+cargo run --bin proof_size -- --nb-public-inputs 5 --committed-instances --poseidon --jubjub
 
 # Full estimate for a circuit with hash-to-curve and lookup arguments
 cargo run --bin estimate -- --nb-public-inputs 2 --hash-to-curve --nb-lookups 2 --degree 8

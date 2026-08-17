@@ -51,7 +51,7 @@ process::<PCS>(pi, ci, config, chips)   [build.rs]
 ### What is a `ChipProfile`?
 
 `profile.rs` exposes a lightweight struct that captures the chip-level
-parameters needed by the [web cost explorer](../../../../docs/cost.html):
+parameters needed by the [web cost explorer](../../../docs/cost.html):
 
 ```rust
 pub struct ChipProfile {
@@ -113,9 +113,12 @@ CI will fail if `docs/wasm/` is stale relative to the Rust source.
 | `--native` | `Native` | Native field arithmetic |
 | `--automaton` | `Automaton` | Regular expression parsing (fixed lookup table) |
 | `--base64` | `Base64` | Base64 decoding |
+| `--sha256` | `Sha256` | SHA256 hash |
+| `--sha512` | `Sha512` | SHA512 hash |
 | `--poseidon` | `Poseidon` | Poseidon hash |
 | `--jubjub` | `EdwardsJubjub` | JubJub ECC (Edwards curve) |
-| `--htc` | `HashToCurve` | Hash-to-curve (JubJub) |
+| `--hash-to-curve` | `HashToCurve` | Hash-to-curve (JubJub) |
+| `--curve25519` | `Curve25519` | Curve25519 ECC |
 | `--bls12-381` | `WeierstrassBls12381` | BLS12-381 ECC (foreign field, 7 limbs) |
 | `--secp256k1` | `WeierstrassSecp256k1` | secp256k1 ECC (foreign field, 4 limbs) |
 | `--secp256r1` | `WeierstrassSecp256r1` | secp256r1 ECC (foreign field, 4 limbs) |

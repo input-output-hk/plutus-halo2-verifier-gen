@@ -47,8 +47,8 @@ cargo run --example atms
 This creates:
 
 - `aiken-verifier/aiken_halo2/lib/proof_verifier.ak` - Verifier code
-- `aiken-verifier/submitter/serialized_proof.json` - Proof data
-- `aiken-verifier/submitter/serialized_public_inputs.hex` - Public inputs
+- `aiken-verifier/submitter/serialized_proof.hex` - Proof data
+- `aiken-verifier/submitter/serialized_public_input.hex` - Public inputs
 
 ### 2. Build Aiken Validator
 
