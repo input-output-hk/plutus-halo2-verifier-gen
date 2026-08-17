@@ -22,8 +22,8 @@ This repository provides two Rust tools for working with Halo2 proofs on the Car
 
 2. **Plutus Generation Pipeline** (`src/plutus_gen/`)
     - `extraction/`: Extracts circuit data from Halo2 structures
-    - `code_emitters_plinth.rs`: Generates Plinth code from Handlebars templates optimized for specific circuits
-    - `code_emitters_aiken.rs`: Generates Aiken code from Handlebars templates optimized for specific circuits
+    - `emitters/plinth.rs`: Generates Plinth code from Handlebars templates optimized for specific circuits
+    - `emitters/aiken.rs`: Generates Aiken code from Handlebars templates optimized for specific circuits
     - `stats/`: Estimates verifier costs from circuit parameters, without a full circuit run
 
 3. **Plinth Verifier** (`plinth-verifier/`) — used by the Verifier Generator only
@@ -152,7 +152,7 @@ locations:
 **Plinth verifier:**
 
 * The generated proof is saved in `./plinth-verifier/plutus-halo2/test/Generic/serialized_proof.json`.
-* The public inputs are saved in `./plinth-verifier/plutus-halo2/test/Generic/serialized_public_inputs.hex`.
+* The public inputs are saved in `./plinth-verifier/plutus-halo2/test/Generic/serialized_public_input.hex`.
 * The generated Plinth verifier code is saved in:
 
 ```
@@ -162,13 +162,13 @@ locations:
 
 **Aiken verifier:**
 
-* The generated proof is saved in `./aiken-verifier/submitter/serialized_proof.json`.
-* The public inputs are saved in `./aiken-verifier/submitter/serialized_public_inputs.hex`.
+* The generated proof is saved in `./aiken-verifier/submitter/serialized_proof.hex`.
+* The public inputs are saved in `./aiken-verifier/submitter/serialized_public_input.hex`.
 * The generated Aiken verifier code is saved in:
 
 ```
 ./aiken-verifier/aiken_halo2/lib/proof_verifier.ak
-./aiken-verifier/aiken_halo2/lib/vk.ak
+./aiken-verifier/aiken_halo2/lib/verifier_key.ak
 ```
 
 ### Running the generated Plinth verifier
@@ -196,16 +196,17 @@ aiken build
 
 Below are the execution costs of both Plinth and Aiken scripts running the Halo2 verifier for various circuits:
 
-| Circuit description             | Script size*</br>Plinth | Script size*</br>Aiken | CPU usage</br>Plinth | CPU usage</br>Aiken | Mem usage</br>Plinth | Mem usage</br>Aiken | 
-|---------------------------------|-------------------------|------------------------|----------------------|---------------------|----------------------|---------------------|
-| **Simple mul**                  |           6,853 (41.8%) |          6,770 (41.3%) |           6.1B (61%) |          5.6B (56%) |        10.2M (72.9%) |        6.3M (45.0%) |
-| **Lookup table**                |          11,678 (71.3%) |         10,618 (64.8%) |           9.3B (93%) |          8.6B (86%) |        13.4M (95.7%) |        8.3M (59.3%) |
-| **ATMS (50 out of 90)**         |          12,312 (75.1%) |         11,642 (71.1%) |         10.1B (101%) |          9.8B (98%) |        11.9M (85.0%) |        7.9M (56.4%) |
-| **ATMS (228 out of 408)**       |          12,310 (75.1%) |         11,638 (71.1%) |         10.0B (100%) |          9.7B (97%) |        11.5M (82.1%) |        7.8M (55.7%) |
-| **ATMS (50/90) + lookup table** |          14,600 (89.1%) |         13,501 (82.4%) |         12.0B (120%) |        11.4B (114%) |       14.7M (105.0%) |        9.2M (65.7%) |
-| **Schnorr signatures**          |         20,468 (124.9%) |        18,910 (115.4%) |         13.1B (131%) |        12.4B (124%) |       15.9M (135.7%) |       10.3M (73.2%) |
+| Circuit description             | Script size*</br>Plinth | Script size*</br>Aiken | CPU usage*</br>Plinth | CPU usage*</br>Aiken | Mem usage*</br>Plinth | Mem usage*</br>Aiken | 
+|---------------------------------|-------------------------|------------------------|-----------------------|----------------------|-----------------------|----------------------|
+| **Simple mul**                  |           6,699 (40.9%) |          6,610 (40.3%) |            5.8B (58%) |           5.3B (53%) |          9.0M (64.3%) |         5.6M (40.0%) |
+| **Lookup table**                |          11.508 (70.2%) |         10,453 (63.8%) |            9.2B (92%) |           8.4B (84%) |         13.0M (92.9%) |         7.5M (53.6%) |
+| **ATMS (50 out of 90)**         |          12,295 (75.0%) |         11,634 (71.0%) |          10.1B (101%) |           9.7B (97%) |         11.9M (85.0%) |         7.9M (56.4%) |
+| **ATMS (228 out of 408)**       |          12,293 (75.0%) |         11,630 (71.0%) |          10.0B (100%) |           9.7B (97%) |         11.8M (84.3%) |        7. 8M (55.7%) |
+| **ATMS (50/90) + lookup table** |          14,557 (88.9%) |         13,498 (82.4%) |          12.0B (120%) |         11.4B (114%) |       14. 7M (105.0%) |        9.0M  (64.3%) |
+| **Schnorr signatures**          |         20,474 (125.0%) |        18,910 (115.4%) |          13.0B (130%) |         12.4B (124%) |       15.7M  (112.1%) |       10.2M (72 .9%) |
 
-\* Script size % is taken as a percentage of the 16kb script limit
+
+\* Script size % is taken as a percentage of the 16kib script limit, CPU max is 10B and Mem max is 14M.
 
 **Note that the benchmark numbers are approximate.** Even for the same circuit, the verifier's execution cost may vary
 slightly depending on the specific proof being verified. This variation stems from the randomness used during proof
@@ -239,7 +240,7 @@ All three binaries share the same flags:
 ```
 Proof inputs :
   --nb-public-inputs / --pi        Number of public inputs (required)
-  --committed_instances / --ci     If any committed instances
+  --committed-instances / --ci     If any committed instances
   --recursion / --rec              Whether we are doing recursion
 
 Chips (combine as needed):
@@ -279,7 +280,7 @@ The `nr-pow2` stands for the number of parralel lookups for scalar decomposition
 cargo run --bin estimate -- --nb-public-inputs 3 --native
 
 # Proof size for a circuit with Poseidon hashing and Jubjub signatures
-cargo run --bin proof_size -- --nb-public-inputs 5 --committed_instances --poseidon --jubjub
+cargo run --bin proof_size -- --nb-public-inputs 5 --committed-instances --poseidon --jubjub
 
 # Full estimate for a circuit with hash-to-curve and lookup arguments
 cargo run --bin estimate -- --nb-public-inputs 2 --hash-to-curve --nb-lookups 2 --degree 8

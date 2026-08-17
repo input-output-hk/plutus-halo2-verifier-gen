@@ -2,7 +2,7 @@
 //! The goal is to check how the presence of lookup argument increases verification time of the proof in Plutus.
 //! We also test verification time for different number of signatures
 //!
-//! Plutus verifier cost:
+//! Plutus verifier cost (deprecated numbers kept to show variation):
 //!       ATMS (k=14, 6/3) + Lookup:
 //!   Resources used: ExBudget {exBudgetCPU = ExCPU 10,711,265,484, exBudgetMemory = ExMemory 4,803,169, script size = 15,245}
 //!       ATMS (k=17, 90/50) + Lookup:
