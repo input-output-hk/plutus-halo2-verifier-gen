@@ -43,9 +43,9 @@ This repository provides two Rust tools for working with Halo2 proofs on the Car
 4. Generate optimized verifier code in target language (either Plinth or Aiken)
 5. Integrate verifier into smart contract to be deployed on Cardano
 
-## Build prerequisites
+## Getting started
 
-The Verifier Generator has three components; the Cost Estimator only requires the Rust component.
+The Verifier Generator has three components (the Cost Estimator only requires the Rust component).
 
 1. **Rust component**: Generates Halo2 proofs and produces verifier code for either Plinth or Aiken
     - Built using standard `cargo` tooling from the root of the repository
@@ -56,7 +56,22 @@ The Verifier Generator has three components; the Cost Estimator only requires th
 3. **Aiken component** (`aiken-verifier/aiken_halo2/`): Aiken smart contract verifier — Verifier Generator only
     - Built using `aiken` toolchain
 
-#### How to install and use nix (necessary only for Plinth part)
+### How to generate a verifier (Rust part)
+
+1. Install `rustup` - the Rust toolchain installer
+
+Follow the installation instructions at https://rustup.rs
+
+2. Generate a verifier for one of the example circuits from the root of the repository:
+
+```bash
+cargo run --example simple_mul
+```
+
+This generates the circuit keys, creates a proof, and emits verifier code for both Plinth and Aiken. See the
+[Verifier Generator](#verifier-generator) for more details.
+
+### How to install and use Plinth
 
 1. Install `nix` - the package manager
 
@@ -73,7 +88,8 @@ experimental-features = nix-command flakes
 allow-import-from-derivation = true
 ```
 
-3. The contract can be build from the relevant templates folder using the nix shell:
+3. The contract can be built using the nix shell. Note that the verifier code must already be generated at this point
+   (see [How to generate a verifier](#how-to-generate-a-verifier-rust-part)):
 
 ```bash
 nix develop github:input-output-hk/devx#ghc96-iog
@@ -96,13 +112,14 @@ configure step.
 
 just try to re-run the build (may require several re-runs).
 
-#### How to install and use Aiken
+### How to install and use Aiken
 
 1. Install `aiken` - the Aiken smart contract language toolchain
 
 Follow the installation instructions at https://aiken-lang.org/installation-instructions
 
-2. The Aiken verifier can be built from the aiken-verifier directory:
+2. The Aiken verifier can be built from the aiken-verifier directory. Note that the verifier code must already be
+   generated at this point (see [How to generate a verifier](#how-to-generate-a-verifier-rust-part)):
 
 ```bash
 cd aiken-verifier/aiken_halo2
@@ -117,26 +134,27 @@ ready-to-deploy verifier code for either Plinth or Aiken.
 
 ### Examples
 
-The repository includes several example circuits:
+The repository includes example circuits (see [examples/](examples/)) covering a range of use cases:
 
 * `simple_mul` - Simple multiplication circuit with standard PLONK gates
-* `atms` - Advanced ATMS (Aggregate Threshold Multisignature) circuit for aggregating signatures with threshold
+* `lookup_table` - A circuit with lookup argument
+* `atms` - ATMS (Aggregate Threshold Multisignature) circuit for aggregating signatures with threshold
   validation. Based on [input-output-hk/sidechains-zk](https://github.com/input-output-hk/sidechains-zk)
 * `atms_with_lookups` - A circuit that verifies ATMS signature and lookup argument
-* `lookup_table` - A circuit with lookup argument
+* `schnorr` - Schnorr signature verification over the Jubjub curve
+* `credential_properties` - Proving properties of a signed credential
+* `poseidon`, `sha256`, `sha512` - Hash function circuits
+* `jubjub`, `jubjub_h2c` - Jubjub curve operations and hash-to-curve
+* `secp256k1`, `secp256r1` - Foreign curve arithmetic
+* `native_arith` - Native field arithmetic
+* `p2r_decomposition` - Pow2-range decomposition lookups
+* `ivc` - Recursion (incrementally verifiable computation)
+
+Each example is run the same way:
 
 ```bash
-# Simple multiplication circuit (Halo2 KZG)
+# Simple multiplication circuit
 cargo run --example simple_mul
-
-# ATMS (Aggregate Threshold Multisignature) circuit Halo2 KZG
-cargo run --example atms
-
-# ATMS with dummy lookup tables (Halo2 KZG)
-cargo run --example atms_with_lookups
-
-# Lookup table circuit (Halo2 KZG)
-cargo run --example lookup_table
 
 # With detailed logging
 RUST_LOG=debug cargo run --example simple_mul
@@ -145,14 +163,18 @@ RUST_LOG=debug cargo run --example simple_mul
 RUST_LOG=debug cargo run --example simple_mul --features plutus_debug
 ```
 
+### Generated files
+
 Running an example will generate the verification and proving keys for the circuit, create a proof using test public
 inputs, and produce verifier code for **both Plinth and Aiken**. The generated files will be saved in their respective
 locations:
 
 **Plinth verifier:**
 
-* The generated proof is saved in `./plinth-verifier/plutus-halo2/test/Generic/serialized_proof.json`.
+* The generated proof is saved in `./plinth-verifier/plutus-halo2/test/Generic/serialized_proof.json` (also as
+  `serialized_proof.hex`).
 * The public inputs are saved in `./plinth-verifier/plutus-halo2/test/Generic/serialized_public_input.hex`.
+* The committed inputs are saved in `./plinth-verifier/plutus-halo2/test/Generic/serialized_committed_input.hex`.
 * The generated Plinth verifier code is saved in:
 
 ```
@@ -164,6 +186,7 @@ locations:
 
 * The generated proof is saved in `./aiken-verifier/submitter/serialized_proof.hex`.
 * The public inputs are saved in `./aiken-verifier/submitter/serialized_public_input.hex`.
+* The committed inputs are saved in `./aiken-verifier/submitter/serialized_committed_input.hex`.
 * The generated Aiken verifier code is saved in:
 
 ```
@@ -171,9 +194,13 @@ locations:
 ./aiken-verifier/aiken_halo2/lib/verifier_key.ak
 ```
 
-### Running the generated Plinth verifier
+### Running the generated verifiers
 
-After the Rust part is executed you can test the Plinth verifier as follows:
+After the Rust part is executed, the generated verifiers can be built and tested against the generated proof as
+described in [How to install and use Plinth](#how-to-install-and-use-plinth) and
+[How to install and use Aiken](#how-to-install-and-use-aiken).
+
+#### Running Plinth:
 
 ```bash
 nix develop github:input-output-hk/devx#ghc96-iog
@@ -182,9 +209,7 @@ cabal build -j all
 cabal test all
 ```
 
-### Running the generated Aiken verifier
-
-After the Rust part is executed you can test the Aiken verifier as follows:
+#### Running Aiken:
 
 ```bash
 cd aiken-verifier/aiken_halo2
